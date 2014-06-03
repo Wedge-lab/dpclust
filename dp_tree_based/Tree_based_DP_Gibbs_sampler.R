@@ -100,6 +100,44 @@ get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
 	return(penalties)
 }
 
+update.tree.after.removal <- function(curr.tree, removed.indices, mapping, num.muts, y, n, kappa) {
+  
+  # Reassign the nodes
+#   curr.tree = temp.list[[1]]
+#   removed.indices = temp.list[[2]]
+#   
+#   mapping = temp.list[[3]]
+  new.node.assignments = vector(length = num.muts, mode = "character")
+  for(i in 1:nrow(mapping)){
+    new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
+  }
+  new.assignments = new.node.assignments
+  
+  rand.inds = sample(removed.indices)
+  # Reassign mutations that were on the removed branch
+  #length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
+  if(length(rand.inds)>0){
+    for (r in 1:length(rand.inds)) {
+      log.probs = vector(mode="numeric",length=nrow(curr.tree))
+      for (x in 1:nrow(curr.tree)) {
+        thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
+        log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
+      }
+      log.probs = log.probs-max(log.probs,na.rm=T)
+      probs = exp(log.probs)
+      probs[is.nan(probs)] = 0
+      cum.probs = cumsum(probs)
+      ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
+      new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
+    }
+    
+  }else{
+    print("WARNING! No removed indices after remove.node.")
+  }
+    
+  return(new.assignments)
+}
+
 tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda=FALSE, allowed.ranges=c(min.lambda = 0.05, max.lambda = 0.8, min.alpha = 1E-6, max.alpha=50, min.gamma=0.1, max.gamma=10), shrinkage.threshold = 0.1, init.alpha=0.01, init.lambda=0.5, init.gamma = 0.2, remove.node.frequency = NA, remove.branch.frequency = NA, conflict.array = array(1,c(nrow(y),nrow(y)))) {
 	# y is a matrix of the number of reads reporting each variant - rows represent each mutation; columns each sample
 	# N is a matrix of the number of reads in total across the base in question (in the same order as y obviously!)
@@ -160,104 +198,107 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		if(!is.na(remove.branch.frequency)){
 			if(m %% remove.branch.frequency ==0){
 				temp.list = remove.branch(curr.tree,new.assignments, y, n, kappa)
-				curr.tree = temp.list[[1]]
-				removed.indices = temp.list[[2]]
-				
-				mapping = temp.list[[3]]
-				new.node.assignments = vector(length = num.muts, mode = "character")
-				for(i in 1:nrow(mapping)){
-					new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
-				}
-				new.assignments = new.node.assignments
-				
-				rand.inds = sample(removed.indices)
-				#reassign mutations that were on the removed branch
-				#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
-				if(length(rand.inds)>0){
-					for (r in 1:length(rand.inds)) {
-						log.probs = vector(mode="numeric",length=nrow(curr.tree))
-						for (x in 1:nrow(curr.tree)) {
-							thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
-							log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
-						}
-						log.probs = log.probs-max(log.probs,na.rm=T)
-						probs = exp(log.probs)
-						probs[is.nan(probs)] = 0
-						cum.probs = cumsum(probs)
-						ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-						new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
-					}
-					
-				}else{
-					print("WARNING! No removed indices after remove.branch.")
-				}
+        new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
+# 				curr.tree = temp.list[[1]]
+# 				removed.indices = temp.list[[2]]
+# 				
+# 				mapping = temp.list[[3]]
+# 				new.node.assignments = vector(length = num.muts, mode = "character")
+# 				for(i in 1:nrow(mapping)){
+# 					new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
+# 				}
+# 				new.assignments = new.node.assignments
+# 				
+# 				rand.inds = sample(removed.indices)
+# 				#reassign mutations that were on the removed branch
+# 				#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
+# 				if(length(rand.inds)>0){
+# 					for (r in 1:length(rand.inds)) {
+# 						log.probs = vector(mode="numeric",length=nrow(curr.tree))
+# 						for (x in 1:nrow(curr.tree)) {
+# 							thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
+# 							log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
+# 						}
+# 						log.probs = log.probs-max(log.probs,na.rm=T)
+# 						probs = exp(log.probs)
+# 						probs[is.nan(probs)] = 0
+# 						cum.probs = cumsum(probs)
+# 						ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
+# 						new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
+# 					}
+# 					
+# 				}else{
+# 					print("WARNING! No removed indices after remove.branch.")
+# 				}
 				
 			}else if(!is.na(remove.node.frequency)){
 				if(m %% remove.node.frequency ==0){
 					temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
-					curr.tree = temp.list[[1]]
-					removed.indices = temp.list[[2]]
-					
-					mapping = temp.list[[3]]				
-					new.node.assignments = vector(length = num.muts, mode = "character")
-					for(i in 1:nrow(mapping)){
-						new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
-					}
-					new.assignments = new.node.assignments
-					rand.inds = sample(removed.indices)
-					#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
-					if(length(rand.inds)>0){
-						for (r in 1:length(rand.inds)) {
-							log.probs = vector(mode="numeric",length=nrow(curr.tree))
-							for (x in 1:nrow(curr.tree)) {
-								thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
-								log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
-							}
-							log.probs = log.probs-max(log.probs,na.rm=T)
-							probs = exp(log.probs)
-							probs[is.nan(probs)]=0
-							cum.probs = cumsum(probs)
-							ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-							new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
-						}
-
-					}else{
-						print("WARNING! No removed indices after remove.node.")
-					}					
+					new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
+# 					curr.tree = temp.list[[1]]
+# 					removed.indices = temp.list[[2]]
+# 					
+# 					mapping = temp.list[[3]]				
+# 					new.node.assignments = vector(length = num.muts, mode = "character")
+# 					for(i in 1:nrow(mapping)){
+# 						new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
+# 					}
+# 					new.assignments = new.node.assignments
+# 					rand.inds = sample(removed.indices)
+# 					#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
+# 					if(length(rand.inds)>0){
+# 						for (r in 1:length(rand.inds)) {
+# 							log.probs = vector(mode="numeric",length=nrow(curr.tree))
+# 							for (x in 1:nrow(curr.tree)) {
+# 								thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
+# 								log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
+# 							}
+# 							log.probs = log.probs-max(log.probs,na.rm=T)
+# 							probs = exp(log.probs)
+# 							probs[is.nan(probs)]=0
+# 							cum.probs = cumsum(probs)
+# 							ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
+# 							new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
+# 						}
+# 
+# 					}else{
+# 						print("WARNING! No removed indices after remove.node.")
+# 					}					
 				}
 			}
 		}else if(!is.na(remove.node.frequency)){
 			if(m %% remove.node.frequency ==0){
 				temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
-				curr.tree = temp.list[[1]]
-				removed.indices = temp.list[[2]]
-
-				mapping = temp.list[[3]]				
-				new.node.assignments = vector(length = num.muts, mode = "character")
-				for(i in 1:nrow(mapping)){
-					new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
-				}
-				new.assignments = new.node.assignments
-				rand.inds = sample(removed.indices)
-				#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
-				if(length(rand.inds)>0){
-					for (r in 1:length(rand.inds)) {
-						log.probs = vector(mode="numeric",length=nrow(curr.tree))
-						for (x in 1:nrow(curr.tree)) {
-							thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
-							log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
-						}
-						log.probs = log.probs-max(log.probs,na.rm=T)
-						probs = exp(log.probs)
-						probs[is.nan(probs)]=0
-						cum.probs = cumsum(probs)
-						ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-						new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
-					}
-
-				}else{
-					print("WARNING! No removed indices after remove.node.")
-				}	
+				new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
+# 				curr.tree = temp.list[[1]]
+# 				removed.indices = temp.list[[2]]
+# 
+# 				mapping = temp.list[[3]]				
+# 				new.node.assignments = vector(length = num.muts, mode = "character")
+# 				for(i in 1:nrow(mapping)){
+# 					new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
+# 				}
+# 				new.assignments = new.node.assignments
+# 				rand.inds = sample(removed.indices)
+# 				#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
+# 				if(length(rand.inds)>0){
+# 					for (r in 1:length(rand.inds)) {
+# 						log.probs = vector(mode="numeric",length=nrow(curr.tree))
+# 						for (x in 1:nrow(curr.tree)) {
+# 							thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
+# 							log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
+# 						}
+# 						log.probs = log.probs-max(log.probs,na.rm=T)
+# 						probs = exp(log.probs)
+# 						probs[is.nan(probs)]=0
+# 						cum.probs = cumsum(probs)
+# 						ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
+# 						new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
+# 					}
+# 
+# 				}else{
+# 					print("WARNING! No removed indices after remove.node.")
+# 				}	
 			}
 		}
 			
@@ -676,11 +717,15 @@ sample.stick.orders <- function(curr.tree, lambda, alpha, gamma, curr.assign) {
 
 
 ## PROFILER - sd11
-#setwd('/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/')
-#source('Tree_based_DP_Gibbs_sampler.R')
+# setwd('/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/')
+# source('Tree_based_DP_Gibbs_sampler.R')
+# 
+# outdir_profile = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/profiler/tree.struct.dirichlet.gibbs/"
+# load(paste(outdir_profile,"input.RData",sep=""))
+## Rprof(paste(outdir_profile, "tree.struct.dirichlet.gibbs.out"), line.profiling=TRUE)
+# temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)  
+## Rprof(NULL)
 
-outdir_profile = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/profiler/tree.struct.dirichlet.gibbs/"
-load(paste(outdir_profile,"input.RData",sep=""))
-#Rprof(paste(outdir_profile, "tree.struct.dirichlet.gibbs.out"), line.profiling=TRUE)
-#temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)  
-#Rprof(NULL)
+## TIMER - sd11
+# timer_n = 10
+# timed = system.time(replicate(timer_n,tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)))
