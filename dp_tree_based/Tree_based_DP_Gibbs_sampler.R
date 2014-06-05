@@ -297,7 +297,7 @@ find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1
 		while (dim(temp.matrix)[1] == 0 | u1 > (1-prod(1-temp.matrix$psi))) {
 			new.psi <- rbeta(1,1,gamma)
 			#don't allow nu = 1 (causes problems with resampling alpha and probably other probs)
-			new.nu <- min(rbeta(1,1,alpha01 * (lambda^depth1)),0.999)
+			new.nu <- min(rbeta(1,1,alpha01 * (lambda1^depth1)),0.999)
 			
 			if (dim(temp.matrix)[1] == 0) {# spawn new descendant of current node
 				new.phi <- new.psi 
