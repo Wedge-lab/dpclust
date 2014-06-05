@@ -187,7 +187,6 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 			complete.likelihood[1] <- complete.likelihood[1] + lfoy
 		}
 	}
-# 	BIC[1] = -2 * complete.likelihood[1] + 2 * num.samples * nrow(trees.n[[1]]) * log(num.muts)	
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
 	print(paste("init log likelihood=",complete.likelihood[1],sep=""))
 	print(paste("init BIC=",BIC[1],sep=""))
@@ -264,7 +263,6 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 			}
 		}
 		
-# 		BIC[m] = -2 * complete.likelihood[m] + 2 * num.samples * nrow(curr.tree) * log(num.muts)	
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
 		print(paste("log likelihood=",complete.likelihood[m],sep=""))
 		print(paste("BIC=",BIC[m],sep=""))
