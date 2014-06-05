@@ -66,6 +66,9 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
 	}
 }
 
+#library(compiler)
+#log.f.of.y = cmpfun(log.f.of.y)
+
 get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
 	all.nodes = row.names(whole.tree)
 	penalties = vector(mode="numeric",length=length(all.nodes))	
@@ -101,12 +104,6 @@ get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
 }
 
 update.tree.after.removal <- function(curr.tree, removed.indices, mapping, num.muts, y, n, kappa) {
-  
-  # Reassign the nodes
-#   curr.tree = temp.list[[1]]
-#   removed.indices = temp.list[[2]]
-#   
-#   mapping = temp.list[[3]]
   new.node.assignments = vector(length = num.muts, mode = "character")
   for(i in 1:nrow(mapping)){
     new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
@@ -138,7 +135,12 @@ update.tree.after.removal <- function(curr.tree, removed.indices, mapping, num.m
   return(new.assignments)
 }
 
-tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda=FALSE, allowed.ranges=c(min.lambda = 0.05, max.lambda = 0.8, min.alpha = 1E-6, max.alpha=50, min.gamma=0.1, max.gamma=10), shrinkage.threshold = 0.1, init.alpha=0.01, init.lambda=0.5, init.gamma = 0.2, remove.node.frequency = NA, remove.branch.frequency = NA, conflict.array = array(1,c(nrow(y),nrow(y)))) {
+bic <- function(likelihood, num.samples, num.trees, num.muts) {
+  return(-2 * likelihood + 2 * num.samples * num.trees * log(num.muts))
+#   return(-2 * complete.likelihood[1] + 2 * num.samples * nrow(trees.n[[1]]) * log(num.muts))
+}
+
+tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda=FALSE, allowed.ranges=c(min.lambda = 0.05, max.lambda = 0.8, min.alpha = 1E-6, max.alpha=50, min.gamma=0.1, max.gamma=10), shrinkage.threshold = 0.1, init.alpha=0.01, init.lambda=0.5, init.gamma = 0.2, remove.node.frequency = NA, remove.branch.frequency = NA, conflict.array = array(1,c(nrow(y),nrow(y))), parallel=FALSE) {
 	# y is a matrix of the number of reads reporting each variant - rows represent each mutation; columns each sample
 	# N is a matrix of the number of reads in total across the base in question (in the same order as y obviously!)
 	# kappa is a matrix of the expected proportion of reads reporting the variant for a fully clonal mutation at single copy
@@ -185,7 +187,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 			complete.likelihood[1] <- complete.likelihood[1] + lfoy
 		}
 	}
-	BIC[1] = -2 * complete.likelihood[1] + 2 * num.samples * nrow(trees.n[[1]]) * log(num.muts)	
+# 	BIC[1] = -2 * complete.likelihood[1] + 2 * num.samples * nrow(trees.n[[1]]) * log(num.muts)	
+  BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
 	print(paste("init log likelihood=",complete.likelihood[1],sep=""))
 	print(paste("init BIC=",BIC[1],sep=""))
 		
@@ -195,112 +198,28 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 
 		new.assignments = node.assignments[,m-1]
 		#remove node randomly, to cover more search space
+    do_update = FALSE
 		if(!is.na(remove.branch.frequency)){
 			if(m %% remove.branch.frequency ==0){
 				temp.list = remove.branch(curr.tree,new.assignments, y, n, kappa)
-        new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
-# 				curr.tree = temp.list[[1]]
-# 				removed.indices = temp.list[[2]]
-# 				
-# 				mapping = temp.list[[3]]
-# 				new.node.assignments = vector(length = num.muts, mode = "character")
-# 				for(i in 1:nrow(mapping)){
-# 					new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
-# 				}
-# 				new.assignments = new.node.assignments
-# 				
-# 				rand.inds = sample(removed.indices)
-# 				#reassign mutations that were on the removed branch
-# 				#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
-# 				if(length(rand.inds)>0){
-# 					for (r in 1:length(rand.inds)) {
-# 						log.probs = vector(mode="numeric",length=nrow(curr.tree))
-# 						for (x in 1:nrow(curr.tree)) {
-# 							thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
-# 							log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
-# 						}
-# 						log.probs = log.probs-max(log.probs,na.rm=T)
-# 						probs = exp(log.probs)
-# 						probs[is.nan(probs)] = 0
-# 						cum.probs = cumsum(probs)
-# 						ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-# 						new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
-# 					}
-# 					
-# 				}else{
-# 					print("WARNING! No removed indices after remove.branch.")
-# 				}
+        do_update = TRUE
 				
 			}else if(!is.na(remove.node.frequency)){
 				if(m %% remove.node.frequency ==0){
 					temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
-					new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
-# 					curr.tree = temp.list[[1]]
-# 					removed.indices = temp.list[[2]]
-# 					
-# 					mapping = temp.list[[3]]				
-# 					new.node.assignments = vector(length = num.muts, mode = "character")
-# 					for(i in 1:nrow(mapping)){
-# 						new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
-# 					}
-# 					new.assignments = new.node.assignments
-# 					rand.inds = sample(removed.indices)
-# 					#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
-# 					if(length(rand.inds)>0){
-# 						for (r in 1:length(rand.inds)) {
-# 							log.probs = vector(mode="numeric",length=nrow(curr.tree))
-# 							for (x in 1:nrow(curr.tree)) {
-# 								thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
-# 								log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
-# 							}
-# 							log.probs = log.probs-max(log.probs,na.rm=T)
-# 							probs = exp(log.probs)
-# 							probs[is.nan(probs)]=0
-# 							cum.probs = cumsum(probs)
-# 							ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-# 							new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
-# 						}
-# 
-# 					}else{
-# 						print("WARNING! No removed indices after remove.node.")
-# 					}					
+					do_update = TRUE
 				}
 			}
 		}else if(!is.na(remove.node.frequency)){
 			if(m %% remove.node.frequency ==0){
 				temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
-				new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
-# 				curr.tree = temp.list[[1]]
-# 				removed.indices = temp.list[[2]]
-# 
-# 				mapping = temp.list[[3]]				
-# 				new.node.assignments = vector(length = num.muts, mode = "character")
-# 				for(i in 1:nrow(mapping)){
-# 					new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
-# 				}
-# 				new.assignments = new.node.assignments
-# 				rand.inds = sample(removed.indices)
-# 				#length should always be greater than zero, because tree has been culled. Why is length sometimes zero???
-# 				if(length(rand.inds)>0){
-# 					for (r in 1:length(rand.inds)) {
-# 						log.probs = vector(mode="numeric",length=nrow(curr.tree))
-# 						for (x in 1:nrow(curr.tree)) {
-# 							thetas = unlist(curr.tree[x, grepl("theta", names(curr.tree))])	
-# 							log.probs[x] = log.f.of.y(y[rand.inds[r],],n[rand.inds[r],],kappa[rand.inds[r],],thetas)
-# 						}
-# 						log.probs = log.probs-max(log.probs,na.rm=T)
-# 						probs = exp(log.probs)
-# 						probs[is.nan(probs)]=0
-# 						cum.probs = cumsum(probs)
-# 						ass.ind = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-# 						new.assignments[rand.inds[r]] = curr.tree$label[ass.ind]
-# 					}
-# 
-# 				}else{
-# 					print("WARNING! No removed indices after remove.node.")
-# 				}	
+				do_update = TRUE
 			}
 		}
+    
+    if (do_update) {
+      new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
+    }
 			
 		#randomise the order of muts
 		rand.inds = sample(num.muts)
@@ -345,7 +264,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 			}
 		}
 		
-		BIC[m] = -2 * complete.likelihood[m] + 2 * num.samples * nrow(curr.tree) * log(num.muts)	
+# 		BIC[m] = -2 * complete.likelihood[m] + 2 * num.samples * nrow(curr.tree) * log(num.muts)	
+    BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
 		print(paste("log likelihood=",complete.likelihood[m],sep=""))
 		print(paste("BIC=",BIC[m],sep=""))
 		
@@ -599,6 +519,7 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 	curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
 	curr.tree$num.assignments <- sapply(curr.tree$label, function(a,x) {sum(a == x)}, a=curr.assignments)
 	curr.tree <- curr.tree[order(curr.tree$depth, curr.tree$label),]
+  
 	for (i in 1:dim(curr.tree)[1]) {
 		Ne.descendants <- sum(curr.tree$num.assignments[grepl(curr.tree$label[i], curr.tree$label)])
 		Ne <- curr.tree$num.assignments[i]
@@ -622,110 +543,103 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 	return(curr.tree[,!is.element(names(curr.tree), c("depth", "num.assignments"))])
 }
 
-sample.stick.orders <- function(curr.tree, lambda, alpha, gamma, curr.assign) {
-	curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
-	curr.tree <- curr.tree[order(curr.tree$depth, curr.tree$label),]
 
-	descend <- function(tree, depth, node, lambda1, alpha1, gamma1, curr.assignments) {
-		children <- tree$label[tree$ancestor == node]
-		if (length(children) == 0) {return(list(tree, curr.assignments))}
-		curr.children <- children
-		all.weights <- tree[children, "phi"]
-		new.order <- c()
-
-		while (TRUE) {
-			if (length(curr.children) == 0) {break}
-			else {
-				u <- runif(n=1)
-				while (TRUE) {
-					sub.indices <- (1:length(children))[!is.element(1:length(children), new.order)] # Indices not already assigned to new.order
-					sub.weights <- c(all.weights[sub.indices], 1-sum(all.weights))
-					sub.weights <- sub.weights / sum(sub.weights)
-					index <- sum(u > cumsum(sub.weights)) + 1
-					if (index == length(sub.indices)+1) {
-						new.psi <- rbeta(1,1,lambda1)
-						new.nu <- rbeta(1,1,alpha1 * (lambda1^depth))
-						new.phi <- new.psi * prod(1-tree$psi[tree$ancestor == node])
-						new.node <- max(tree$node)+1
-						new.node.direction <- length(children)+1
-						new.label <- paste(node, new.node.direction, ":", sep="")
-						new.edge.length <- new.nu * new.phi * tree[node, "edge.length"] * (1-tree[node, "nu"]) / tree[node, "nu"]
-						new.thetas <- t(sapply(grep("theta", names(tree)), FUN=function(i,x,y) {max <- x[y,i] - sum(x[x$ancestor == y,i]); runif(1,0,max)}, x=tree, y=node))
-						new.df <- data.frame(nu=new.nu, psi=new.psi, label=new.label, ancestor=node, node=new.node, phi=new.phi, edge.length=new.edge.length, 
-							new.thetas, depth = depth+1, stringsAsFactors=FALSE)
-						names(new.df) <- names(tree)
-						if(new.label %in% tree$label){
-							print("ERROR. new.label=")
-							print(new.label)
-							print(tree$label)
-						}
-						tree <- rbind(tree, new.df)
-						row.names(tree) <- tree$label
-						tree <- tree[order(tree$depth, tree$label),]
-						all.weights <- tree$phi[tree$ancestor == node]
-						children <- c(children, new.label)
-					}
-					else {
-						index <- sub.indices[index]
-						break
-					}
-				}
-			}
-			new.order <- c(new.order, index)
-			curr.children <- curr.children[curr.children != children[index]]
-		}
-		new.order <- c(new.order, (1:max(new.order))[!is.element(1:max(new.order), new.order)])
-		reordered.children <- gsub("M","T",children)
-		# Reorder children
-		for (k in 1:length(new.order)) {
-			now.child <- children[new.order[k]]
-			now.child.split <- strsplit(reordered.children[new.order[k]], ":")[[1]]
-			now.child.split[length(now.child.split)] <- k
-			replacement.child <- paste(paste(now.child.split, collapse=":"),":",sep="")
-			tree$label <- gsub(now.child, replacement.child, tree$label)
-			tree$ancestor <- gsub(now.child, replacement.child, tree$ancestor)
-			curr.assignments <- gsub(now.child, replacement.child, curr.assignments)
-		}
-		tree$label <- gsub("T", "M", tree$label)
-		tree$ancestor <- gsub("T", "M", tree$ancestor)
-		curr.assignments <- gsub("T", "M", curr.assignments)
-		row.names(tree) <- tree$label 
-		tree <- tree[order(tree$depth, tree$label),]
-		
-		for (k in tree$label[tree$ancestor == node]) {
-			temp <- descend(tree, depth+1, k, lambda1, alpha1, gamma1, curr.assignments)
-			tree <- temp[[1]]
-			curr.assignments <- temp[[2]]
-		}
-		
-		for (k in tree$label[tree$ancestor == node]) {
-			if (substring(tree[k, "label"], first=nchar(tree[k, "label"])-2) == ":1:") {# Oldest sibling
-				tree[k, "phi"] <- tree[k, "psi"]
-				tree[k, "edge.length"] <- tree[k, "nu"] * tree[k, "phi"] * tree[node, "edge.length"] * (1-tree[node, "nu"]) / tree[node, "nu"]
-			}
-			else {
-				tree[k, "phi"] <- tree[k, "psi"] * prod(1-tree$psi[older.siblings(k, tree$label)])
-				tree[k, "edge.length"] <- tree[k, "nu"] * tree[k, "phi"] * tree[node, "edge.length"] * (1-tree[node, "nu"]) / tree[node, "nu"]
-			}
-		}
-		return(list(tree, curr.assignments))
-		
-	}	
-	a <- descend(curr.tree, 0, "M:", lambda, alpha, gamma,curr.assign)
-	return(list(a[[1]][,!grepl("depth",names(a[[1]]))], a[[2]]))
-}
-
-
-## PROFILER - sd11
-# setwd('/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/')
-# source('Tree_based_DP_Gibbs_sampler.R')
+# Not used - sd11
+# sample.stick.orders <- function(curr.tree, lambda, alpha, gamma, curr.assign) {
+# 	curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
+# 	curr.tree <- curr.tree[order(curr.tree$depth, curr.tree$label),]
 # 
-# outdir_profile = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/profiler/tree.struct.dirichlet.gibbs/"
-# load(paste(outdir_profile,"input.RData",sep=""))
-## Rprof(paste(outdir_profile, "tree.struct.dirichlet.gibbs.out"), line.profiling=TRUE)
-# temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)  
-## Rprof(NULL)
+# 	descend <- function(tree, depth, node, lambda1, alpha1, gamma1, curr.assignments) {
+# 		children <- tree$label[tree$ancestor == node]
+# 		if (length(children) == 0) {return(list(tree, curr.assignments))}
+# 		curr.children <- children
+# 		all.weights <- tree[children, "phi"]
+# 		new.order <- c()
+# 
+# 		while (TRUE) {
+# 			if (length(curr.children) == 0) {break}
+# 			else {
+# 				u <- runif(n=1)
+# 				while (TRUE) {
+# 					sub.indices <- (1:length(children))[!is.element(1:length(children), new.order)] # Indices not already assigned to new.order
+# 					sub.weights <- c(all.weights[sub.indices], 1-sum(all.weights))
+# 					sub.weights <- sub.weights / sum(sub.weights)
+# 					index <- sum(u > cumsum(sub.weights)) + 1
+# 					if (index == length(sub.indices)+1) {
+# 						new.psi <- rbeta(1,1,lambda1)
+# 						new.nu <- rbeta(1,1,alpha1 * (lambda1^depth))
+# 						new.phi <- new.psi * prod(1-tree$psi[tree$ancestor == node])
+# 						new.node <- max(tree$node)+1
+# 						new.node.direction <- length(children)+1
+# 						new.label <- paste(node, new.node.direction, ":", sep="")
+# 						new.edge.length <- new.nu * new.phi * tree[node, "edge.length"] * (1-tree[node, "nu"]) / tree[node, "nu"]
+# 						new.thetas <- t(sapply(grep("theta", names(tree)), FUN=function(i,x,y) {max <- x[y,i] - sum(x[x$ancestor == y,i]); runif(1,0,max)}, x=tree, y=node))
+# 						new.df <- data.frame(nu=new.nu, psi=new.psi, label=new.label, ancestor=node, node=new.node, phi=new.phi, edge.length=new.edge.length, 
+# 							new.thetas, depth = depth+1, stringsAsFactors=FALSE)
+# 						names(new.df) <- names(tree)
+# 						if(new.label %in% tree$label){
+# 							print("ERROR. new.label=")
+# 							print(new.label)
+# 							print(tree$label)
+# 						}
+# 						tree <- rbind(tree, new.df)
+# 						row.names(tree) <- tree$label
+# 						tree <- tree[order(tree$depth, tree$label),]
+# 						all.weights <- tree$phi[tree$ancestor == node]
+# 						children <- c(children, new.label)
+# 					}
+# 					else {
+# 						index <- sub.indices[index]
+# 						break
+# 					}
+# 				}
+# 			}
+# 			new.order <- c(new.order, index)
+# 			curr.children <- curr.children[curr.children != children[index]]
+# 		}
+#     
+# 		new.order <- c(new.order, (1:max(new.order))[!is.element(1:max(new.order), new.order)])
+# 		reordered.children <- gsub("M","T",children)
+# 		# Reorder children
+# 		for (k in 1:length(new.order)) {
+# 			now.child <- children[new.order[k]]
+# 			now.child.split <- strsplit(reordered.children[new.order[k]], ":")[[1]]
+# 			now.child.split[length(now.child.split)] <- k
+# 			replacement.child <- paste(paste(now.child.split, collapse=":"),":",sep="")
+# 			tree$label <- gsub(now.child, replacement.child, tree$label)
+# 			tree$ancestor <- gsub(now.child, replacement.child, tree$ancestor)
+# 			curr.assignments <- gsub(now.child, replacement.child, curr.assignments)
+# 		}
+# 		tree$label <- gsub("T", "M", tree$label)
+# 		tree$ancestor <- gsub("T", "M", tree$ancestor)
+# 		curr.assignments <- gsub("T", "M", curr.assignments)
+# 		row.names(tree) <- tree$label 
+# 		tree <- tree[order(tree$depth, tree$label),]
+# 		
+# 		for (k in tree$label[tree$ancestor == node]) {
+# 			temp <- descend(tree, depth+1, k, lambda1, alpha1, gamma1, curr.assignments)
+# 			tree <- temp[[1]]
+# 			curr.assignments <- temp[[2]]
+# 		}
+# 		
+# 		for (k in tree$label[tree$ancestor == node]) {
+# 			if (substring(tree[k, "label"], first=nchar(tree[k, "label"])-2) == ":1:") {# Oldest sibling
+# 				tree[k, "phi"] <- tree[k, "psi"]
+# 				tree[k, "edge.length"] <- tree[k, "nu"] * tree[k, "phi"] * tree[node, "edge.length"] * (1-tree[node, "nu"]) / tree[node, "nu"]
+# 			}
+# 			else {
+# 				tree[k, "phi"] <- tree[k, "psi"] * prod(1-tree$psi[older.siblings(k, tree$label)])
+# 				tree[k, "edge.length"] <- tree[k, "nu"] * tree[k, "phi"] * tree[node, "edge.length"] * (1-tree[node, "nu"]) / tree[node, "nu"]
+# 			}
+# 		}
+# 		return(list(tree, curr.assignments))
+# 		
+# 	}	
+# 	a <- descend(curr.tree, 0, "M:", lambda, alpha, gamma,curr.assign)
+# 	return(list(a[[1]][,!grepl("depth",names(a[[1]]))], a[[2]]))
+# }
 
-## TIMER - sd11
-# timer_n = 10
-# timed = system.time(replicate(timer_n,tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)))
+## Compile some internal functions
+library(compiler)
+bic = cmpfun(bic)
+log.f.of.y = cmpfun(log.f.of.y)
