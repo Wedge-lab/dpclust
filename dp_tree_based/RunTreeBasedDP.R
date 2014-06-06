@@ -4,8 +4,20 @@ source("PlotTreeWithIgraph.R")
 source("interconvertMutationBurdens.R")
 source("AnnotateTree.R")
 
-RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA){
+library(compiler)
+mutationCopyNumberToMutationBurden = cmpfun(mutationCopyNumberToMutationBurden)
 
+library(foreach)
+library(doParallel)
+
+RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE){
+
+  # Setup threads for parallel computations
+  if (parallel) {
+    clp <- makeCluster(4)
+    registerDoParallel(clp)
+  }
+  
 	no.subsamples = ncol(mutCount)
 
 	#aggregate mutations that have similar allele burden and the same kappa
@@ -46,18 +58,18 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 	}
 
   ## PROFILE - sd11
-  outdir_profile = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/profiler/tree.struct.dirichlet.gibbs/"
-  save(binned.mutCount,binned.WTCount,binned.kappa,no.iters,shrinkage.threshold,init.alpha, file=paste(outdir_profile,"input.RData",sep=""))
+#   outdir_profile = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/profiler/tree.struct.dirichlet.gibbs/"
+#   save(binned.mutCount,binned.WTCount,binned.kappa,no.iters,shrinkage.threshold,init.alpha, file=paste(outdir_profile,"input.RData",sep=""))
   
 	if(is.na(bin.size)){
-		temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)
+		temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel)
 	}else{
 		save(bin.indices,file=paste(outdir,"/",samplename,"_",no.iters,"iters_burnin",no.iters.burn.in,"_binnedIndices.RData",sep=""))
-		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA)	
+		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel)	
 	}
 
 	## PROFILE - sd11
-	save(temp.list, file=paste(outdir_profile,"output.RData",sep=""))
+# 	save(temp.list, file=paste(outdir_profile,"output.RData",sep=""))
   
 	setwd(outdir)
 
@@ -193,5 +205,9 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 		}
 		dev.off()
 	}	
+
+  if (parallel) {
+    stopCluster(clp)
+  }
 }
 

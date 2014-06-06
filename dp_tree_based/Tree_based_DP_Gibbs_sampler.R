@@ -66,8 +66,6 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
 	}
 }
 
-#library(compiler)
-#log.f.of.y = cmpfun(log.f.of.y)
 
 get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
 	all.nodes = row.names(whole.tree)
@@ -513,29 +511,31 @@ sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.
 	return(c(alpha=new.alpha[[2]], lambda=new.lambda[[2]], gamma=new.gamma[[2]])) 
 }
 
-sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
-	curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
-	curr.tree$num.assignments <- sapply(curr.tree$label, function(a,x) {sum(a == x)}, a=curr.assignments)
-	curr.tree <- curr.tree[order(curr.tree$depth, curr.tree$label),]
+sample.sticks.inner <- function(i,curr.tree, alpha, lambda, gamma) {
   
-	for (i in 1:dim(curr.tree)[1]) {
-		Ne.descendants <- sum(curr.tree$num.assignments[grepl(curr.tree$label[i], curr.tree$label)])
-		Ne <- curr.tree$num.assignments[i]
-		curr.tree$nu[i] <- rbeta(n=1, Ne+1, Ne.descendants + alpha*(lambda^curr.tree$depth[i]))
-		if (curr.tree$label[i] != "M:") {
-			# Need to count the number of data points assigned to nodes that are descendants of younger siblings of current node
-			Ne.younger.sibs.descendants <- sum(curr.tree$num.assignments[grepl(curr.tree$ancestor[i], curr.tree$label) & younger.descendants(curr.tree$label[i], curr.tree$label) & !grepl(curr.tree$label[i], curr.tree$label)])
-			curr.tree$psi[i] <- rbeta(n=1, Ne.descendants+1, gamma + Ne.younger.sibs.descendants)
-			if (substring(curr.tree$label[i], first=nchar(curr.tree$label[i])-2) == ":1:") {# Oldest sibling
-				curr.tree$phi[i] <- curr.tree$psi[i]
-			}
-			else {
-				curr.tree$phi[i] <- curr.tree$psi[i] * prod(1-curr.tree$psi[older.siblings(curr.tree$label[i], curr.tree$label)])
-			}
-			curr.tree$edge.length[i] <- curr.tree$nu[i] * curr.tree$phi[i] * curr.tree$edge.length[curr.tree$label == curr.tree$ancestor[i]] * (1-curr.tree$nu[curr.tree$label == curr.tree$ancestor[i]]) /  curr.tree$nu[curr.tree$label == curr.tree$ancestor[i]]
+  # Inside of the foreach loop that samples sticks
+  Ne.descendants <- sum(curr.tree$num.assignments[grepl(curr.tree$label[i], curr.tree$label)])
+  Ne <- curr.tree$num.assignments[i]
+  curr.tree$nu[i] <- rbeta(n=1, Ne+1, Ne.descendants + alpha*(lambda^curr.tree$depth[i]))
+  if (curr.tree$label[i] != "M:") {
+    # Need to count the number of data points assigned to nodes that are descendants of younger siblings of current node
+    Ne.younger.sibs.descendants <- sum(curr.tree$num.assignments[grepl(curr.tree$ancestor[i], curr.tree$label) & younger.descendants(curr.tree$label[i], curr.tree$label) & !grepl(curr.tree$label[i], curr.tree$label)])
+    curr.tree$psi[i] <- rbeta(n=1, Ne.descendants+1, gamma + Ne.younger.sibs.descendants)
+    if (substring(curr.tree$label[i], first=nchar(curr.tree$label[i])-2) == ":1:") {# Oldest sibling
+      curr.tree$phi[i] <- curr.tree$psi[i]
+    }
+    else {
+      curr.tree$phi[i] <- curr.tree$psi[i] * prod(1-curr.tree$psi[older.siblings(curr.tree$label[i], curr.tree$label)])
+    }
+    curr.tree$edge.length[i] <- curr.tree$nu[i] * curr.tree$phi[i] * curr.tree$edge.length[curr.tree$label == curr.tree$ancestor[i]] * (1-curr.tree$nu[curr.tree$label == curr.tree$ancestor[i]]) /  curr.tree$nu[curr.tree$label == curr.tree$ancestor[i]]
+  } 
+}
 
-		} 
-		
+sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
+  
+  # Sample sticks in parallel, one thread per dimension
+  foreach(i=1:dim(curr.tree)[1], .export=c("sample.sticks.inner","younger.descendants","older.siblings")) %dopar% { 
+	  sample.sticks.inner(i, curr.tree, alpha, lambda, gamma)
 	}
 	curr.tree$edge.length[curr.tree$label == "M:"] <- curr.tree$nu[curr.tree$label == "M:"]
 	return(curr.tree[,!is.element(names(curr.tree), c("depth", "num.assignments"))])
@@ -638,6 +638,4 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 # }
 
 ## Compile some internal functions
-library(compiler)
-bic = cmpfun(bic)
-log.f.of.y = cmpfun(log.f.of.y)
+?
