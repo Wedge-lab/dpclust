@@ -512,7 +512,6 @@ sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.
 }
 
 sample.sticks.inner <- function(i,curr.tree, alpha, lambda, gamma) {
-  
   # Inside of the foreach loop that samples sticks
   Ne.descendants <- sum(curr.tree$num.assignments[grepl(curr.tree$label[i], curr.tree$label)])
   Ne <- curr.tree$num.assignments[i]
@@ -532,7 +531,6 @@ sample.sticks.inner <- function(i,curr.tree, alpha, lambda, gamma) {
 }
 
 sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
-  
   # Sample sticks in parallel, one thread per dimension
   foreach(i=1:dim(curr.tree)[1], .export=c("sample.sticks.inner","younger.descendants","older.siblings")) %dopar% { 
 	  sample.sticks.inner(i, curr.tree, alpha, lambda, gamma)
