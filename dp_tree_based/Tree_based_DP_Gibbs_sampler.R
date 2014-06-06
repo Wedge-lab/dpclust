@@ -636,6 +636,3 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 # 	a <- descend(curr.tree, 0, "M:", lambda, alpha, gamma,curr.assign)
 # 	return(list(a[[1]][,!grepl("depth",names(a[[1]]))], a[[2]]))
 # }
-
-## Compile some internal functions
-?
