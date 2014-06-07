@@ -2,14 +2,15 @@ library(LIM)
 source("CullTree.R")
 source("RemoveBranch.R")
 
-younger.siblings <- function(curr.node, other.nodes) {
-	# Function to test whether other.nodes are younger siblings of curr.node
-	# Returns vector of logical values
-	split.curr.node <- unlist(strsplit(curr.node, ":"))
-	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
-	family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
-	return(grepl(parent, other.nodes) & family.position[1,] > as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
-}
+# Unused - sd11
+# younger.siblings <- function(curr.node, other.nodes) {
+# 	# Function to test whether other.nodes are younger siblings of curr.node
+# 	# Returns vector of logical values
+# 	split.curr.node <- unlist(strsplit(curr.node, ":"))
+# 	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
+# 	family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
+# 	return(grepl(parent, other.nodes) & family.position[1,] > as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
+# }
 
 older.siblings <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are younger siblings of curr.node
@@ -221,7 +222,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		#randomise the order of muts
 		rand.inds = sample(num.muts)
 		node.assignments[,m] = new.assignments
-		for (i in 1:num.muts) {
+ 		for (i in 1:num.muts) {
 			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
 			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
 			curr.tree <- temp.assignments[[2]]
@@ -239,9 +240,13 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		node.assignments[,m] = new.node.assignments
 		
 		print("# Resample theta.S variables")
-		for (k in grep("theta", names(curr.tree))) {
-			curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
-		}
+# 		for (k in grep("theta", names(curr.tree))) {
+# 			curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
+# 		}
+    
+    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dopar% {
+      curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
+    }
 		
 		print("# Resample hyperparameters")
 		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
