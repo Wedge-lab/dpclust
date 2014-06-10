@@ -1,5 +1,5 @@
 source("Tree_based_DP_Gibbs_sampler.R")
-source("interconvertMutationBurdens.R")
+# source("interconvertMutationBurdens.R")
 source("PlotTreeWithIgraph.R")
 source("DensityEstimator.R")
 source("CullTree.R")
@@ -211,6 +211,23 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	}
 }
 	
+calc.subclonal.fraction <- function(i,mutCount1, WTCount1, kappa1) {
+  fraction = mutCount1[,i] / ((mutCount1[,i]+WTCount1[,i])*kappa1[,i])
+  fraction[kappa1[,i]==0] = NA
+  return(fraction)
+}
+
+# calc.ancestor.strengths <- function(m, node.assignments1, no.iters.since.burnin) {
+#   node.assignments.all = node.assignments1[,no.iters.since.burnin]
+#   node.assignments.m = node.assignments1[m,no.iters.since.burnin]
+#   
+#   ancestor.strengths.local = (younger.direct.descendants(node.assignments.m,node.assignments.all) & (node.assignments.m != node.assignments.all))
+#   ancestor.or.identity.relationship.local = younger.direct.descendants(node.assignments.m,node.assignments.all)
+#   identity.strengths.local = (node.assignments.m == node.assignments.all)
+#   return(list(ancestor.strengths.local, ancestor.or.identity.relationship.local, identity.strengths.local))
+# }
+
+
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = array(0.5,dim(mutCount)), samplename="sample", subsamplenames = 1:ncol(mutCount), no.iters = 1250, no.iters.burn.in = 250, resort.mutations = T, shrinkage.threshold = 0.1, init.alpha = 0.01, outdir = getwd(),bin.indices = NULL){
 	setwd(outdir)
 	
@@ -220,11 +237,12 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
-	subclonal.fraction = array(NA,dim(mutCount))
-	for(i in 1:no.subsamples){
-		subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
-		subclonal.fraction[kappa[,i]==0,i] = NA
-	}
+ 	subclonal.fraction = array(NA,dim(mutCount))
+ 	for(i in 1:no.subsamples){
+ 		subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
+ 		subclonal.fraction[kappa[,i]==0,i] = NA
+ 	}
+#  subclonal.fraction = sapply(1:no.subsamples, FUN=calc.subclonal.fraction, mutCount, WTCount, kappa)
 
 	no.iters.post.burn.in = no.iters-no.iters.burn.in
 
@@ -237,8 +255,9 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 		for(m in 1:no.muts){
 			ancestor.strengths[m,] = ancestor.strengths[m,] + (younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in]) & (node.assignments[m,i+no.iters-no.iters.post.burn.in] != node.assignments[,i+no.iters-no.iters.post.burn.in]))
 			ancestor.or.identity.relationship[m,] = younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in])
-			identity.strengths[m,] = identity.strengths[m,] + (node.assignments[m,i+no.iters-no.iters.post.burn.in] == node.assignments[,i+no.iters-no.iters.post.burn.in])
+		  identity.strengths[m,] = identity.strengths[m,] + (node.assignments[m,i+no.iters-no.iters.post.burn.in] == node.assignments[,i+no.iters-no.iters.post.burn.in])
 		}
+
 		sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
 	}
 

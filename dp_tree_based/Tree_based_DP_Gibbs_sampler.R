@@ -2,15 +2,14 @@ library(LIM)
 source("CullTree.R")
 source("RemoveBranch.R")
 
-# Unused - sd11
-# younger.siblings <- function(curr.node, other.nodes) {
-# 	# Function to test whether other.nodes are younger siblings of curr.node
-# 	# Returns vector of logical values
-# 	split.curr.node <- unlist(strsplit(curr.node, ":"))
-# 	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
-# 	family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
-# 	return(grepl(parent, other.nodes) & family.position[1,] > as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
-# }
+younger.siblings <- function(curr.node, other.nodes) {
+	# Function to test whether other.nodes are younger siblings of curr.node
+	# Returns vector of logical values
+	split.curr.node <- unlist(strsplit(curr.node, ":"))
+	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
+	family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
+	return(grepl(parent, other.nodes) & family.position[1,] > as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
+}
 
 older.siblings <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are younger siblings of curr.node
@@ -244,7 +243,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 # 			curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
 # 		}
     
-    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dopar% {
+    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
       curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
 		
@@ -537,7 +536,7 @@ sample.sticks.inner <- function(i,curr.tree, alpha, lambda, gamma) {
 
 sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
   # Sample sticks in parallel, one thread per dimension
-  foreach(i=1:dim(curr.tree)[1], .export=c("sample.sticks.inner","younger.descendants","older.siblings")) %dopar% { 
+  foreach(i=1:dim(curr.tree)[1], .export=c("sample.sticks.inner","younger.descendants","older.siblings")) %dorng% { 
 	  sample.sticks.inner(i, curr.tree, alpha, lambda, gamma)
 	}
 	curr.tree$edge.length[curr.tree$label == "M:"] <- curr.tree$nu[curr.tree$label == "M:"]

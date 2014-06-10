@@ -64,7 +64,6 @@ for(i in 1:length(subsamples[[run]])){
 }
 
 kappa = array(1,dim(mutCount))
-kappa_pure = array(1,dim(mutCount))
 for(i in 1:length(subsamples[[run]])){
 	#multiply by no.chrs.bearing.mut, so that kappa is the fraction of reads required for fully clonal mutations, rather than mutation at MCN = 1
   kappa[,i] = mutationCopyNumberToMutationBurden(1,data[[i]]$subclonal.CN,cellularity[i]) * data[[i]]$no.chrs.bearing.mut
