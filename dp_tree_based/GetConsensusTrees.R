@@ -167,9 +167,11 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		#consensus.tree[,k+1] <- whole.tree.slice.sampler(consensus.tree, curr.thetas, mutCount[,k], mutCount[,k] + WTCount[,k], capped.kappa[,k], consensus.assignments, shrinkage.threshold)
 		#this may be slow, but it gives better estimates, plus, potentially, confidence intervals
 		theta.samples = array(NA,c(no.slice.samples,no.nodes))
-		for(l in 1:no.slice.samples){
-			theta.samples[l,] = whole.tree.slice.sampler(consensus.tree, curr.thetas, mutCount[,k], mutCount[,k] + WTCount[,k], capped.kappa[,k], consensus.assignments, shrinkage.threshold)
-		}
+
+		call.whole.tree.slice.sampler = function(l,k1,consensus.tree1,curr.thetas1,mutCount1,WTCount1,capped.kappa1,consensus.assignments1,shrinkage.threshold1) { whole.tree.slice.sampler(consensus.tree1, curr.thetas1, mutCount1[,k1], mutCount1[,k1] + WTCount1[,k1], capped.kappa1[,k1], consensus.assignments1, shrinkage.threshold1) }
+
+		theta.samples = t(sapply(1:no.slice.samples, FUN=call.whole.tree.slice.sampler, k=k, consensus.tree1=consensus.tree, curr.thetas1=curr.thetas, mutCount1=mutCount, WTCount1=WTCount, capped.kappa1=capped.kappa, consensus.assignments1=consensus.assignments, shrinkage.threshold1=shrinkage.threshold))
+
 		consensus.tree[,k+1] = apply(theta.samples,2,median)
 		print("median and stdev of consensus tree resamples:")
 		print(cbind(consensus.tree[,k+1], apply(theta.samples,2,sd)))
@@ -231,6 +233,15 @@ calc.subclonal.fraction <- function(i,mutCount1, WTCount1, kappa1) {
 #   return(list(ancestor.strengths.local, ancestor.or.identity.relationship.local, identity.strengths.local))
 # }
 
+calc.ancestor.strengths <- function(m,ancestor.strengths, node.assignments, no.iters.since.burnin, identity.strengths) {
+	node.assignments.all = node.assignments[,no.iters.since.burnin]
+	node.assignments.m = node.assignments[m,no.iters.since.burnin]
+
+	temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
+	temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
+	temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
+	return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths))
+}
 
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = array(0.5,dim(mutCount)), samplename="sample", subsamplenames = 1:ncol(mutCount), no.iters = 1250, no.iters.burn.in = 250, resort.mutations = T, shrinkage.threshold = 0.1, init.alpha = 0.01, outdir = getwd(),bin.indices = NULL){
   start = Sys.time()
@@ -244,26 +255,39 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
  	subclonal.fraction = array(NA,dim(mutCount))
- 	for(i in 1:no.subsamples){
- 		subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
- 		subclonal.fraction[kappa[,i]==0,i] = NA
- 	}
+ 	#for(i in 1:no.subsamples){
+ 	#	subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
+ 	#	subclonal.fraction[kappa[,i]==0,i] = NA
+ 	#}
 #  subclonal.fraction = sapply(1:no.subsamples, FUN=calc.subclonal.fraction, mutCount, WTCount, kappa)
+
+	#subclonal.fraction2 = array(NA,dim(mutCount))
+	subclonal.fraction = sapply(1:no.subsamples, FUN=function(i,mutCount,WTCount,kappa) { mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i]) }, mutCount,WTCount,kappa)
+	subclonal.fraction[kappa == 0] = NA
+
+	#print(head(subclonal.fraction))
+	#print(head(subclonal.fraction2))
 
 	no.iters.post.burn.in = no.iters-no.iters.burn.in
 
 	ancestor.strengths = array(0,c(no.muts,no.muts))
 	sibling.strengths = array(0,c(no.muts,no.muts))
 	identity.strengths = array(0,c(no.muts,no.muts))
+
 	#it would be faster to use apply
 	for(i in 1:no.iters.post.burn.in){
 		ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-		for(m in 1:no.muts){
-			ancestor.strengths[m,] = ancestor.strengths[m,] + (younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in]) & (node.assignments[m,i+no.iters-no.iters.post.burn.in] != node.assignments[,i+no.iters-no.iters.post.burn.in]))
-			ancestor.or.identity.relationship[m,] = younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in])
-		  identity.strengths[m,] = identity.strengths[m,] + (node.assignments[m,i+no.iters-no.iters.post.burn.in] == node.assignments[,i+no.iters-no.iters.post.burn.in])
-		}
+	#	for(m in 1:no.muts){
+	#		ancestor.strengths[m,] = ancestor.strengths[m,] + (younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in]) & (node.assignments[m,i+no.iters-no.iters.post.burn.in] != node.assignments[,i+no.iters-no.iters.post.burn.in]))
+	#		ancestor.or.identity.relationship[m,] = younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in])
+	#	  identity.strengths[m,] = identity.strengths[m,] + (node.assignments[m,i+no.iters-no.iters.post.burn.in] == node.assignments[,i+no.iters-no.iters.post.burn.in])
+	#	}
 
+		res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
+		ancestor.strengths = t(do.call(rbind,res[1,]))
+		ancestor.or.identity.relationship = t(do.call(rbind,res[2,]))
+		identity.strengths = t(do.call(rbind,res[3,]))
+		
 		sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
 	}
 
