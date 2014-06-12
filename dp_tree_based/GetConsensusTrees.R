@@ -30,7 +30,9 @@ makeValidThetas<-function(tree){
 }
 
 plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in, node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices=NULL,shrinkage.threshold = 0.1, tree.number=NA){
-	no.iters.post.burn.in = no.iters-no.iters.burn.in
+  start = Sys.time()
+  
+  no.iters.post.burn.in = no.iters-no.iters.burn.in
 	no.subsamples = length(subsamplenames)
 	no.muts = length(consensus.assignments)
 	
@@ -53,6 +55,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	consensus.thetas=list()
 	no.nodes = length(unique.nodes)
 	is.single.point=vector(mode="logical",length=no.nodes)
+  print(Sys.time()-start)
 	for(n in 1:no.nodes){
 		print(paste(length(trees),n,sep=","))
 		IDs = which(consensus.assignments==unique.nodes[n])
@@ -65,7 +68,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		}
 		consensus.thetas[[n]] = consensus.theta
 	}
-
+  print(Sys.time()-start)
 	##############################PLOTTING############################################################		
 	dev.set(which = hist.device)
 	for(n in 1:no.nodes){
@@ -82,25 +85,22 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 
 	dev.set(which = density.device)
 	highest.density.thetas = array(NA,c(no.subsamples,no.nodes))
+
+	# Estimate theta densities
 	for(n in 1:no.nodes){
-		if(is.single.point[n]){
-			for(p in 1:no.subsamples){
-				#highest.density.thetas[p,n] = DensityEstimator(array(consensus.thetas[[n]][p,,],c(1,no.iters.post.burn.in)),subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts, ",no.nodes," nodes)",sep=""),density.smooth=1,x.max=1.2)			
-				if(is.na(tree.number)){
-					highest.density.thetas[p,n] = DensityEstimator(array(consensus.thetas[[n]][p,,],c(1,no.iters.post.burn.in)),subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep=""),density.smooth=1,x.max=1.2)
-				}else{
-					highest.density.thetas[p,n] = DensityEstimator(array(consensus.thetas[[n]][p,,],c(1,no.iters.post.burn.in)),subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=paste("tree #",tree.number,": ",samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep=""),density.smooth=1,x.max=1.2)
-				}								
+		for(p in 1:no.subsamples){
+			main = paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep="")
+			if(is.single.point[n]){
+				temp.cons.thetas = array(consensus.thetas[[n]][p,,],c(1,no.iters.post.burn.in))
+			} else {
+				temp.cons.thetas = consensus.thetas[[n]][p,,]
 			}
-		}else{
-			for(p in 1:no.subsamples){
-				#highest.density.thetas[p,n] = DensityEstimator(consensus.thetas[[n]][p,,],subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts, ",no.nodes," nodes)",sep=""),density.smooth=1,x.max=1.2)
-				if(is.na(tree.number)){
-					highest.density.thetas[p,n] = DensityEstimator(consensus.thetas[[n]][p,,],subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep=""),density.smooth=1,x.max=1.2)
-				}else{
-					highest.density.thetas[p,n] = DensityEstimator(consensus.thetas[[n]][p,,],subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=paste("tree #",tree.number,": ",samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep=""),density.smooth=1,x.max=1.2)
-				}
+
+			if(!is.na(tree.number)){
+				main = paste("tree #",tree.number,": ",main,sep="")
 			}
+		
+			highest.density.thetas[p,n] = DensityEstimator(temp.cons.thetas,subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=main,density.smooth=1,x.max=1.2)							
 		}
 	}
 
@@ -112,6 +112,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	}
 	row.names(consensus.tree) = consensus.tree$label
 	plotTree(consensus.tree,main=paste(samplename,subsamplenames,sep=""),font.size=1.25)
+  print(Sys.time()-start)
 	print("finished plotting tree")
 
 	#check how many mutations were aggregated in the binning
@@ -146,6 +147,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 			consensus.tree[unique.nodes[n],k+1] = average.theta
 		}
 	}
+  print(Sys.time()-start)
 	print("average tree:")
 	print(consensus.tree)
 	
@@ -174,6 +176,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	}	
 	dev.set(which=optimised.tree.device)
 	plotTree(consensus.tree,main=paste(samplename,subsamplenames,sep=""),font.size=1.25)
+  print(Sys.time()-start)
 	print("finished plotting optimised tree")
 
 	dev.set(which=tree.population.device)
@@ -183,6 +186,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		population.tree[unique.nodes[n],"theta.S1"] = mut.table[unique.nodes[n]]
 	}
 	plotTree(population.tree,main=samplename,font.size=1.25,plotAsPercentage=F)
+  print(Sys.time()-start)
 	print("population tree plotted")
 
 	if(no.subsamples>1){
@@ -229,7 +233,9 @@ calc.subclonal.fraction <- function(i,mutCount1, WTCount1, kappa1) {
 
 
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = array(0.5,dim(mutCount)), samplename="sample", subsamplenames = 1:ncol(mutCount), no.iters = 1250, no.iters.burn.in = 250, resort.mutations = T, shrinkage.threshold = 0.1, init.alpha = 0.01, outdir = getwd(),bin.indices = NULL){
-	setwd(outdir)
+  start = Sys.time()
+  
+  setwd(outdir)
 	
 	tree.number=1
 	
@@ -260,6 +266,8 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 
 		sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
 	}
+
+  print(Sys.time()-start) # 3.455465 secs
 
 	pdf(paste("histograms_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
 	hist.device=dev.cur()
@@ -299,6 +307,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 		}
 	}
 	fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
+  print(Sys.time()-start) # 3.525014 secs
 	print(paste("M:",current.agreement,fractional.current.agreement))
 	
 	#initialise all mutations in one node, so the number of pairwise agreements is just the number of times a pair of mutations appear in the same node
@@ -312,6 +321,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	new.pairwise.agreements = list()
 	node.added=T
 	while(node.added){	
+    print("Node added")
 		unique.nodes = unique(consensus.assignments)
 		no.nodes = length(unique.nodes)
 		new.agreements = array(NA,2*no.nodes)
@@ -394,6 +404,8 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 				muts.to.move[[2*(n-1)+above+1]] = which(new.consensus.assignments == new.node)
 			}
 		}
+    print("Moving round1 done")
+		print(Sys.time()-start) # 4.236197 secs
 		best.node = which.max(new.agreements)
 		if(new.agreements[best.node] > current.agreement){
 			new.node = new.nodes[best.node]
@@ -485,6 +497,8 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 						}
 					}
 				}
+        print("Moving round2 done")
+				print(Sys.time()-start)
 				#cull tree (remove empty nodes), and reassign labels
 				temp.tree = all.consensus.trees[[length(all.consensus.trees)]]
 				temp.tree$node = 1:nrow(temp.tree)
@@ -522,6 +536,8 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 			node.added = F
 		}
 	}
+  print("EM done")
+  print(Sys.time()-start)
 
 	dev.off(which = hist.device)
 	dev.off(which = density.device)
@@ -540,6 +556,9 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	print(paste("best BIC index=",best.BIC.index,sep=""))
 	print("best BIC tree:")
 	print(all.consensus.trees[[best.BIC.index]])
+
+  print("GenerateConsensus done")
+  print(Sys.time()-start)
 	
 	#png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
 	#par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
