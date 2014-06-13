@@ -10,6 +10,8 @@ mutationCopyNumberToMutationBurden = cmpfun(mutationCopyNumberToMutationBurden)
 library(foreach)
 library(doParallel)
 library(doRNG)
+# library(snowfall)
+library(snow)
 
 RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE){
 
@@ -18,8 +20,12 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   
   # Setup threads for parallel computations
   if(parallel) {
+#     sfInit(parallel=TRUE,cpus=4)
+#     setDefaultCluster(makePSOCKcluster(4))
     clp = makeCluster(4)
     registerDoParallel(clp)
+  } else {
+    clp = NA
   }
   
 	no.subsamples = ncol(mutCount)
@@ -29,16 +35,25 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 		unique.kappa = unique(kappa)
 		allele.fractions = mutCount / (mutCount + WTCount)
 		rounded.allele.fractions = floor(allele.fractions / bin.size) * bin.size
-
+    
 		binned.mutCount = array(NA,c(0,no.subsamples))
 		binned.WTCount = array(NA,c(0,no.subsamples))
 		binned.kappa = array(NA,c(0,no.subsamples))
 		bin.indices = list()
+
 		for(u in 1:nrow(unique.kappa)){
-			inds = which(sapply(1:nrow(kappa),function(k,i){all(k[i,]==unique.kappa[u,])},k=kappa))
+      if(parallel) {
+        inds = which(parSapply(cl=clp,X=1:nrow(kappa),FUN=function(k,i,u1){all(k[i,]==unique.kappa[u1,])},k=kappa, u1=u, simplify=TRUE, USE.NAMES=TRUE))
+      } else {
+        inds = which(sapply(1:nrow(kappa),function(k,i,u1){all(k[i,]==unique.kappa[u,])},k=kappa,u1=u))
+      }
 			unique.AF = unique(array(rounded.allele.fractions[inds,],c(length(inds),no.subsamples)))
 			for(v in 1:nrow(unique.AF)){
-				inds2 = inds[sapply(inds,function(r,i){all(r[i,]==unique.AF[v,])},r=rounded.allele.fractions)]
+        if(parallel && length(inds) > 1) {
+          inds2 = inds[parSapply(cl=clp,X=inds,function(r,i,v1){all(r[i,]==unique.AF[v1,])},r=rounded.allele.fractions, v1=v, simplify=TRUE, USE.NAMES=TRUE)]
+        } else {
+          inds2 = inds[sapply(inds,function(r,i,v1){all(r[i,]==unique.AF[v1,])},r=rounded.allele.fractions, v1=v)]
+        }
 				bin.indices[[length(bin.indices)+1]] = inds2
 				if(length(inds2)>1){
 					binned.mutCount = rbind(binned.mutCount,colSums(mutCount[inds2,]))
@@ -51,6 +66,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 				}
 			}
 		}
+
 		no.muts = nrow(binned.mutCount)
 	}else{
 		no.muts = nrow(mutCount)
@@ -61,10 +77,10 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 	}
 
 	if(is.na(bin.size)){
-		temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel)
+		temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)
 	}else{
 		save(bin.indices,file=paste(outdir,"/",samplename,"_",no.iters,"iters_burnin",no.iters.burn.in,"_binnedIndices.RData",sep=""))
-		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel)	
+		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)	
 	}
 
 	setwd(outdir)
@@ -85,7 +101,11 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 	gammas = temp.list[[5]]
 	likelihoods = temp.list[[6]]
 	BIC = temp.list[[7]]
-	tree.sizes = sapply(1:length(trees),function(t,i){nrow(t[[i]])},t=trees)
+  if(parallel) {
+    tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
+  } else {
+    tree.sizes = sapply(1:length(trees),function(t,i){nrow(t[[i]])},t=trees)
+  }
 	best.index = which.max(likelihoods)
 	best.BIC.index = which.min(BIC)
 
@@ -203,6 +223,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 	}	
 
   if(parallel) {
+#     sfStop()
     stopCluster(clp)
   }
 }
