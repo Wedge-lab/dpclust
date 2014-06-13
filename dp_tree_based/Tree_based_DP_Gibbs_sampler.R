@@ -7,7 +7,7 @@ younger.siblings <- function(curr.node, other.nodes) {
 	# Returns vector of logical values
 	split.curr.node <- unlist(strsplit(curr.node, ":"))
 	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
-	family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
+  family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
 	return(grepl(parent, other.nodes) & family.position[1,] > as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
 }
 
@@ -16,19 +16,24 @@ older.siblings <- function(curr.node, other.nodes) {
 	# Returns vector of logical values
 	split.curr.node <- unlist(strsplit(curr.node, ":"))
 	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
-	family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
+  family.position <- sapply(other.nodes, FUN=function(x) {if (x == "M:") {c(0,1)} else {a <- unlist(strsplit(x, ":")); c(as.double(a[length(a)]), length(a)) }})
 	return(grepl(parent, other.nodes) & family.position[1,] < as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
 }
 
-ancestors <- function(curr.node, other.nodes) {
+ancestors <- function(curr.node, other.nodes, parallel=FALSE) {
 	# Function to test whether other.nodes are ancestors of curr.node
 	# Note: curr.node is counted as an ancestor of itself
 	# Returns vector of logical values
 	no.nodes = length(other.nodes)
 	is.ancestor = vector(mode="logical",length=no.nodes)
-	for(i in 1:no.nodes){
-		is.ancestor[i] = grepl(other.nodes[i],curr.node)
-	}
+# 	for(i in 1:no.nodes){
+# 		is.ancestor[i] = grepl(other.nodes[i],curr.node)
+# 	}
+#   if(parallel) {
+#     is.ancestor = parSapply(1:no.nodes, FUN=function(i){ grepl(other.nodes[i],curr.node) }, simplify=TRUE, USE.NAMES=TRUE)
+#   } else {
+  is.ancestor = sapply(1:no.nodes, FUN=function(i){ grepl(other.nodes[i],curr.node) })
+#   }
 	return(is.ancestor)
 }
 
@@ -36,8 +41,8 @@ younger.descendants <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are younger siblings, direct descendants or descendants of younger siblings of curr.node
 	# Returns vector of logical values, including TRUE for where curr.node == other.nodes[i]
 	split.curr.node <- unlist(strsplit(curr.node, ":"))
-	parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
-	family.position.curr.depth <- sapply(other.nodes, FUN=function(x,y) {if (x == "M:") {0} else {a <- unlist(strsplit(x, ":")); max(0,as.double(a[y]),na.rm=TRUE) }}, y=length(split.curr.node))
+  parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
+  family.position.curr.depth <- sapply(other.nodes, FUN=function(x,y) {if (x == "M:") {0} else {a <- unlist(strsplit(x, ":")); max(0,as.double(a[y]),na.rm=TRUE) }}, y=length(split.curr.node))
 	return(grepl(parent, other.nodes) & family.position.curr.depth >= as.double(split.curr.node[length(split.curr.node)]))
 }
 
@@ -67,14 +72,14 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
 }
 
 
-get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
+get.conflicts <- function(index, conflict.array, node.assignments, whole.tree, parallel=FALSE){
 	all.nodes = row.names(whole.tree)
 	penalties = vector(mode="numeric",length=length(all.nodes))	
 	penalties = rep(1,length(all.nodes))
 	for(i in 1:length(node.assignments)){
 		if(conflict.array[index,i]!=1){
 			#penalise all ancestors of conflicting node, i.e. don't put conflicting variants in the same branch
-			ancs = which(ancestors(node.assignments[i],all.nodes))
+			ancs = which(ancestors(node.assignments[i],all.nodes, parallel=parallel))
 			spl = strsplit(node.assignments[i],":")[[1]]
 			for(anc in ancs){
 				if(all.nodes[anc] == node.assignments[i]){
@@ -138,7 +143,7 @@ bic <- function(likelihood, num.samples, num.trees, num.muts) {
 #   return(-2 * complete.likelihood[1] + 2 * num.samples * nrow(trees.n[[1]]) * log(num.muts))
 }
 
-tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda=FALSE, allowed.ranges=c(min.lambda = 0.05, max.lambda = 0.8, min.alpha = 1E-6, max.alpha=50, min.gamma=0.1, max.gamma=10), shrinkage.threshold = 0.1, init.alpha=0.01, init.lambda=0.5, init.gamma = 0.2, remove.node.frequency = NA, remove.branch.frequency = NA, conflict.array = array(1,c(nrow(y),nrow(y))), parallel=FALSE) {
+tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda=FALSE, allowed.ranges=c(min.lambda = 0.05, max.lambda = 0.8, min.alpha = 1E-6, max.alpha=50, min.gamma=0.1, max.gamma=10), shrinkage.threshold = 0.1, init.alpha=0.01, init.lambda=0.5, init.gamma = 0.2, remove.node.frequency = NA, remove.branch.frequency = NA, conflict.array = array(1,c(nrow(y),nrow(y))), parallel=FALSE, cluster=NA) {
 	# y is a matrix of the number of reads reporting each variant - rows represent each mutation; columns each sample
 	# N is a matrix of the number of reads in total across the base in question (in the same order as y obviously!)
 	# kappa is a matrix of the expected proportion of reads reporting the variant for a fully clonal mutation at single copy
@@ -174,17 +179,9 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	trees.n[[1]]$edge.length <- trees.n[[1]]$nu[1]
 	trees.n[[1]] <- cbind(trees.n[[1]], matrix(rep(1, each=num.samples), nrow=1, byrow=TRUE))	
 	node.assignments[,1] <- rep("M:",num.muts)
-	
 	names(trees.n[[1]]) <- c(names(trees.n[[1]])[1:7], paste("theta.S", 1:num.samples, sep=""))
 	
-	complete.likelihood[1] <- 0
-	colnames = paste("theta.S", 1:num.samples, sep="")
-	for(i in 1:num.muts){
-		lfoy = log.f.of.y(y[i,], n[i,], kappa[i,], trees.n[[1]][node.assignments[i,1],colnames])
-		if(!is.nan(lfoy)){
-			complete.likelihood[1] <- complete.likelihood[1] + lfoy
-		}
-	}
+  complete.likelihood[1] = calc.new.likelihood(num.samples, y, n, kappa, trees.n[[1]], node.assignments[,1])
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
 	print(paste("init log likelihood=",complete.likelihood[1],sep=""))
 	print(paste("init BIC=",BIC[1],sep=""))
@@ -222,7 +219,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		rand.inds = sample(num.muts)
 		node.assignments[,m] = new.assignments
  		for (i in 1:num.muts) {
-			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
+			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree, parallel=parallel)
 			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
 			curr.tree <- temp.assignments[[2]]
 			node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
@@ -248,7 +245,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     }
 		
 		print("# Resample hyperparameters")
-		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
+		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree, parallel=parallel, cluster=cluster)
 		alpha0[m] <- temp.hypers[1]
 		lambda[m] <- temp.hypers[2]
 		gamma[m] <- temp.hypers[3]
@@ -503,8 +500,12 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	}
 }
 
-sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.ranges, curr.tree) {
-	curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
+sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.ranges, curr.tree, parallel=FALSE, cluster=NA) {
+  if (parallel) {
+	  curr.tree$depth <- parSapply(cl=cluster, curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}, simplify=TRUE, USE.NAMES=TRUE) - 1
+  } else {
+    curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
+  }
 	log.alpha.fn <- function(x, tree, lambda) {sum(dbeta(tree$nu, 1, x*(lambda^tree$depth), log=TRUE))}
 	log.lambda.fn <- function(x, tree, alpha) {sum(dbeta(tree$nu, 1, alpha * (x^tree$depth), log=TRUE))}
 	log.gamma.fn <- function(x, tree) {sum(dbeta(tree$nu, 1, x, log=TRUE))}
@@ -638,3 +639,15 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 # 	a <- descend(curr.tree, 0, "M:", lambda, alpha, gamma,curr.assign)
 # 	return(list(a[[1]][,!grepl("depth",names(a[[1]]))], a[[2]]))
 # }
+
+calc.new.likelihood = function(no.subsamples, y, n, kappa, new.consensus.tree, new.consensus.ass) {
+  new.likelihood = 0
+  colnames = paste("theta.S", 1:no.subsamples, sep="")
+  for(i in 1:nrow(y)){  	
+    lfoy = log.f.of.y(y[i,], n[i,], kappa[i,], new.consensus.tree[new.consensus.ass[i],colnames])					
+    if(!is.nan(lfoy)){
+      new.likelihood = new.likelihood + lfoy
+    }					
+  }
+  return(new.likelihood)
+}
