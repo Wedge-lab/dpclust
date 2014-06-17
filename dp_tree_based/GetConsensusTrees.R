@@ -244,6 +244,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 
 	no.iters.post.burn.in = no.iters-no.iters.burn.in
 
+  # Assemble the current strengths for each pair of mutations
 	ancestor.strengths = array(0,c(no.muts,no.muts))
 	sibling.strengths = array(0,c(no.muts,no.muts))
 	identity.strengths = array(0,c(no.muts,no.muts))
@@ -718,8 +719,11 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				all.disaggregated.consensus.assignments[[length(all.disaggregated.consensus.assignments)+1]] = temp[[3]]
 			}
 			
-			new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
-			likelihoods = c(likelihoods,new.likelihood)
+# 			new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
+      new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,paste("theta.S", 1:no.subsamples, sep="")])
+#       print(paste("Likelihoods", new.likelihood, new.likelihood2))
+      
+      likelihoods = c(likelihoods,new.likelihood)
       
 			#fix tree structure and shuffle mutation assignments
 			if(resort.mutations){
@@ -771,7 +775,8 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 					all.disaggregated.consensus.assignments[[length(all.disaggregated.consensus.assignments)+1]] = new.consensus.ass
 				}
 			
-        new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
+#         new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
+				new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,paste("theta.S", 1:no.subsamples, sep="")])
 				likelihoods = c(likelihoods,new.likelihood)
 			
 				print("finished re-sorting mutations")
