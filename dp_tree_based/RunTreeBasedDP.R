@@ -40,7 +40,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 		binned.WTCount = array(NA,c(0,no.subsamples))
 		binned.kappa = array(NA,c(0,no.subsamples))
 		bin.indices = list()
-
+    
 		for(u in 1:nrow(unique.kappa)){
       if(parallel) {
         inds = which(parSapply(cl=clp,X=1:nrow(kappa),FUN=function(k,i,u1){all(k[i,]==unique.kappa[u1,])},k=kappa, u1=u, simplify=TRUE, USE.NAMES=TRUE))
@@ -66,7 +66,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 				}
 			}
 		}
-
+    
 		no.muts = nrow(binned.mutCount)
 	}else{
 		no.muts = nrow(mutCount)
