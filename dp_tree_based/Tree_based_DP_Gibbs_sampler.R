@@ -53,23 +53,23 @@ younger.direct.descendants <- function(curr.node, other.nodes) {
 	return(grepl(curr.node, other.nodes))
 }
 
-#log.f.of.y <- function(y1, n1, kappa1, x) {
-#	#x=1 and kappa=1 causes problems
-#	x[x>0.999 & kappa1==1] = 0.999
-#	#allow kappa = 0, for mutations on deleted chromosomes
-#	non.zero.inds = which(kappa1!=0)
-#	if(length(non.zero.inds)>0){
-#		return(sum(lchoose(n1[non.zero.inds], y1[non.zero.inds]) + y1[non.zero.inds] * log(kappa1[non.zero.inds]*x[non.zero.inds]) + (n1[non.zero.inds]-y1[non.zero.inds]) * log(1-kappa1[non.zero.inds]*x[non.zero.inds])) * length(y1)/length(non.zero.inds))
-#	}else{
-#		print("WARNING. ALL KAPPAS ARE ZERO. MUTATION ABSENT FROM ALL SAMPLES")
-#		print(y1)
-#		print(n1)
-#		print(kappa1)
-#		print(x)
-#		#return(NA)
-#		return(NaN)
-#	}
-#}
+# log.f.of.y <- function(y1, n1, kappa1, x) {
+# 	#x=1 and kappa=1 causes problems
+# 	x[x>0.999 & kappa1==1] = 0.999
+# 	#allow kappa = 0, for mutations on deleted chromosomes
+# 	non.zero.inds = which(kappa1!=0)
+# 	if(length(non.zero.inds)>0){
+# 		return(sum(lchoose(n1[non.zero.inds], y1[non.zero.inds]) + y1[non.zero.inds] * log(kappa1[non.zero.inds]*x[non.zero.inds]) + (n1[non.zero.inds]-y1[non.zero.inds]) * log(1-kappa1[non.zero.inds]*x[non.zero.inds])) * length(y1)/length(non.zero.inds))
+# 	}else{
+# 		print("WARNING. ALL KAPPAS ARE ZERO. MUTATION ABSENT FROM ALL SAMPLES")
+# 		print(y1)
+# 		print(n1)
+# 		print(kappa1)
+# 		print(x)
+# 		#return(NA)
+# 		return(NaN)
+# 	}
+# }
 
 
 get.conflicts <- function(index, conflict.array, node.assignments, whole.tree, parallel=FALSE){
@@ -256,15 +256,12 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 		colnames = paste("theta.S", 1:num.samples, sep="")
 		complete.likelihood[m] <- 0
-    print("Starting for")
 		for(i in 1:num.muts){
-      print(i)
 			lfoy = log.f.of.y(y[i,], n[i,], kappa[i,], curr.tree[node.assignments[i,m],colnames])
 			if(!is.nan(lfoy)){
 				complete.likelihood[m] <- complete.likelihood[m] + lfoy
 			}
 		}
-    print("Done for")
 		
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
 		print(paste("log likelihood=",complete.likelihood[m],sep=""))
@@ -673,18 +670,22 @@ calc.new.likelihood = function(no.subsamples, y, n, kappa, new.consensus.tree, n
 # timed2 = system.time(replicate(timer_n,calc.new.likelihood2(mutCount, zz, kappa, new.consensus.tree[new.consensus.ass,paste("theta.S", 1:4, sep="")])))
 
 log.f.of.y <- function(y1, n1, kappa1, x) {
-  y1 = as.matrix(y1)
-  n1 = as.matrix(n1)
-  kappa1 = as.matrix(kappa1)
-  if ((class(x) == "data.frame") && (nrow(x) == 1)) { x = as.numeric(x) }
-  x = as.matrix(x)
-  
   #x=1 and kappa=1 causes problems
   x[x>0.999 & kappa1==1] = 0.999
   #allow kappa = 0, for mutations on deleted chromosomes
-  no.kappa.nonzero = rowSums(kappa1!=0)
+  if (class(kappa1) == 'numeric') {
+    # Case input consists of vectors
+    no.kappa.nonzero = length(which(kappa1!=0))
+    no.subsamples = length(y1)
+  } else {
+    # Case input consists of matrices
+    no.kappa.nonzero = rowSums(kappa1!=0)
+    no.subsamples = ncol(y1)
+  }
   kappa1[kappa1==0] = NA
-  return(rowSums(lchoose(n1, y1) + y1 * log(kappa1*x) + (n1-y1) * log(1-kappa1*x),na.rm=T) * ncol(y1)/no.kappa.nonzero)
+  res = lchoose(n1, y1) + y1 * log(kappa1*x) + (n1-y1) * log(1-kappa1*x)
+  if (class(res) == "numeric") { res = matrix(res, nrow=1) }
+  return(rowSums(res,na.rm=T) * no.subsamples/no.kappa.nonzero)
 }
 
 calc.new.likelihood2 = function(y, n, kappa, thetas) {
@@ -692,4 +693,3 @@ calc.new.likelihood2 = function(y, n, kappa, thetas) {
   new.likelihood = sum(lfoy)
   return(new.likelihood)
 }
-
