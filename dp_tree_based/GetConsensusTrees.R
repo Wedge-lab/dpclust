@@ -238,17 +238,34 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
 
-  subclonal.fraction = array(NA,dim(mutCount))
+	subclonal.fraction = array(NA,dim(mutCount))
+        #for(i in 1:no.subsamples){
+        #       subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
+        #       subclonal.fraction[kappa[,i]==0,i] = NA
+        #}
+
  	subclonal.fraction = sapply(1:no.subsamples, FUN=function(i,mutCount,WTCount,kappa) { mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i]) }, mutCount,WTCount,kappa)
  	subclonal.fraction[kappa == 0] = NA
 
 	no.iters.post.burn.in = no.iters-no.iters.burn.in
 
-  # Assemble the current strengths for each pair of mutations
+	# Assemble the current strengths for each pair of mutations
 	ancestor.strengths = array(0,c(no.muts,no.muts))
 	sibling.strengths = array(0,c(no.muts,no.muts))
 	identity.strengths = array(0,c(no.muts,no.muts))
                                                                              
+        #it would be faster to use apply
+        #for(i in 1:no.iters.post.burn.in){
+        #        ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
+        #        for(m in 1:no.muts){
+        #               ancestor.strengths[m,] = ancestor.strengths[m,] + (younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in]) & (node.assignments[m,i+no.iters-no.iters.post.burn.in] != node.assignments[,i+no.iters-no.iters.post.burn.in]))
+        #               ancestor.or.identity.relationship[m,] = younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in])
+        #         identity.strengths[m,] = identity.strengths[m,] + (node.assignments[m,i+no.iters-no.iters.post.burn.in] == node.assignments[,i+no.iters-no.iters.post.burn.in])
+        #       }
+        #       sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+        #}
+
+
 	for(i in 1:no.iters.post.burn.in){
 		ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
     
@@ -257,7 +274,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 		ancestor.or.identity.relationship = do.call(rbind,res[2,])
 		identity.strengths = do.call(rbind,res[3,])
 
-    sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+		sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
 	}
 
   print(Sys.time()-start) # 3.455465 secs
