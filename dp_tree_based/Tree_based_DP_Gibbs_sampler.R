@@ -189,6 +189,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 	for (m in 2:iter) {
 		print(paste("iter",m,sep=" "))
+    #save(file=paste('~/dp/iter_saves/', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC)
 		curr.tree <- trees.n[[m-1]]
 
 		new.assignments = node.assignments[,m-1]
@@ -685,7 +686,9 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
   kappa1[kappa1==0] = NA
   res = lchoose(n1, y1) + y1 * log(kappa1*x) + (n1-y1) * log(1-kappa1*x)
   if (class(res) == "numeric") { res = matrix(res, nrow=1) }
-  return(rowSums(res,na.rm=T) * no.subsamples/no.kappa.nonzero)
+  resSums = rowSums(res,na.rm=T) * no.subsamples/no.kappa.nonzero
+  # Drop the Inf and other NaNs
+  return(sum(resSums[!is.nan(resSums)]))
 }
 
 calc.new.likelihood2 = function(y, n, kappa, thetas) {
