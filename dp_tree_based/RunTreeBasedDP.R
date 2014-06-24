@@ -15,8 +15,7 @@ library(snow)
 
 RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE){
 
-  # Setup the seed
-  set.seed(123)
+  start = Sys.time()
   
   # Setup threads for parallel computations
   if(parallel) {
@@ -83,6 +82,8 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)	
 	}
 
+  print("Finished tree.struct.dirichlet")
+  print(Sys.time()-start)
 	setwd(outdir)
 
 	trees = temp.list[[1]]
