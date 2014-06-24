@@ -31,7 +31,7 @@ makeValidThetas<-function(tree){
 
 plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in, node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices=NULL,shrinkage.threshold = 0.1, tree.number=NA){
   start = Sys.time()
-  
+  print("Starting plotConcensusTree")
   no.iters.post.burn.in = no.iters-no.iters.burn.in
 	no.subsamples = length(subsamplenames)
 	no.muts = length(consensus.assignments)
@@ -42,6 +42,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		subclonal.fraction[kappa[,i]==0,i] = NA
 	}
 
+  print("Getting node info")
 	##############################Get Node Info############################################################
 	temp.unique.nodes = unique(consensus.assignments)
 	levels = sapply(1:length(temp.unique.nodes),function(t,i){length(strsplit(t[i],":")[[1]])},t=temp.unique.nodes)
@@ -51,7 +52,9 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		nodes = temp.unique.nodes[levels==l]
 		unique.nodes=c(unique.nodes,sort(nodes))
 	}
+  print(start-Sys.time())
 
+  print("Getting consensus thetas")
 	consensus.thetas=list()
 	no.nodes = length(unique.nodes)
 	is.single.point=vector(mode="logical",length=no.nodes)
@@ -69,7 +72,8 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		consensus.thetas[[n]] = consensus.theta
 	}
   print(Sys.time()-start)
-	##############################PLOTTING############################################################		
+	##############################PLOTTING############################################################
+  print("Starting plotting")
 	dev.set(which = hist.device)
 	for(n in 1:no.nodes){
 		for(p in 1:no.subsamples){
@@ -85,8 +89,10 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 
 	dev.set(which = density.device)
 	highest.density.thetas = array(NA,c(no.subsamples,no.nodes))
-
+  print(start-Sys.time())
+  
 	# Estimate theta densities
+  print("Estimating densities")
 	for(n in 1:no.nodes){
 		for(p in 1:no.subsamples){
 			main = paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep="")
@@ -103,6 +109,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 			highest.density.thetas[p,n] = DensityEstimator(temp.cons.thetas,subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=main,density.smooth=1,x.max=1.2)							
 		}
 	}
+  print(start-Sys.time())
 
 	dev.set(which = tree.device)
 	consensus.tree = as.data.frame(cbind(unique.nodes,t(highest.density.thetas),ancs,NA),stringsAsFactors=F)
@@ -116,6 +123,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	print("finished plotting tree")
 
 	#check how many mutations were aggregated in the binning
+  print("Checking aggregated mutations")
 	if(!is.null(bin.indices)){
 		print(paste("no.muts=",no.muts,sep=""))
 		print(paste("length(bin.indices)=",length(bin.indices),sep=""))
@@ -135,9 +143,11 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	}else{
 		mut.table = table(consensus.assignments[consensus.assignments!=""])
 	}
+  print(start-Sys.time())
 
 	#091013 - average theta, weighted by depth, which may be a better starting point for the whole.tree sampler
 	#this tree should be recorded (and plotted)
+  print("Building consensus trees")
 	for (k in 1:no.subsamples) {
 		for(n in 1:no.nodes){
 			node.inds = which(consensus.assignments==unique.nodes[n])
@@ -157,6 +167,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	print(consensus.tree)
 	
 	#resample whole tree
+  print("Resampling whole tree")
 	no.slice.samples = 20
 	capped.kappa = kappa
 	capped.kappa[capped.kappa>0.999] = 0.999
@@ -177,6 +188,9 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		print(cbind(consensus.tree[,k+1], apply(theta.samples,2,sd)))
 	}	
 	dev.set(which=optimised.tree.device)
+  print(Sys.time()-start)
+  
+  print("Plotting actual tree")
 	plotTree(consensus.tree,main=paste(samplename,subsamplenames,sep=""),font.size=1.25)
   print(Sys.time()-start)
 	print("finished plotting optimised tree")
@@ -209,6 +223,8 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 			}
 		}
 	}
+  print("Done plotConsensusTrees")
+  print(Sys.time()-start)
 	#returned optimised tree and node assignments	
 	if(!is.null(bin.indices)){
 		return(list(consensus.tree,consensus.assignments,disaggregated.consensus.assignments))
@@ -297,7 +313,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 		par(mfrow=c(1,no.subsamples*(no.subsamples-1)/2))
 	}
 
-
+  print("Obtaining current agreement")
 	consensus.assignments = rep("M:",no.muts)
 	no.nodes=1
 	current.agreement = 0
@@ -600,7 +616,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 
 do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number,likelihoods) {
 	start = Sys.time()
-
+  print("Starting EM")
 	pairwise.agreements = identity.strengths
 
 	no.muts=nrow(mutCount)
@@ -654,6 +670,12 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				saved.consensus.assignments = new.consensus.assignments
 				#we may need to avoid infinite cycling by checking whether a set of node assignments has been repeated
 				while(mut.moved){
+          
+				  if (! count %% 50) {
+				    print(paste("Round 1: ",count, sep=''))
+            print(start-Sys.time())
+				  }
+          
 					count=count+1
 					mut.moved=F
 					rand.inds = sample(no.muts)
@@ -738,12 +760,11 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			
 # 			new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
       new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,paste("theta.S", 1:no.subsamples, sep="")])
-#       print(paste("Likelihoods", new.likelihood, new.likelihood2))
-      
       likelihoods = c(likelihoods,new.likelihood)
       
 			#fix tree structure and shuffle mutation assignments
 			if(resort.mutations){
+        print("In resort mutations")
 				unique.nodes = unique(consensus.assignments)
 
 				saved.consensus.assignments = consensus.assignments
@@ -751,6 +772,12 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				count=1
 				#we may need to avoid infinite cycling by checking whether a set of node assignments has been repeated
 				while(mut.moved){
+          
+          if (! count %% 50) {
+            print(paste("Round 2: ",count, sep=''))
+            print(start-Sys.time())
+          }
+          
 					count=count+1
 					mut.moved=F
 					rand.inds = sample(no.muts)
@@ -776,11 +803,12 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 						}
 					}
 				}
-        			print("Moving round2 done")
+  			print("Moving round2 done")
 				print(Sys.time()-start) # 22.56638 secs then 1.154665 mins then 2.397968 mins then 3.97632 mins (most likely start is reset at this point by subfunction)
 				# Remove empty nodes
 				consensus.assignments = cullTree(consensus.assignments, all.consensus.trees)
-
+        print("Cull tree done")
+        
 				temp = plotConsensusTree(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in,node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices,tree.number)
         new.consensus.tree = temp[[1]]
         new.consensus.ass = temp[[2]]
@@ -808,6 +836,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 
 cullTree = function(consensus.assignments, all.consensus.trees) {
 	#cull tree (remove empty nodes), and reassign labels
+  print("Culling tree")
 	temp.tree = all.consensus.trees[[length(all.consensus.trees)]]
 	temp.tree$node = 1:nrow(temp.tree)
 	temp.list <- cull.tree(temp.tree, consensus.assignments)
