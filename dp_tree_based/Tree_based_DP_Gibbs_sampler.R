@@ -189,7 +189,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 	for (m in 2:iter) {
 		print(paste("iter",m,sep=" "))
-    #save(file=paste('~/dp/iter_saves/', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC)
+    #save(file=paste('~/dp/iter_saves/', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC, m, conflict.array)
 		curr.tree <- trees.n[[m-1]]
 
 		new.assignments = node.assignments[,m-1]
@@ -368,13 +368,11 @@ sample.assignment <- function(y, n, kappa, tree1, curr.assignment, lambda, alpha
 	 	else {if (max.u - min.u < 10E-6) {
 	 			#print("Slice sampler shrank down: keep current state")
 	 			output <- list("Success", old.tree, curr.assignment)
-	 			}
-	 		else {
+ 		} else {
 	 			if (new.node < curr.assignment) {
 	 				min.u <- curr.u
 	 				output <- list("Fail")
-	 			}	
-	 			else {
+	 			}	else {
 	 				max.u <- curr.u
 	 				output <- list("Fail")
 	 			}
