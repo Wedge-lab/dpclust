@@ -7,6 +7,11 @@ run = as.integer(args[1])
 bin.size = as.double(args[2])
 no.iters = as.integer(args[3])
 burn.in.fraction = as.double(args[4])
+if (length(args) < 5) {
+  phase = NA
+} else {
+  phase = args[5]
+}
 
 parallel = TRUE
 resort.mutations = TRUE
@@ -86,11 +91,11 @@ print(paste("Removed ",no.muts-nrow(WTCount)))
 start_time = Sys.time()
 if(is.na(bin.size)){
   outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,sep="")
-  RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel)
+  RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
   
 }else{
   outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,sep="")
-  RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel)
+  RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
 }
 end_time = Sys.time()
 # working dir has changed, therefore write this file directly to current dir
