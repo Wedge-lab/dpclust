@@ -1,27 +1,31 @@
-args=commandArgs(TRUE)
-run = as.integer(args[1])
-
 #setwd("/lustre/scratch110/sanger/dw9/TreeBasedDirichletProcess/Release")
 setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
 source("RunTreeBasedDP.R")
+
+args=commandArgs(TRUE)
+run = as.integer(args[1])
+bin.size = as.double(args[2])
+no.iters = as.integer(args[3])
+burn.in.fraction = as.double(args[4])
 
 parallel = TRUE
 
 #bin.size = 0.025
 #increased for ES8
-bin.size = 0.05
+#bin.size = 0.05
 #bin.size = NA
 
 resort.mutations = T
 
-burn.in.fraction = 0.2
+#burn.in.fraction = 0.2
 #TEST
-no.iters=20
+#no.iters=20
 #no.iters=125
 #no.iters=1250
 #no.iters=10000
 
 no.iters.burn.in = floor(no.iters*burn.in.fraction)
+set.seed(123)
 
 samplenames=c("H3122","C32","ES7","ES8")
 subsamples = list()
@@ -71,12 +75,16 @@ for(i in 1:length(subsamples[[run]])){
 
 start_time = Sys.time()
 if(is.na(bin.size)){
-	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, parallel=parallel)
-}else{
-	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_binSize",bin.size,sep=""), parallel=parallel)
+	outdir = paste(samplename,"_1t_treeBasedDirichletProcessOutputs_noIters",no.iters,sep="")
+	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel)
+  
+  }else{
+	outdir = paste(samplename,"_1t_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,sep="")
+	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel)
 }
 end_time = Sys.time()
-
+# working dir has changed, therefore write this file directly to current dir
+write.table(data.frame(diff=c(difftime(end_time, start_time, units='sec')), unit=c('seconds')), file='runtime.txt', quote=F, row.names=F)
 print(end_time-start_time)
 
 print(warnings())
