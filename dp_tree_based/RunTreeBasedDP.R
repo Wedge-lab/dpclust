@@ -13,20 +13,21 @@ library(doRNG)
 # library(snowfall)
 library(snow)
 
-RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE){
+RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE, phase=NA){
 
   start = Sys.time()
-  
+
   # Setup threads for parallel computations
   if(parallel) {
-#     sfInit(parallel=TRUE,cpus=4)
-#     setDefaultCluster(makePSOCKcluster(4))
     clp = makeCluster(4)
     registerDoParallel(clp)
   } else {
     clp = NA
   }
   
+  ###################################
+  # Read in the data files
+  ###################################
 	no.subsamples = ncol(mutCount)
 
 	#aggregate mutations that have similar allele burden and the same kappa
@@ -75,153 +76,167 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 		dir.create(outdir)
 	}
 
-	if(is.na(bin.size)){
-		temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)
-	}else{
-		save(bin.indices,file=paste(outdir,"/",samplename,"_",no.iters,"iters_burnin",no.iters.burn.in,"_binnedIndices.RData",sep=""))
-		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)	
-	}
+  ###################################
+  # Run the tree phase of the method
+  ###################################
+  if (is.na(phase) | phase == 'tree') {
+  
+  	if(is.na(bin.size)){
+  		temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)
+  	}else{
+  		save(bin.indices,file=paste(outdir,"/",samplename,"_",no.iters,"iters_burnin",no.iters.burn.in,"_binnedIndices.RData",sep=""))
+  		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)	
+  	}
+  
+    print("Finished tree.struct.dirichlet")
+    print(Sys.time()-start)
 
-  print("Finished tree.struct.dirichlet")
-  print(Sys.time()-start)
-	setwd(outdir)
+    setwd(outdir)
 
-	trees = temp.list[[1]]
-	if(is.na(bin.size)){
-		node.assignments = temp.list[[2]]
-	}else{
-		binned.node.assignments = temp.list[[2]]
-		node.assignments = array(NA,c(nrow(mutCount),ncol(binned.node.assignments)))
-		for(i in 1:length(bin.indices)){
-			node.assignments[bin.indices[[i]],] = binned.node.assignments[i,]
-		}
-		write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	}
-	alphas = temp.list[[3]]
-	lambdas = temp.list[[4]]
-	gammas = temp.list[[5]]
-	likelihoods = temp.list[[6]]
-	BIC = temp.list[[7]]
-  if(parallel) {
-    tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
+  	trees = temp.list[[1]]
+  	if(is.na(bin.size)){
+  		node.assignments = temp.list[[2]]
+  	}else{
+  		binned.node.assignments = temp.list[[2]]
+  		node.assignments = array(NA,c(nrow(mutCount),ncol(binned.node.assignments)))
+  		for(i in 1:length(bin.indices)){
+  			node.assignments[bin.indices[[i]],] = binned.node.assignments[i,]
+  		}
+  		write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	}
+  	alphas = temp.list[[3]]
+  	lambdas = temp.list[[4]]
+  	gammas = temp.list[[5]]
+  	likelihoods = temp.list[[6]]
+  	BIC = temp.list[[7]]
+    if(parallel) {
+      tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
+    } else {
+      tree.sizes = sapply(1:length(trees),function(t,i){nrow(t[[i]])},t=trees)
+    }
+  	best.index = which.max(likelihoods)
+  	best.BIC.index = which.min(BIC)
+  
+  	pdf(paste("all_trees_",samplename,"_",no.iters,"iters.pdf",sep=""),height=4,width=3*no.subsamples)
+  	for(iter in 1:no.iters){
+  		tree = trees[[iter]]
+  		#tree$annotation = NA
+  		tree = annotateTree(tree,node.assignments[,iter],annotation)
+  		title = paste(samplename,"iter",iter)
+  		if(iter==best.index){
+  			title = paste(title,"(most likely tree)")
+  		}
+  		if(iter==best.BIC.index){
+  			title = paste(title,"(best BIC tree)")
+  		}
+  		plotTree(tree,title)
+  	}
+  	dev.off()
+  	
+  	png(paste("log_likelihood_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+  	plot(1:no.iters,likelihoods,type="l",col="red",xlab="MCMC iteration", ylab="log-likelihood",main=samplename)
+  	dev.off()
+  	png(paste("BIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+  	plot(1:no.iters,BIC,type="l",col="red",xlab="MCMC iteration", ylab="BIC",main=samplename)
+  	dev.off()
+  	
+  	write.table(node.assignments,paste("node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	write.table(alphas,paste("alphas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	write.table(lambdas,paste("lambdas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	write.table(gammas,paste("gammas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	write.table(likelihoods,paste("likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	#write.table(best.tree,paste("best_tree_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	save(trees,file=paste("",samplename,"_trees_iters",no.iters,".Rdata",sep=""))
+  
   } else {
-    tree.sizes = sapply(1:length(trees),function(t,i){nrow(t[[i]])},t=trees)
+    ## Load the data!
+  } 
+	
+  if (is.na(phase) | phase == 'cons') {
+  	if(is.na(bin.size)){
+  		temp.list = GetConsensusTrees(trees, node.assignments, mutCount, WTCount, kappa = kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations)
+  	}else{
+  		temp.list = GetConsensusTrees(trees, binned.node.assignments, binned.mutCount, binned.WTCount, kappa = binned.kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations,bin.indices = bin.indices)
+  	}
+  	print("Finished GetConsensusTrees")
+  	print(Sys.time()-start)
+  	print(names(temp.list))
+  	
+  	all.consensus.trees = temp.list$all.consensus.trees
+  	save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
+  	if(!is.na(bin.size)){
+  		all.consensus.assignments = temp.list$all.consensus.assignments
+  		all.disaggregated.consensus.assignments = temp.list$all.disaggregated.consensus.assignments
+  		save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allBinnedConsensusAssignments.RData",sep=""))
+  		save(all.disaggregated.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))		
+  	}else{
+  		all.consensus.assignments = temp.list$all.consensus.assignments
+  		save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
+  	}
+  	likelihoods = temp.list$likelihoods
+  	BIC = temp.list$BIC
+  	png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+  	plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
+  	dev.off()
+  	png(paste("BIC_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+  	plot(1:length(BIC),BIC,type="l",col="red",xlab="posterior tree index", ylab="BIC",main=samplename)
+  	dev.off()
+  	
+  	write.table(data.frame(tree.index = 1:length(likelihoods),likelihood=likelihoods),paste("consensus_likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	write.table(data.frame(tree.index = 1:length(BIC),BIC=BIC),paste("consensus_BICs_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  	
+  	best.index = which.min(BIC)
+  	best.tree = all.consensus.trees[[best.index]]
+  	if(!is.na(bin.size)){
+  		best.node.assignments = all.disaggregated.consensus.assignments[[best.index]]
+  	}else{
+  		best.node.assignments = all.consensus.assignments[[best.index]]
+  	}
+  	
+  	#png(paste("bestConsensusTree_",samplename,"_",no.iters,"iters.png",sep=""))
+  	png(paste("bestConsensusTree_",samplename,"_",no.iters,"iters.png",sep=""),width=no.subsamples*1000,height=1000)
+  	if(!is.na(bin.size)){
+  		plotTree(annotateTree(best.tree,all.disaggregated.consensus.assignments,annotation),font.size=2,main=paste(samplename,subsamplenames,sep=""))
+  		
+  	}else{
+  		plotTree(annotateTree(best.tree,all.consensus.assignments,annotation),font.size=2,main=paste(samplename,subsamplenames,sep=""))
+  	}
+  	dev.off()
+  	write.table(best.node.assignments,paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_bestConsensusAssignments.txt",sep=""),sep="\t",quote=F,row.names=F,col.names=F)
+  	
+  	if(no.subsamples>1){
+  		subclonal.fraction = array(NA,dim(mutCount))
+  		for(i in 1:no.subsamples){
+  			subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
+  			subclonal.fraction[kappa[,i]==0,i] = NA
+  		}	
+  		
+  		#its hard to distinguish more than 8 different colours
+  		max.cols = 8
+  		no.nodes = nrow(best.tree)
+  		unique.nodes = rownames(best.tree)
+  		cols = rainbow(min(max.cols,no.nodes))
+  		png(paste("bestScatterPlots_",samplename,"_",no.iters,"iters.png",sep=""),width=no.subsamples*(no.subsamples-1)*500,height=1000)
+  		par(mfrow = c(1,no.subsamples*(no.subsamples-1)/2),cex=2)
+  		plot.data = subclonal.fraction
+  		plot.data[is.na(plot.data)]=0
+  		for(i in 1:(no.subsamples-1)){
+  			for(j in (i+1):no.subsamples){
+  				plot(plot.data[,i],plot.data[,j],type = "n",xlab = paste(samplename,subsamplenames[i]," subclonal fraction",sep=""), ylab = paste(samplename,subsamplenames[j]," subclonal fraction",sep=""),xlim = c(0,max(plot.data[,i])*1.3))
+  				for(n in 1:no.nodes){
+  					points(plot.data[,i][best.node.assignments==unique.nodes[n]],plot.data[,j][best.node.assignments==unique.nodes[n]],col=cols[(n-1) %% max.cols + 1],pch=20 + floor((n-1)/max.cols))
+  				}
+  				#legend(max(plot.data[,i]),max(plot.data[,j]),legend = unique.nodes[n],col=cols[(n-1) %% max.cols + 1],pch=20 + floor((n-1)/max.cols))
+  				legend(max(plot.data[,i])*1.1,max(plot.data[,j]),legend = unique.nodes,col=cols[(0:(no.nodes-1)) %% max.cols + 1],pch=20 + floor((0:(no.nodes-1))/max.cols))
+  			}
+  		}
+  		dev.off()
+  	}	
   }
-	best.index = which.max(likelihoods)
-	best.BIC.index = which.min(BIC)
-
-	pdf(paste("all_trees_",samplename,"_",no.iters,"iters.pdf",sep=""),height=4,width=3*no.subsamples)
-	for(iter in 1:no.iters){
-		tree = trees[[iter]]
-		#tree$annotation = NA
-		tree = annotateTree(tree,node.assignments[,iter],annotation)
-		title = paste(samplename,"iter",iter)
-		if(iter==best.index){
-			title = paste(title,"(most likely tree)")
-		}
-		if(iter==best.BIC.index){
-			title = paste(title,"(best BIC tree)")
-		}
-		plotTree(tree,title)
-	}
-	dev.off()
-	
-	png(paste("log_likelihood_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
-	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-	plot(1:no.iters,likelihoods,type="l",col="red",xlab="MCMC iteration", ylab="log-likelihood",main=samplename)
-	dev.off()
-	png(paste("BIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
-	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-	plot(1:no.iters,BIC,type="l",col="red",xlab="MCMC iteration", ylab="BIC",main=samplename)
-	dev.off()
-	
-	write.table(node.assignments,paste("node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	write.table(alphas,paste("alphas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	write.table(lambdas,paste("lambdas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	write.table(gammas,paste("gammas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	write.table(likelihoods,paste("likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	#write.table(best.tree,paste("best_tree_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	save(trees,file=paste("",samplename,"_trees_iters",no.iters,".Rdata",sep=""))
-	
-	if(is.na(bin.size)){
-		temp.list = GetConsensusTrees(trees, node.assignments, mutCount, WTCount, kappa = kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations)
-	}else{
-		temp.list = GetConsensusTrees(trees, binned.node.assignments, binned.mutCount, binned.WTCount, kappa = binned.kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations,bin.indices = bin.indices)
-	}
-	print(names(temp.list))
-	
-	all.consensus.trees = temp.list$all.consensus.trees
-	save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
-	if(!is.na(bin.size)){
-		all.consensus.assignments = temp.list$all.consensus.assignments
-		all.disaggregated.consensus.assignments = temp.list$all.disaggregated.consensus.assignments
-		save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allBinnedConsensusAssignments.RData",sep=""))
-		save(all.disaggregated.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))		
-	}else{
-		all.consensus.assignments = temp.list$all.consensus.assignments
-		save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
-	}
-	likelihoods = temp.list$likelihoods
-	BIC = temp.list$BIC
-	png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-	plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
-	dev.off()
-	png(paste("BIC_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-	plot(1:length(BIC),BIC,type="l",col="red",xlab="posterior tree index", ylab="BIC",main=samplename)
-	dev.off()
-	
-	write.table(data.frame(tree.index = 1:length(likelihoods),likelihood=likelihoods),paste("consensus_likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	write.table(data.frame(tree.index = 1:length(BIC),BIC=BIC),paste("consensus_BICs_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-	
-	best.index = which.min(BIC)
-	best.tree = all.consensus.trees[[best.index]]
-	if(!is.na(bin.size)){
-		best.node.assignments = all.disaggregated.consensus.assignments[[best.index]]
-	}else{
-		best.node.assignments = all.consensus.assignments[[best.index]]
-	}
-	
-	#png(paste("bestConsensusTree_",samplename,"_",no.iters,"iters.png",sep=""))
-	png(paste("bestConsensusTree_",samplename,"_",no.iters,"iters.png",sep=""),width=no.subsamples*1000,height=1000)
-	if(!is.na(bin.size)){
-		plotTree(annotateTree(best.tree,all.disaggregated.consensus.assignments,annotation),font.size=2,main=paste(samplename,subsamplenames,sep=""))
-		
-	}else{
-		plotTree(annotateTree(best.tree,all.consensus.assignments,annotation),font.size=2,main=paste(samplename,subsamplenames,sep=""))
-	}
-	dev.off()
-	write.table(best.node.assignments,paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_bestConsensusAssignments.txt",sep=""),sep="\t",quote=F,row.names=F,col.names=F)
-	
-	if(no.subsamples>1){
-		subclonal.fraction = array(NA,dim(mutCount))
-		for(i in 1:no.subsamples){
-			subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
-			subclonal.fraction[kappa[,i]==0,i] = NA
-		}	
-		
-		#its hard to distinguish more than 8 different colours
-		max.cols = 8
-		no.nodes = nrow(best.tree)
-		unique.nodes = rownames(best.tree)
-		cols = rainbow(min(max.cols,no.nodes))
-		png(paste("bestScatterPlots_",samplename,"_",no.iters,"iters.png",sep=""),width=no.subsamples*(no.subsamples-1)*500,height=1000)
-		par(mfrow = c(1,no.subsamples*(no.subsamples-1)/2),cex=2)
-		plot.data = subclonal.fraction
-		plot.data[is.na(plot.data)]=0
-		for(i in 1:(no.subsamples-1)){
-			for(j in (i+1):no.subsamples){
-				plot(plot.data[,i],plot.data[,j],type = "n",xlab = paste(samplename,subsamplenames[i]," subclonal fraction",sep=""), ylab = paste(samplename,subsamplenames[j]," subclonal fraction",sep=""),xlim = c(0,max(plot.data[,i])*1.3))
-				for(n in 1:no.nodes){
-					points(plot.data[,i][best.node.assignments==unique.nodes[n]],plot.data[,j][best.node.assignments==unique.nodes[n]],col=cols[(n-1) %% max.cols + 1],pch=20 + floor((n-1)/max.cols))
-				}
-				#legend(max(plot.data[,i]),max(plot.data[,j]),legend = unique.nodes[n],col=cols[(n-1) %% max.cols + 1],pch=20 + floor((n-1)/max.cols))
-				legend(max(plot.data[,i])*1.1,max(plot.data[,j]),legend = unique.nodes,col=cols[(0:(no.nodes-1)) %% max.cols + 1],pch=20 + floor((0:(no.nodes-1))/max.cols))
-			}
-		}
-		dev.off()
-	}	
 
   if(parallel) {
 #     sfStop()
