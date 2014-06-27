@@ -81,11 +81,11 @@ for(i in 1:length(subsamples[[run]])){
 
 start_time = Sys.time()
 if(is.na(bin.size)){
-	outdir = paste(samplename,"_1t_treeBasedDirichletProcessOutputs_noIters",no.iters,sep="")
+	outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,sep="")
 	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
   
   }else{
-	outdir = paste(samplename,"_1t_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,sep="")
+	outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,sep="")
 	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
 }
 end_time = Sys.time()
