@@ -764,8 +764,8 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
       colnames = paste("theta.S", 1:no.subsamples, sep="")
       new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
       likelihoods = c(likelihoods,new.likelihood)
-      mean.thetas = colMeans(curr.tree[node.assignments[i,m],colnames])
-      new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,num.muts),ncol=num.samples))
+      mean.thetas = colMeans(new.consensus.tree[new.consensus.ass,colnames])
+      new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,no.muts),ncol=no.subsamples))
       post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
       
 			#fix tree structure and shuffle mutation assignments
@@ -829,8 +829,8 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 #         new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
 				new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
 				likelihoods = c(likelihoods,new.likelihood)
-        mean.thetas = colMeans(curr.tree[node.assignments[i,m],colnames])
-        new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,num.muts),ncol=num.samples))
+        mean.thetas = colMeans(new.consensus.tree[new.consensus.ass,colnames])
+        new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,no.muts),ncol=no.subsamples))
         post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
 			
 				print("finished re-sorting mutations")

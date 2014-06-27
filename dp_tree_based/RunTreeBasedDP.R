@@ -242,7 +242,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	write.table(best.node.assignments,paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_bestConsensusAssignments.txt",sep=""),sep="\t",quote=F,row.names=F,col.names=F)
   	
   	if(no.subsamples>1){
-  	  plotBestScatter(mutCount, WTCount, kappa, best.tree, samplename, no.iters)
+  	  plotBestScatter(mutCount, WTCount, kappa, best.tree, samplename, no.iters, subsamplenames, best.node.assignments)
 #   		subclonal.fraction = array(NA,dim(mutCount))
 #   		for(i in 1:no.subsamples){
 #   			subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
@@ -293,7 +293,7 @@ writeScoresTable <- function(scores, score_name, samplename, no,iters) {
   write.table(data,paste("consensus_",score_name,"_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
 }
 
-plotBestScatter <- function(mutCount, WTCount, kappa, best.tree, samplename, no.iters) {
+plotBestScatter <- function(mutCount, WTCount, kappa, best.tree, samplename, no.iters, subsamplenames, best.node.assignments) {
   subclonal.fraction = array(NA,dim(mutCount))
   for(i in 1:no.subsamples){
     subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])

@@ -3,25 +3,26 @@ cull.tree <- function(tree1, curr.assignments) {
 	saved.tree = tree1
 	# tree1 is the current tree
 	# curr.assignment is the vector of current assignments of the tree
-	nodes.with.data <- unique(curr.assignments)
-	nodes.in.tree <- data.frame(label=sort(tree1$label), keep.node=rep(FALSE,dim(tree1)[1]), replace.with.siblings=rep(FALSE,dim(tree1)[1]), replace.with.descendants=rep(FALSE,dim(tree1)[1]), stringsAsFactors=FALSE)
-	nodes.in.tree$keep.node[is.element(nodes.in.tree$label, nodes.with.data)] <- TRUE
-	nodes.in.tree$keep.node[1] <- TRUE
-	for (i in 2:dim(nodes.in.tree)[1]) {
-		temp.node <- nodes.in.tree$label[i]
-		younger.relatives <- nodes.in.tree$label[younger.descendants(temp.node, nodes.in.tree$label)]
-		younger.descendants <- nodes.in.tree$label[younger.direct.descendants(temp.node, nodes.in.tree$label)]
-		if (sum(is.element(younger.relatives, nodes.with.data)) > 0){
-			if(!(nodes.in.tree$keep.node[i])){				
-				if (sum(is.element(younger.descendants, nodes.with.data)) > 0){
-					nodes.in.tree$replace.with.descendants[i] = T
-				}
-				if(sum(is.element(younger.descendants, nodes.with.data)) < sum(is.element(younger.relatives, nodes.with.data))){
-					nodes.in.tree$replace.with.siblings[i] = T
-				}
-			}
-		}
-	}
+# 	nodes.with.data <- unique(curr.assignments)
+# 	nodes.in.tree <- data.frame(label=sort(tree1$label), keep.node=rep(FALSE,dim(tree1)[1]), replace.with.siblings=rep(FALSE,dim(tree1)[1]), replace.with.descendants=rep(FALSE,dim(tree1)[1]), stringsAsFactors=FALSE)
+# 	nodes.in.tree$keep.node[is.element(nodes.in.tree$label, nodes.with.data)] <- TRUE
+# 	nodes.in.tree$keep.node[1] <- TRUE
+# 	for (i in 2:dim(nodes.in.tree)[1]) {
+# 		temp.node <- nodes.in.tree$label[i]
+# 		younger.relatives <- nodes.in.tree$label[younger.descendants(temp.node, nodes.in.tree$label)]
+# 		younger.descendants <- nodes.in.tree$label[younger.direct.descendants(temp.node, nodes.in.tree$label)]
+# 		if (sum(is.element(younger.relatives, nodes.with.data)) > 0){
+# 			if(!(nodes.in.tree$keep.node[i])){				
+# 				if (sum(is.element(younger.descendants, nodes.with.data)) > 0){
+# 					nodes.in.tree$replace.with.descendants[i] = T
+# 				}
+# 				if(sum(is.element(younger.descendants, nodes.with.data)) < sum(is.element(younger.relatives, nodes.with.data))){
+# 					nodes.in.tree$replace.with.siblings[i] = T
+# 				}
+# 			}
+# 		}
+# 	}
+  nodes.in.tree = createInventory(tree1, curr.assignments)
 	#use node numbers - they don't change
 	original.keep.nodes = tree1$node[tree1$label %in%nodes.in.tree$label[nodes.in.tree$keep.node]]
 	#040112 - not sure that psi and phi values are set correctly
@@ -136,4 +137,49 @@ cull.tree <- function(tree1, curr.assignments) {
 	old.labels = saved.tree$label[match(tree1$node,saved.tree$node)]
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
 	return(list(culled.tree=tree1,mapping=df))
+}
+
+
+createInventory <- function(tree1, curr.assignments) {
+  # Crate an inventory of which nodes are to be kept and which ones should be replaced by a sibling
+  nodes.with.data <- unique(curr.assignments)
+  nodes.in.tree <- data.frame(label=sort(tree1$label), keep.node=rep(FALSE,dim(tree1)[1]), replace.with.siblings=rep(FALSE,dim(tree1)[1]), replace.with.descendants=rep(FALSE,dim(tree1)[1]), stringsAsFactors=FALSE)
+  nodes.in.tree$keep.node[is.element(nodes.in.tree$label, nodes.with.data)] <- TRUE
+  nodes.in.tree$keep.node[1] <- TRUE
+#   nodes.in.tree.temp = nodes.in.tree
+  
+#   for (i in 2:dim(nodes.in.tree)[1]) {
+#     temp.node <- nodes.in.tree$label[i]
+#     younger.relatives <- nodes.in.tree$label[younger.descendants(temp.node, nodes.in.tree$label)]
+#     younger.descendants <- nodes.in.tree$label[younger.direct.descendants(temp.node, nodes.in.tree$label)]
+#     if (sum(is.element(younger.relatives, nodes.with.data)) > 0){
+#       if(!(nodes.in.tree$keep.node[i])){  			
+#         if (sum(is.element(younger.descendants, nodes.with.data)) > 0){
+#           nodes.in.tree$replace.with.descendants[i] = T
+#         }
+#         if(sum(is.element(younger.descendants, nodes.with.data)) < sum(is.element(younger.relatives, nodes.with.data))){
+#           nodes.in.tree$replace.with.siblings[i] = T
+#         }
+#       }
+#     }
+#   }
+  sapply(2:dim(nodes.in.tree)[1], FUN=createInventoryInner, nodes.in.tree, nodes.with.data)
+#   print(identical(nodes.in.tree, nodes.in.tree.temp))
+  return(nodes.in.tree)
+}
+
+createInventoryInner <- function(i, nodes.in.tree, nodes.with.data) {
+  temp.node <- nodes.in.tree$label[i]
+  younger.relatives <- nodes.in.tree$label[younger.descendants(temp.node, nodes.in.tree$label)]
+  younger.descendants <- nodes.in.tree$label[younger.direct.descendants(temp.node, nodes.in.tree$label)]
+  if (sum(is.element(younger.relatives, nodes.with.data)) > 0){
+    if(!(nodes.in.tree$keep.node[i])){  			
+      if (sum(is.element(younger.descendants, nodes.with.data)) > 0){
+        nodes.in.tree$replace.with.descendants[i] = T
+      }
+      if(sum(is.element(younger.descendants, nodes.with.data)) < sum(is.element(younger.relatives, nodes.with.data))){
+        nodes.in.tree$replace.with.siblings[i] = T
+      }
+    }
+  }
 }
