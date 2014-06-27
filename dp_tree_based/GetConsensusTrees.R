@@ -568,8 +568,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	all.disaggregated.consensus.assignments = res[[4]]
   post.mean.deviance = res[[5]]
 
-  print("EM done")
-  print(Sys.time()-start)
+  print(paste("Finished EM in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 
 	dev.off(which = hist.device)
 	dev.off(which = density.device)
@@ -592,8 +591,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	print("best BIC tree:")
 	print(all.consensus.trees[[best.BIC.index]])
 
-  print("GenerateConsensus done")
-  print(Sys.time()-start)
+  print(paste("Finished GenerateConsensus in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 	
 	#png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
 	#par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))

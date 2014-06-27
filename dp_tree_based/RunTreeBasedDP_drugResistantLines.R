@@ -91,7 +91,7 @@ if(is.na(bin.size)){
 end_time = Sys.time()
 # working dir has changed, therefore write this file directly to current dir
 write.table(data.frame(diff=c(difftime(end_time, start_time, units='sec')), unit=c('seconds')), file='runtime.txt', quote=F, row.names=F)
-print(end_time-start_time)
+print(paste("Finished complete method in", as.numeric(end_time-start_time,units="secs"), "seconds"))
 
 print(warnings())
 
