@@ -3,6 +3,7 @@ source("GetConsensusTrees.R")
 source("PlotTreeWithIgraph.R")
 source("interconvertMutationBurdens.R")
 source("AnnotateTree.R")
+source("InformationCriterions.R")
 
 library(compiler)
 mutationCopyNumberToMutationBurden = cmpfun(mutationCopyNumberToMutationBurden)
@@ -109,6 +110,8 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	gammas = temp.list[[5]]
   	likelihoods = temp.list[[6]]
   	BIC = temp.list[[7]]
+    AIC = temp.list[[8]]
+    DIC = temp.list[[9]]
     if(parallel) {
       tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
     } else {
@@ -116,6 +119,8 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
     }
   	best.index = which.max(likelihoods)
   	best.BIC.index = which.min(BIC)
+    best.AIC.index = which.min(AIC)
+    best.DIC.index = which.min(DIC)
   
   	pdf(paste("all_trees_",samplename,"_",no.iters,"iters.pdf",sep=""),height=4,width=3*no.subsamples)
   	for(iter in 1:no.iters){
@@ -129,6 +134,12 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   		if(iter==best.BIC.index){
   			title = paste(title,"(best BIC tree)")
   		}
+      if(iter==best.AIC.index) {
+        title = paste(title,"(best AIC tree)")
+      }
+  		if(iter==best.DIC.index) {
+  		  title = paste(title,"(best DIC tree)")
+  		}
   		plotTree(tree,title)
   	}
   	dev.off()
@@ -140,6 +151,14 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	png(paste("BIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
   	plot(1:no.iters,BIC,type="l",col="red",xlab="MCMC iteration", ylab="BIC",main=samplename)
+  	dev.off()
+  	png(paste("AIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+  	plot(1:no.iters,AIC,type="l",col="red",xlab="MCMC iteration", ylab="AIC",main=samplename)
+  	dev.off()
+  	png(paste("DIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+  	plot(1:no.iters,DIC,type="l",col="red",xlab="MCMC iteration", ylab="DIC",main=samplename)
   	dev.off()
   	
   	write.table(node.assignments,paste("node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
@@ -183,17 +202,26 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	}
   	likelihoods = temp.list$likelihoods
   	BIC = temp.list$BIC
-  	png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-  	plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
-  	dev.off()
-  	png(paste("BIC_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-  	plot(1:length(BIC),BIC,type="l",col="red",xlab="posterior tree index", ylab="BIC",main=samplename)
-  	dev.off()
-  	
-  	write.table(data.frame(tree.index = 1:length(likelihoods),likelihood=likelihoods),paste("consensus_likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-  	write.table(data.frame(tree.index = 1:length(BIC),BIC=BIC),paste("consensus_BICs_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+    AIC = temp.list$AIC
+    DIC = temp.list$DIC
+  	plotScores("log_likelihood", samplename, no,iters, likelihoods, "log-likelihood")
+  	plotScores("BIC", samplename, no,iters, BIC, "BIC")
+  	plotScores("AIC", samplename, no,iters, AIC, "AIC")
+  	plotScores("DIC", samplename, no,iters, BIC, "DIC")
+#   	png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   	plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
+#   	dev.off()
+#   	png(paste("BIC_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   	plot(1:length(BIC),BIC,type="l",col="red",xlab="posterior tree index", ylab="BIC",main=samplename)
+#   	dev.off()
+    writeScoresTable(likelihoods, "likelihood", samplename, no,iters)
+    writeScoresTable(BIC, "BIC", samplename, no,iters)
+    writeScoresTable(AIC, "AIC", samplename, no,iters)
+    writeScoresTable(DIC, "DIC", samplename, no,iters)
+#   	write.table(data.frame(tree.index = 1:length(likelihoods),likelihood=likelihoods),paste("consensus_likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+#   	write.table(data.frame(tree.index = 1:length(BIC),BIC=BIC),paste("consensus_BICs_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
   	
   	best.index = which.min(BIC)
   	best.tree = all.consensus.trees[[best.index]]
@@ -248,5 +276,21 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 #     sfStop()
     stopCluster(clp)
   }
+}
+
+plotScores <- function(file_prefix, samplename, no,iters, scores, ylab) {
+#   png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+  png(paste(file_prefix,"_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+  par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
+  plot(1:length(scores),scores,type="l",col="red",xlab="posterior tree index", ylab=ylab,main=samplename)
+  dev.off()
+}
+
+writeScoresTable <- function(scores, score_name, samplename, no,iters) {
+#   write.table(data.frame(tree.index = 1:length(likelihoods),likelihood=likelihoods),paste("consensus_likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
+  data = data.frame(tree.index = 1:length(scores),likelihood=scores)
+  colnames(data) = c("tree.index", score_name)
+  write.table(data,paste("consensus_",score_name,"_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
 }
 

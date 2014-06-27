@@ -250,7 +250,6 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
   setwd(outdir)
 	
 	tree.number=1
-	likelihoods = numeric(0)
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
 
@@ -562,11 +561,12 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	#		node.added = F
 	#	}
 	#}
-	res = do_em(trees,node.assignments, ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number, likelihoods)
+	res = do_em(trees,node.assignments, ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number)
 	all.consensus.trees = res[[1]]
 	all.consensus.assignments = res[[2]]
 	likelihoods = res[[3]]
 	all.disaggregated.consensus.assignments = res[[4]]
+  post.mean.deviance = res[[5]]
 
   print("EM done")
   print(Sys.time()-start)
@@ -582,10 +582,12 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 
 	tree.sizes = sapply(1:length(all.consensus.trees),function(t,i){nrow(t[[i]])},t=all.consensus.trees)
   BIC = bic(likelihoods, no.subsamples, tree.sizes, no.muts)
+  AIC = aic(likelihoods, no.subsamples, tree.sizes)
+  DIC = dic(likelihoods, post.mean.deviance)
 
 	best.BIC.index = which.min(BIC)
 	print("likelihoods and BIC")
-	print(cbind(likelihoods,BIC))
+	print(cbind(likelihoods,BIC,AIC,DIC))
 	print(paste("best BIC index=",best.BIC.index,sep=""))
 	print("best BIC tree:")
 	print(all.consensus.trees[[best.BIC.index]])
@@ -604,23 +606,25 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	
 	#save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
 	if(!is.null(bin.indices)){
-		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.disaggregated.consensus.assignments = all.disaggregated.consensus.assignments, likelihoods = likelihoods, BIC = BIC))
+		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.disaggregated.consensus.assignments = all.disaggregated.consensus.assignments, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
 		#save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allBinnedConsensusAssignments.RData",sep=""))
 		#save(all.disaggregated.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))		
 	}else{
 		#save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
-		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, likelihoods = likelihoods, BIC = BIC))
+		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
 
 	}	
 }
 
-do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number,likelihoods) {
+do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number) {
 	start = Sys.time()
   print("Starting EM")
 	pairwise.agreements = identity.strengths
-
+  
 	no.muts=nrow(mutCount)
 
+	likelihoods = numeric(0)
+	post.mean.deviance = numeric(0)
 	all.consensus.trees = list()
 	all.consensus.assignments = list()
 	if(!is.null(bin.indices)){
@@ -629,7 +633,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 	new.pairwise.agreements = list()
 	node.added=T
 	while(node.added){	
-    		print("Node added")
+    print("Node added")
 		unique.nodes = unique(consensus.assignments)
 		no.nodes = length(unique.nodes)
 		new.agreements = array(NA,2*no.nodes)
@@ -715,7 +719,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				muts.to.move[[2*(n-1)+above+1]] = which(new.consensus.assignments == new.node)
 			}
 		}
-    		print("Moving round1 done")
+    print("Moving round1 done")
 		print(Sys.time()-start) # 4.236197 secs then 43.95235 secs then 1.666584 mins then 3.15994 mins then 4.814249 mins
 		
     #
@@ -759,8 +763,12 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			}
 			
 # 			new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
-      new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,paste("theta.S", 1:no.subsamples, sep="")])
+      colnames = paste("theta.S", 1:no.subsamples, sep="")
+      new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
       likelihoods = c(likelihoods,new.likelihood)
+      mean.thetas = colMeans(curr.tree[node.assignments[i,m],colnames])
+      new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,num.muts),ncol=num.samples))
+      post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
       
 			#fix tree structure and shuffle mutation assignments
 			if(resort.mutations){
@@ -821,8 +829,11 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				}
 			
 #         new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
-				new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,paste("theta.S", 1:no.subsamples, sep="")])
+				new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
 				likelihoods = c(likelihoods,new.likelihood)
+        mean.thetas = colMeans(curr.tree[node.assignments[i,m],colnames])
+        new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,num.muts),ncol=num.samples))
+        post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
 			
 				print("finished re-sorting mutations")
 			}
@@ -831,7 +842,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			node.added = F
 		}
 	}
-	return(list(all.consensus.trees, all.consensus.assignments, likelihoods, all.disaggregated.consensus.assignments))
+	return(list(all.consensus.trees, all.consensus.assignments, likelihoods, all.disaggregated.consensus.assignments, post.mean.deviance))
 }
 
 cullTree = function(consensus.assignments, all.consensus.trees) {
