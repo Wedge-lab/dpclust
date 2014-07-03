@@ -20,20 +20,13 @@ older.siblings <- function(curr.node, other.nodes) {
 	return(grepl(parent, other.nodes) & family.position[1,] < as.double(split.curr.node[length(split.curr.node)]) & family.position[2,] == length(split.curr.node))
 }
 
-ancestors <- function(curr.node, other.nodes, parallel=FALSE) {
+ancestors <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are ancestors of curr.node
 	# Note: curr.node is counted as an ancestor of itself
 	# Returns vector of logical values
 	no.nodes = length(other.nodes)
 	is.ancestor = vector(mode="logical",length=no.nodes)
-# 	for(i in 1:no.nodes){
-# 		is.ancestor[i] = grepl(other.nodes[i],curr.node)
-# 	}
-#   if(parallel) {
-#     is.ancestor = parSapply(1:no.nodes, FUN=function(i){ grepl(other.nodes[i],curr.node) }, simplify=TRUE, USE.NAMES=TRUE)
-#   } else {
   is.ancestor = sapply(1:no.nodes, FUN=function(i){ grepl(other.nodes[i],curr.node) })
-#   }
 	return(is.ancestor)
 }
 
@@ -60,7 +53,7 @@ get.conflicts <- function(index, conflict.array, node.assignments, whole.tree, p
 	for(i in 1:length(node.assignments)){
 		if(conflict.array[index,i]!=1){
 			#penalise all ancestors of conflicting node, i.e. don't put conflicting variants in the same branch
-			ancs = which(ancestors(node.assignments[i],all.nodes, parallel=parallel))
+			ancs = which(ancestors(node.assignments[i],all.nodes))
 			spl = strsplit(node.assignments[i],":")[[1]]
 			for(anc in ancs){
 				if(all.nodes[anc] == node.assignments[i]){
@@ -162,7 +155,6 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	# Keep track of all the likelihoods and all thetas for DIC calculation
 	all.likelihoods = matrix(NA,num.muts,iter)
 	all.thetas = list()
-#   all.thetas = matrix(NA,num.muts,num.samples)
 	for (i in 1:num.samples) { all.thetas[[i]] = matrix(NA,num.muts,iter) }
   curr.likelihoods = log.f.of.y(y, n, kappa, trees.n[[1]][node.assignments[,1],paste("theta.S", 1:num.samples, sep="")])
 	all.likelihoods[,1] = curr.likelihoods
