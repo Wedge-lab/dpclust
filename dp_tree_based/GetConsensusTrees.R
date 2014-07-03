@@ -282,8 +282,8 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 
 
 	for(i in 1:no.iters.post.burn.in){
-		ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-    
+    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
+
 		res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
 		ancestor.strengths = do.call(rbind,res[1,])
 		ancestor.or.identity.relationship = do.call(rbind,res[2,])
@@ -292,7 +292,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 		sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
 	}
 
-  print(Sys.time()-start) # 3.455465 secs
+  print(Sys.time()-start)
 
 	pdf(paste("histograms_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
 	hist.device=dev.cur()
@@ -615,7 +615,9 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 }
 
 do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number) {
-	start = Sys.time()
+  save(file='~/dp/em.RData', trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number)
+  
+  start = Sys.time()
   print("Starting EM")
 	pairwise.agreements = identity.strengths
   
@@ -669,6 +671,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				#EM algorithm - iteratively move muts to the new node or back again
 				mut.moved=T
 				count=1
+        
 				saved.consensus.assignments = new.consensus.assignments
 				#we may need to avoid infinite cycling by checking whether a set of node assignments has been repeated
 				while(mut.moved){
@@ -718,7 +721,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			}
 		}
     print("Moving round1 done")
-		print(Sys.time()-start) # 4.236197 secs then 43.95235 secs then 1.666584 mins then 3.15994 mins then 4.814249 mins
+		print(Sys.time()-start)
 		
     #
     # pull out the best agreement found above
@@ -748,8 +751,8 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			current.agreement = new.agreements[best.node]
 			pairwise.agreements = new.pairwise.agreements[[best.node]]
 			fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
-			
-      temp = plotConsensusTree(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in,node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices,tree.number)
+			##samplename TODO place back
+      temp = plotConsensusTree(consensus.assignments,"test",subsamplenames,no.iters, no.iters.burn.in,node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices,tree.number)
 			new.consensus.tree = temp[[1]]
       new.consensus.ass = temp[[2]]
       
@@ -777,11 +780,14 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				mut.moved=T
 				count=1
 				#we may need to avoid infinite cycling by checking whether a set of node assignments has been repeated
+				assignments.tracker = matrix(NA, length(consensus.assignments), length(consensus.assignments))
+				assignments.tracker[,1] = consensus.assignments
+        no.assignments.tracked = 1
+        
 				while(mut.moved){
-          
           if (! count %% 50) {
             print(paste("Round 2: ",count, sep=''))
-            print(start-Sys.time())
+            print(Sys.time()-start)
           }
           
 					count=count+1
@@ -791,28 +797,35 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 						old.agreement = sum(pairwise.agreements[r,])
 						curr.ass = consensus.assignments[r]
 						possible.ass = unique.nodes[unique.nodes != curr.ass]
+            
+            # Get best new agreement
 						new.agreements = array(NA,length(possible.ass))
-						for(n in 1:length(possible.ass)){
-							new.ass = possible.ass[n]
-							res = get.desc.and.anc(r, new.ass, unique.nodes, consensus.assignments)
-							desc = res[[1]]
-							anc = res[[2]]
-							temp.ass = res[[3]]
-              new.agreements[n] = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
-						}
-
+            new.agreements = as.array(sapply(1:length(possible.ass), FUN=get.new.agreements, r, possible.ass, unique.nodes, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths))
 						new.agreement = max(new.agreements)
 						best.index = which.max(new.agreements)
-						if(new.agreement > old.agreement){
+            
+            # Change the consensus assignment temporarily and check whether this new set of assignments was already 
+            # tried. If it was already tried it should not be tried again
+            consensus.ass.temp = consensus.assignments
+						consensus.ass.temp[r] = possible.ass[best.index]
+
+            # Check if the new assignment when moving this mut was not seen before
+            if(new.agreement > old.agreement & !is.assignment.known(assignments.tracker, consensus.ass.temp)){
 							mut.moved=T
-							pairwise.agreements = move.mut2(r,possible.ass[best.index], desc, anc, unique.nodes, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
+							pairwise.agreements = move.mut2(r,possible.ass[best.index], unique.nodes, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 						}
 					}
 				}
   			print("Moving round2 done")
-				print(Sys.time()-start) # 22.56638 secs then 1.154665 mins then 2.397968 mins then 3.97632 mins (most likely start is reset at this point by subfunction)
+				print(Sys.time()-start)
 				# Remove empty nodes
 				consensus.assignments = cullTree(consensus.assignments, all.consensus.trees)
+        if(ncol(assignments.tracker) == no.assignments.tracked) {
+          ## The assignments tracker is getting full, extend it with more columns
+          assignments.tracker = cbind(assignments.tracker, matrix(NA, length(consensus.assignments), length(consensus.assignments)))
+        }
+        assignments.tracker[,no.assignments.tracked+1] = consensus.assignments
+				no.assignments.tracked = no.assignments.tracked+1
         print("Cull tree done")
         
 				temp = plotConsensusTree(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in,node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices,tree.number)
@@ -841,6 +854,23 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 		}
 	}
 	return(list(all.consensus.trees, all.consensus.assignments, likelihoods, all.disaggregated.consensus.assignments, post.mean.deviance))
+}
+
+is.assignment.known <- function(ass.tracker, consensus.ass.temp) {
+  res = sapply(1:ncol(ass.tracker), FUN=function(col, ass.tracker, consensus.ass.temp) { identical(ass.tracker[,col],consensus.ass.temp) }, ass.tracker, consensus.ass.temp)
+  return(sum(res) > 0)
+}
+
+get.new.agreements <- function(n, r, possible.ass, unique.nodes, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths) {
+#   for(n in 1:length(possible.ass)){
+  new.ass = possible.ass[n]
+  res = get.desc.and.anc(r, new.ass, unique.nodes, consensus.assignments)
+  desc = res[[1]]
+  anc = res[[2]]
+  temp.ass = res[[3]]
+  new.agreement = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
+#   }
+  return(new.agreement)
 }
 
 cullTree = function(consensus.assignments, all.consensus.trees) {
@@ -902,12 +932,12 @@ move.mut1 = function(m, r1, new.ass1, desc1, anc1, new.pairwise.agreements1, new
 	new.pairwise.agreements1[[m]][r1, !(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1] = sibling.strengths1[r1, !(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1]
 	return(new.pairwise.agreements1)
 }
-move.mut2 = function(r1, new.ass, desc1, anc1, unique.nodes1, pairwise.agreements1, consensus.assignments1, identity.strengths1, ancestor.strengths1, sibling.strengths1) {
+move.mut2 = function(r1, new.ass, unique.nodes1, pairwise.agreements1, consensus.assignments1, identity.strengths1, ancestor.strengths1, sibling.strengths1) {
 	#new.ass = possible.ass1[best.index]
-	desc = unique.nodes1[younger.direct.descendants(new.ass,unique.nodes1)]
-	desc = desc[desc != new.ass]
-	anc = unique.nodes1[ancestors(new.ass,unique.nodes1)]
-	anc = anc[anc != new.ass]			
+	desc1 = unique.nodes1[younger.direct.descendants(new.ass,unique.nodes1)]
+	desc1 = desc1[desc1 != new.ass]
+	anc1 = unique.nodes1[ancestors(new.ass,unique.nodes1)]
+	anc1 = anc1[anc1 != new.ass]			
 	consensus.assignments1[r1] = new.ass
 	pairwise.agreements1[r1,]=NA
 	pairwise.agreements1[,r1]=NA
