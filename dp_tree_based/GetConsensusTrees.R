@@ -268,18 +268,6 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	ancestor.strengths = array(0,c(no.muts,no.muts))
 	sibling.strengths = array(0,c(no.muts,no.muts))
 	identity.strengths = array(0,c(no.muts,no.muts))
-                                                                             
-        #it would be faster to use apply
-        #for(i in 1:no.iters.post.burn.in){
-        #        ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-        #        for(m in 1:no.muts){
-        #               ancestor.strengths[m,] = ancestor.strengths[m,] + (younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in]) & (node.assignments[m,i+no.iters-no.iters.post.burn.in] != node.assignments[,i+no.iters-no.iters.post.burn.in]))
-        #               ancestor.or.identity.relationship[m,] = younger.direct.descendants(node.assignments[m,i+no.iters-no.iters.post.burn.in],node.assignments[,i+no.iters-no.iters.post.burn.in])
-        #         identity.strengths[m,] = identity.strengths[m,] + (node.assignments[m,i+no.iters-no.iters.post.burn.in] == node.assignments[,i+no.iters-no.iters.post.burn.in])
-        #       }
-        #       sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
-        #}
-
 
 	for(i in 1:no.iters.post.burn.in){
     ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
