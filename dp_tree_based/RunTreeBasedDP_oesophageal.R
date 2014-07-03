@@ -1,6 +1,7 @@
 datpath = "/lustre/scratch110/sanger/sd11/dirichlet/dp_nd/"
 setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
 source("RunTreeBasedDP.R")
+source("LoadData.R")
 
 args=commandArgs(TRUE)
 run = as.integer(args[1])
@@ -16,7 +17,7 @@ if (length(args) < 5) {
 parallel = TRUE
 resort.mutations = TRUE
 no.iters.burn.in = floor(no.iters*burn.in.fraction)
-set.seed(456)
+set.seed(123)
 
 samplenames=c("Case1","Case2","Case3","Case4","Case1","Case1_1050","Case1_3300","Case1_1050","Case1_3300")
 subsamples = list()
@@ -45,50 +46,16 @@ samplename = samplenames[run]
 no.subsamples = length(subsamples[[run]])
 cellularity = cellularities[[run]]
 
-data=list()
-for(s in 1:length(subsamples[[run]])){
-  data[[s]] = read.table(paste(datpath,samplename,subsamples[[run]][s],"_allDirichletProcessInfo.txt",sep=""),header=T,sep="\t")
-  data[[s]] = data[[s]][data[[s]]$Chromosome %in% 1:22,]
-}
 
-# TODO: Add in code that makes sure all mutations are mentioned in all files? See nD Run script.
+res = load.data(datpath, samplename, subsamples[[run]], 'Chromosome', 'WT.count', 'mut.count', 'subclonal.CN', 'no.chrs.bearing.mut', "_allDirichletProcessInfo.txt")
+WTCount = res$WTCount
+mutCount = res$mutCount
+totalCopyNumber = res$totalCopyNumber
+copyNumberAdjustment = res$copyNumberAdjustment
+non.deleted.muts = res$non.deleted.muts
+kappa = res$kappa
 
-WTCount = array(0,c(nrow(data[[1]]),no.subsamples))
-mutCount = array(0,c(nrow(data[[1]]),no.subsamples))
-totalCopyNumber = array(0,dim(WTCount))
-copyNumberAdjustment = array(0,dim(WTCount))
-non.deleted.muts = vector(mode="logical",length=nrow(data[[1]]))
-for(s in 1:length(subsamples[[run]])){
-  WTCount[,s] = as.numeric(data[[s]]$WT.count)
-  mutCount[,s] = as.numeric(data[[s]]$mut.count)
-  totalCopyNumber[,s] = as.numeric(data[[s]]$subclonal.CN)
-  copyNumberAdjustment[,s] = as.numeric(data[[s]]$no.chrs.bearing.mut)
-  non.deleted.muts[data[[s]]$no.chrs.bearing.mut>0]=T
-}
 
-kappa = array(1,dim(mutCount))
-for(i in 1:length(subsamples[[run]])){
-  #multiply by no.chrs.bearing.mut, so that kappa is the fraction of reads required for fully clonal mutations, rather than mutation at MCN = 1
-  kappa[,i] = mutationCopyNumberToMutationBurden(1,data[[i]]$subclonal.CN,cellularity[i]) * data[[i]]$no.chrs.bearing.mut
-}
-
-# Remove those mutations that have missing values
-no.muts = nrow(totalCopyNumber)
-not.there.wt = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=WTCount)
-not.there.mut = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=mutCount)
-not.there.cn = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=totalCopyNumber)
-not.there.cna = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=copyNumberAdjustment)
-not.there.kappa = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=kappa)
-select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa)
-WTCount = WTCount[select,]
-mutCount = mutCount[select,]
-totalCopyNumber = totalCopyNumber[select,]
-copyNumberAdjustment = copyNumberAdjustment[select,]
-non.deleted.muts = non.deleted.muts[select]
-kappa = kappa[select,]
-print(paste("Removed ",no.muts-nrow(WTCount)))
-
-start_time = Sys.time()
 if(is.na(bin.size)){
   outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,sep="")
   RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
@@ -97,10 +64,6 @@ if(is.na(bin.size)){
   outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,sep="")
   RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
 }
-end_time = Sys.time()
-# working dir has changed, therefore write this file directly to current dir
-write.table(data.frame(diff=c(difftime(end_time, start_time, units='sec')), unit=c('seconds')), file='runtime.txt', quote=F, row.names=F)
-print(end_time-start_time)
 
 print(warnings())
 

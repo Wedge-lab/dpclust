@@ -1,6 +1,7 @@
-#setwd("/lustre/scratch110/sanger/dw9/TreeBasedDirichletProcess/Release")
+datpath = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/Data/"
 setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
 source("RunTreeBasedDP.R")
+source('LoadData.R')
 
 args=commandArgs(TRUE)
 run = as.integer(args[1])
@@ -13,25 +14,11 @@ if (length(args) < 5) {
   phase = args[5]
 }
 
-
 parallel = TRUE
-
-#bin.size = 0.025
-#increased for ES8
-#bin.size = 0.05
-#bin.size = NA
-
 resort.mutations = T
-
-#burn.in.fraction = 0.2
-#TEST
-#no.iters=20
-#no.iters=125
-#no.iters=1250
-#no.iters=10000
-
 no.iters.burn.in = floor(no.iters*burn.in.fraction)
 set.seed(123)
+
 
 samplenames=c("H3122","C32","ES7","ES8")
 subsamples = list()
@@ -44,42 +31,16 @@ samplename = samplenames[run]
 no.subsamples = length(subsamples[[run]])
 cellularity = rep(1,no.subsamples)
 
-data=list()
-for(s in 1:length(subsamples[[run]])){
-	#data[[s]] = read.table(paste("Data/",samplename,subsamples[[run]][s],"_muts_withAllSubclonalCNinfo_June2013.txt",sep=""),header=T)
-	data[[s]] = read.table(paste("Data/",samplename,subsamples[[run]][s],"_muts_withAllSubclonalCNinfoAndWithoutMutsOnDeletedChrs_June2013.txt",sep=""),header=T)
-}
 
-WTCount = array(0,c(nrow(data[[1]]),no.subsamples))
-mutCount = array(0,c(nrow(data[[1]]),no.subsamples))
-totalCopyNumber = array(0,dim(WTCount))
-copyNumberAdjustment = array(0,dim(WTCount))
-non.deleted.muts = vector(mode="logical",length=nrow(data[[1]]))
-for(s in 1:length(subsamples[[run]])){
-	WTCount[,s] = as.numeric(data[[s]]$WTCount)
-	mutCount[,s] = as.numeric(data[[s]]$mutCount)
-	totalCopyNumber[,s] = as.numeric(data[[s]]$subclonal.CN)
-	copyNumberAdjustment[,s] = as.numeric(data[[s]]$no.chrs.bearing.mut)
-	non.deleted.muts[data[[s]]$no.chrs.bearing.mut>0]=T
-}
+res = load.data(datpath, samplename, subsamples[[run]], 'chr', 'WTCount', 'mutCount', 'subclonal.CN', 'no.chrs.bearing.mut', "_muts_withAllSubclonalCNinfoAndWithoutMutsOnDeletedChrs_June2013.txt")
+WTCount = res$WTCount
+mutCount = res$mutCount
+totalCopyNumber = res$totalCopyNumber
+copyNumberAdjustment = res$copyNumberAdjustment
+non.deleted.muts = res$non.deleted.muts
+kappa = res$kappa
 
 
-non.zero = which(rowSums(mutCount)>0 & !is.na(rowSums(totalCopyNumber)) & non.deleted.muts)
-mutCount = mutCount[non.zero,]
-WTCount = WTCount[non.zero,]
-totalCopyNumber = totalCopyNumber[non.zero,]
-copyNumberAdjustment = copyNumberAdjustment[non.zero,]
-for(i in 1:length(subsamples[[run]])){
-	data[[i]] = data[[i]][non.zero,]
-}
-
-kappa = array(1,dim(mutCount))
-for(i in 1:length(subsamples[[run]])){
-	#multiply by no.chrs.bearing.mut, so that kappa is the fraction of reads required for fully clonal mutations, rather than mutation at MCN = 1
-  kappa[,i] = mutationCopyNumberToMutationBurden(1,data[[i]]$subclonal.CN,cellularity[i]) * data[[i]]$no.chrs.bearing.mut
-}
-
-start_time = Sys.time()
 if(is.na(bin.size)){
 	outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,sep="")
 	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
@@ -88,10 +49,6 @@ if(is.na(bin.size)){
 	outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,sep="")
 	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
 }
-end_time = Sys.time()
-# working dir has changed, therefore write this file directly to current dir
-write.table(data.frame(diff=c(difftime(end_time, start_time, units='sec')), unit=c('seconds')), file='runtime.txt', quote=F, row.names=F)
-print(paste("Finished complete method in", as.numeric(end_time-start_time,units="secs"), "seconds"))
 
 print(warnings())
 
