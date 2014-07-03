@@ -28,7 +28,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   
   ###################################
   # Read in the data files
-  ###################################
+  ################################### H3122 New: 26.14501 secs - Old: 18.03025 secs :: Oes New: 4.50324 mins - Old: 4.35321 mins
 	no.subsamples = ncol(mutCount)
 
 	#aggregate mutations that have similar allele burden and the same kappa
@@ -277,6 +277,11 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   if(parallel) {
     stopCluster(clp)
   }
+
+  end_time = Sys.time()
+  # working dir has changed, therefore write this file directly to current dir
+  write.table(data.frame(diff=c(difftime(end_time, start_time, units='sec')), unit=c('seconds')), file='runtime.txt', quote=F, row.names=F)
+  print(end_time-start_time)
 }
 
 plotScores <- function(file_prefix, samplename, no,iters, scores, ylab) {
@@ -323,4 +328,3 @@ plotBestScatter <- function(mutCount, WTCount, kappa, best.tree, samplename, no.
   }
   dev.off()
 }
-
