@@ -172,12 +172,12 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
     ## Load the data
     setwd(outdir)
     load(file=paste("",samplename,"_trees_iters",no.iters,".Rdata",sep=""))
-    node.assignments = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
+    node.assignments = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",header=T)
     alphas = read.table(paste("alphas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
     lambdas = read.table(paste("lambdas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
     gammas = read.table(paste("gammas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
     likelihoods = read.table(paste("likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
-    binned.node.assignments = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
+    binned.node.assignments = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",header=T)
   } 
 	
   if (is.na(phase) | phase == 'cons') {
