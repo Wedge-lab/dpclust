@@ -15,8 +15,7 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
   res = lchoose(n1, y1) + y1 * log(kappa1*x) + (n1-y1) * log(1-kappa1*x)
   if (class(res) == "numeric") { res = matrix(res, nrow=1) }
   resSums = rowSums(res,na.rm=T) * no.subsamples/no.kappa.nonzero
-  # Drop the Inf and other NaNs
-  return(resSums[!is.nan(resSums)])
+  return(resSums)
 }
 
 calc.new.likelihood2 = function(y, n, kappa, thetas) {
