@@ -141,7 +141,6 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	node.assignments <- matrix(NA, nrow=num.muts, ncol=iter)
 	lambda <- alpha0 <- gamma <- rep(NA, iter)  # The hyperparameter for the decay in tree depth - in the interval (0,1]
 	
-  post.mean.deviance = vector(mode="numeric",length=iter)
 	complete.likelihood = vector(mode="numeric",length=iter)
   AIC = vector(mode="numeric",length=iter)
 	BIC = vector(mode="numeric",length=iter)
@@ -159,13 +158,20 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	trees.n[[1]] <- cbind(trees.n[[1]], matrix(rep(1, each=num.samples), nrow=1, byrow=TRUE))	
 	node.assignments[,1] <- rep("M:",num.muts)
 	names(trees.n[[1]]) <- c(names(trees.n[[1]])[1:7], paste("theta.S", 1:num.samples, sep=""))
-	
-#   complete.likelihood[1] = calc.new.likelihood(num.samples, y, n, kappa, trees.n[[1]], node.assignments[,1])
-	complete.likelihood[1] = calc.new.likelihood2(y, n, kappa, trees.n[[1]][node.assignments[,1],paste("theta.S", 1:num.samples, sep="")])
-  post.mean.deviance[1] = calc.new.likelihood2(y, n, kappa, colMeans(trees.n[[1]][node.assignments[,1],paste("theta.S", 1:num.samples, sep="")]))
+  
+	# Keep track of all the likelihoods and all thetas for DIC calculation
+	all.likelihoods = matrix(NA,num.muts,iter)
+	all.thetas = list()
+#   all.thetas = matrix(NA,num.muts,num.samples)
+	for (i in 1:num.samples) { all.thetas[[i]] = matrix(NA,num.muts,iter) }
+  curr.likelihoods = log.f.of.y(y, n, kappa, trees.n[[1]][node.assignments[,1],paste("theta.S", 1:num.samples, sep="")])
+	all.likelihoods[,1] = curr.likelihoods
+  for (i in 1:num.samples) { all.thetas[[i]][,1] = trees.n[[1]][,paste("theta.S",i,sep='')] }
+  complete.likelihood[1] = sum(curr.likelihoods)
+
   AIC[1] = aic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]))
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
-  DIC[1] = dic(complete.likelihood[1], post.mean.deviance[1])
+  DIC[1] = dic2(y, n, kappa,all.likelihoods, all.thetas)
 	print(paste("init log likelihood=",complete.likelihood[1],sep=""))
 	print(paste("init BIC=",BIC[1],sep=""))
   print(paste("AIC=",AIC[1],sep=""))
@@ -240,13 +246,15 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		curr.tree <- sample.sticks(curr.tree, node.assignments[,m], alpha0[m], lambda[m], gamma[m])
 		
 		colnames = paste("theta.S", 1:num.samples, sep="")
-    mean.thetas = colMeans(curr.tree[node.assignments[i,m],colnames])
-    complete.likelihood[m] = calc.new.likelihood2(y, n, kappa, curr.tree[node.assignments[,m],colnames])
-    post.mean.deviance[m] = calc.new.likelihood2(y, n, kappa, matrix(rep(mean.thetas,num.muts),ncol=num.samples))
-		
+    curr.likelihoods = log.f.of.y(y, n, kappa, curr.tree[node.assignments[,m],colnames])
+    all.likelihoods[,m] = curr.likelihoods
+    print("Before thetas")
+    for (i in 1:num.samples) { all.thetas[[i]][,m] = curr.tree[node.assignments[,m],paste("theta.S",i,sep='')] }
+    complete.likelihood[m] = sum(curr.likelihoods)
+
     AIC[m] = aic(complete.likelihood[m], num.samples, nrow(curr.tree))
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
-    DIC[m] = dic(complete.likelihood[m], post.mean.deviance[m])
+    DIC[m] = dic2(y, n, kappa,all.likelihoods, all.thetas)
 		print(paste("log likelihood=",complete.likelihood[m],sep=""))
 		print(paste("BIC=",BIC[m],sep=""))
     print(paste("AIC=",AIC[m],sep=""))
