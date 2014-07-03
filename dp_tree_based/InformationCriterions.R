@@ -39,8 +39,15 @@ dic <- function(likelihood, likelihood.theta.mean) {
 dic2 <- function(y, n, kappa, all.likelihoods, all.thetas) {
   # all.likelihoods: matrix where each row corresponds to all likelihoods for MCMC iterations until now of a single mutation
   # all.thetas: list that contains a matrix for each subsample with each row a mutation and each column the theta's for the subsample of each MCMC iteration
-  mean.likelihoods = rowMeans(-2 * all.likelihoods, na.rm=T)
-  mean.thetas = matrix(unlist(lapply(all.thetas, function(x) rowMeans(x, na.rm=T) )), ncol=length(all.thetas))
+  if (length(dim(all.likelihoods)) == 2) {
+    mean.likelihoods = rowMeans(-2 * all.likelihoods, na.rm=T)
+    mean.thetas = matrix(unlist(lapply(all.thetas, function(x) rowMeans(x, na.rm=T) )), ncol=length(all.thetas))
+  } else {
+    # A one dimensional array was given. rowMeans therefore does not work, while the values in the array also represent the mean.
+    mean.likelihoods = -2 * all.likelihoods
+    mean.thetas = matrix(unlist(lapply(all.thetas, function(x) x )), ncol=length(all.thetas))
+  }
+  
   likelihoods.mean.thetas = log.f.of.y(y,n,kappa,mean.thetas)
   return(sum(-2 * likelihoods.mean.thetas + 2*log(1) + 2*(mean.likelihoods + 2*likelihoods.mean.thetas)))
 }
