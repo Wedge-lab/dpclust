@@ -576,7 +576,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
   # Calculate the DIC for each tree separately. Usually the DIC takes into account previous theta's, but that's not what we want here.
   DIC = array(NA, ncol(all.likelihoods))
   for (i in 1:ncol(all.likelihoods)) {
-    # Subset the theta's to contain just those of the current tree
+    # Subset the thetas to contain just those of the current tree
     all.thetas.i = list()
     for (j in 1:no.subsamples) { all.thetas.i[[j]] = all.thetas[[j]][,i] }
     DIC[i] = dic2(y=mutCount, n=WTCount+mutCount, kappa, all.likelihoods[,i],all.thetas.i)

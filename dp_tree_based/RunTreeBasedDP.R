@@ -89,7 +89,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   		temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)	
   	}
   
-    print(paste("Finished tree.struct.dirichlet in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
+    print(paste("Finished tree.struct.dirichlet in", as.numeric(Sys.time()-start_time,units="secs"), "seconds"))
 
     setwd(outdir)
 
@@ -111,6 +111,9 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	BIC = temp.list[[7]]
     AIC = temp.list[[8]]
     DIC = temp.list[[9]]
+    mant.anc = temp.list[[10]]
+    mant.sib = temp.list[[11]]
+    mant.ide = temp.list[[12]]
     if(parallel) {
       tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
     } else {
@@ -143,22 +146,32 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	}
   	dev.off()
   	
-  	png(paste("log_likelihood_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
-  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-  	plot(1:no.iters,likelihoods,type="l",col="red",xlab="MCMC iteration", ylab="log-likelihood",main=samplename)
-  	dev.off()
-  	png(paste("BIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
-  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-  	plot(1:no.iters,BIC,type="l",col="red",xlab="MCMC iteration", ylab="BIC",main=samplename)
-  	dev.off()
-  	png(paste("AIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
-  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-  	plot(1:no.iters,AIC,type="l",col="red",xlab="MCMC iteration", ylab="AIC",main=samplename)
-  	dev.off()
-  	png(paste("DIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
-  	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-  	plot(1:no.iters,DIC,type="l",col="red",xlab="MCMC iteration", ylab="DIC",main=samplename)
-  	dev.off()
+#   	png(paste("log_likelihood_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   	plot(1:no.iters,likelihoods,type="l",col="red",xlab="MCMC iteration", ylab="log-likelihood",main=samplename)
+#   	dev.off()
+#   	png(paste("BIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   	plot(1:no.iters,BIC,type="l",col="red",xlab="MCMC iteration", ylab="BIC",main=samplename)
+#   	dev.off()
+#   	png(paste("AIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   	plot(1:no.iters,AIC,type="l",col="red",xlab="MCMC iteration", ylab="AIC",main=samplename)
+#   	dev.off()
+#     
+#     
+#   	png(paste("DIC_plot_",samplename,"_",no.iters,"iters.png",sep=""),width=1000)
+#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
+#   	plot(1:no.iters,DIC,type="l",col="red",xlab="MCMC iteration", ylab="DIC",main=samplename)
+#   	dev.off()
+    
+  	plotScores("log_likelihood", samplename, no,iters, likelihoods, "log-likelihood", xlab="MCMC iteration",consensus=FALSE)
+  	plotScores("BIC", samplename, no,iters, BIC, "BIC", xlab="MCMC iteration",consensus=FALSE)
+  	plotScores("AIC", samplename, no,iters, AIC, "AIC", xlab="MCMC iteration",consensus=FALSE)
+  	plotScores("DIC", samplename, no,iters, DIC, "DIC", xlab="MCMC iteration",consensus=FALSE)
+  	plotScores("mantel_ancestors", samplename, no,iters, mant.anc, "Mantel correlation", xlab="MCMC iteration / 10",consensus=FALSE)
+  	plotScores("mantel_siblings", samplename, no,iters, mant.sib, "Mantel correlation", xlab="MCMC iteration / 10",consensus=FALSE)
+  	plotScores("mantel_identity", samplename, no,iters, mant.ide, "Mantel correlation", xlab="MCMC iteration / 10",consensus=FALSE)
   	
   	write.table(node.assignments,paste("node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
   	write.table(alphas,paste("alphas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
@@ -187,7 +200,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   		temp.list = GetConsensusTrees(trees, binned.node.assignments, binned.mutCount, binned.WTCount, kappa = binned.kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations,bin.indices = bin.indices)
   	}
   	print("Finished GetConsensusTrees")
-  	print(Sys.time()-start)
+  	print(Sys.time()-start_time)
   	print(names(temp.list))
   	
   	all.consensus.trees = temp.list$all.consensus.trees
@@ -209,14 +222,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	plotScores("BIC", samplename, no,iters, BIC, "BIC")
   	plotScores("AIC", samplename, no,iters, AIC, "AIC")
   	plotScores("DIC", samplename, no,iters, BIC, "DIC")
-#   	png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-#   	plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
-#   	dev.off()
-#   	png(paste("BIC_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-#   	par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-#   	plot(1:length(BIC),BIC,type="l",col="red",xlab="posterior tree index", ylab="BIC",main=samplename)
-#   	dev.off()
+
     writeScoresTable(likelihoods, "likelihood", samplename, no,iters)
     writeScoresTable(BIC, "BIC", samplename, no,iters)
     writeScoresTable(AIC, "AIC", samplename, no,iters)
@@ -284,12 +290,16 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   print(end_time-start_time)
 }
 
-plotScores <- function(file_prefix, samplename, no,iters, scores, ylab) {
+plotScores <- function(file_prefix, samplename, no,iters, scores, ylab, xlab="posterior tree index",consensus=TRUE) {
 #   png(paste("log_likelihood_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
-  png(paste(file_prefix,"_plot_",samplename,"_consensus_",no.iters,"iters.png",sep=""),width=1000)
+  if (consensus) {
+    filename = paste(file_prefix,"_plot_",samplename,"_consensus_",no.iters,"iters.png",sep="")
+  } else {
+    filename = paste(file_prefix,"_plot_",samplename,"_",no.iters,"iters.png",sep="")
+  }
+  png(filename,width=1000)
   par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
-#   plot(1:length(likelihoods),likelihoods,type="l",col="red",xlab="posterior tree index", ylab="log-likelihood",main=samplename)
-  plot(1:length(scores),scores,type="l",col="red",xlab="posterior tree index", ylab=ylab,main=samplename)
+  plot(1:length(scores),scores,type="l",col="red",xlab=xlab, ylab=ylab,main=samplename)
   dev.off()
 }
 

@@ -1,4 +1,5 @@
 library(LIM)
+library(vegan)
 source("CullTree.R")
 source("RemoveBranch.R")
 
@@ -128,16 +129,24 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 	num.muts <- dim(y)[1]
 	num.samples <- dim(y)[2]
+  
+  mant.every.iters = 100
 	
 	# Set up data formats for recording iterations
 	trees.n <- vector("list", length=iter)  # The set of trees for each iteration
 	node.assignments <- matrix(NA, nrow=num.muts, ncol=iter)
 	lambda <- alpha0 <- gamma <- rep(NA, iter)  # The hyperparameter for the decay in tree depth - in the interval (0,1]
 	
+  ancestor.strengths = list()
+  sibling.strengths = list()
+  identity.strengths = list()
 	complete.likelihood = vector(mode="numeric",length=iter)
   AIC = vector(mode="numeric",length=iter)
 	BIC = vector(mode="numeric",length=iter)
   DIC = vector(mode="numeric",length=iter)
+  mant.anc = vector(mode="numeric",length=floor(iter/mant.every.iters)+1)
+  mant.sib = vector(mode="numeric",length=floor(iter/mant.every.iters)+1)
+  mant.ide = vector(mode="numeric",length=floor(iter/mant.every.iters)+1)
 	
 	# Initialise
 	lambda[1] <- init.lambda
@@ -152,6 +161,12 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	node.assignments[,1] <- rep("M:",num.muts)
 	names(trees.n[[1]]) <- c(names(trees.n[[1]])[1:7], paste("theta.S", 1:num.samples, sep=""))
   
+  # Calculate the first set mut agreements
+ 	res = calculate.mut.agreements(node.assignments, num.muts, 1)
+ 	ancestor.strengths[[1]] = res[[1]]
+ 	sibling.strengths[[1]] = res[[2]]
+ 	identity.strengths[[1]] = res[[3]]
+  
 	# Keep track of all the likelihoods and all thetas for DIC calculation
 	all.likelihoods = matrix(NA,num.muts,iter)
 	all.thetas = list()
@@ -164,6 +179,9 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
   AIC[1] = aic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]))
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
   DIC[1] = dic2(y, n, kappa,all.likelihoods, all.thetas)
+	mant.anc[1] = 0
+  mant.sib[1] = 0
+  mant.ide[1] = 0
 	print(paste("init log likelihood=",complete.likelihood[1],sep=""))
 	print(paste("init BIC=",BIC[1],sep=""))
   print(paste("AIC=",AIC[1],sep=""))
@@ -232,11 +250,11 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 		print("# Resample stick lengths")
 		curr.tree <- sample.sticks(curr.tree, node.assignments[,m], alpha0[m], lambda[m], gamma[m])
-		
+    
+    print("# Calculating criterions")
 		colnames = paste("theta.S", 1:num.samples, sep="")
     curr.likelihoods = log.f.of.y(y, n, kappa, curr.tree[node.assignments[,m],colnames])
     all.likelihoods[,m] = curr.likelihoods
-    print("Before thetas")
     for (i in 1:num.samples) { all.thetas[[i]][,m] = curr.tree[node.assignments[,m],paste("theta.S",i,sep='')] }
     complete.likelihood[m] = sum(curr.likelihoods)
 
@@ -244,13 +262,38 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
     DIC[m] = dic2(y, n, kappa,all.likelihoods, all.thetas)
 		print(paste("log likelihood=",complete.likelihood[m],sep=""))
-		print(paste("BIC=",BIC[m],sep=""))
-    print(paste("AIC=",AIC[m],sep=""))
-    print(paste("DIC=",DIC[m],sep=""))
+		print(paste("BIC=",BIC[m]," AIC=",AIC[m]," DIC=",DIC[m],sep=""))
+    
+    # Calculating the mantel correlation is heavy, therefore perform this only every so many iterations
+    if (m %% mant.every.iters == 0 | m==iter) {
+      if (m %% mant.every.iters == 0) {
+        # Starting at 2, therefore each next agreement is at +1
+        curr = m/mant.every.iters + 1
+      } else {
+        # We've started at two, therefore the final agreement is at +2
+        curr = floor(iter/mant.every.iters) + 2
+      }
+       print("# Calculating agreements")
+       # Perhaps calculate agreements for only the iterations since the last calculation?
+       res = calculate.mut.agreements(node.assignments[,1:m], num.muts, m)
+       ancestor.strengths[[curr]] = res[[1]]
+       sibling.strengths[[curr]] = res[[2]]
+       identity.strengths[[curr]] = res[[3]]
+       
+ 		  mant.anc[curr] = mantel(ancestor.strengths[[curr-1]],ancestor.strengths[[curr]])$statistic
+ 		  mant.sib[curr] = mantel(sibling.strengths[[curr-1]],sibling.strengths[[curr]])$statistic
+ 		  mant.ide[curr] = mantel(identity.strengths[[curr-1]],identity.strengths[[curr]])$statistic
+      
+      #mant.anc[curr] = 0
+      #mant.sib[curr] = 0
+      #mant.ide[curr] = 0
+      
+      print(paste("Mantel anc=",mant.anc[curr]," sib=",mant.sib[curr]," ide=",mant.ide[curr],sep=""))
+    }
 		
 		trees.n[[m]] <- curr.tree	
 	}
-	return(list(trees.n, node.assignments, alpha0, lambda, gamma, complete.likelihood, BIC, AIC, DIC))
+	return(list(trees.n, node.assignments, alpha0, lambda, gamma, complete.likelihood, BIC, AIC, DIC, mant.anc, mant.sib, mant.ide))
 } 
 
 find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1,nrow(tree))) {
@@ -522,6 +565,24 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 	}
 	curr.tree$edge.length[curr.tree$label == "M:"] <- curr.tree$nu[curr.tree$label == "M:"]
 	return(curr.tree[,!is.element(names(curr.tree), c("depth", "num.assignments"))])
+}
+
+calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
+  ancestor.strengths.m = array(0,c(no.muts,no.muts))
+  sibling.strengths.m = array(0,c(no.muts,no.muts))
+  identity.strengths.m = array(0,c(no.muts,no.muts))
+  
+  for(i in 1:iter){
+    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
+    
+    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths.m, node.assignments, i, identity.strengths.m)
+    ancestor.strengths.m = do.call(rbind,res[1,])
+    ancestor.or.identity.relationship = do.call(rbind,res[2,])
+    identity.strengths.m = do.call(rbind,res[3,])
+    
+    sibling.strengths.m = sibling.strengths.m + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+  }
+  return(list(ancestor.strengths.m, ancestor.strengths.m, identity.strengths.m))
 }
 
 
