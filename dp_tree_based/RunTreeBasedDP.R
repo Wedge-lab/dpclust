@@ -93,27 +93,27 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 
     setwd(outdir)
 
-  	trees = temp.list[[1]]
+  	trees = temp.list$trees #[[1]]
   	if(is.na(bin.size)){
-  		node.assignments = temp.list[[2]]
+  		node.assignments = temp.list$assignments #[[2]]
   	}else{
-  		binned.node.assignments = temp.list[[2]]
+  		binned.node.assignments = temp.list$assignments #[[2]]
   		node.assignments = array(NA,c(nrow(mutCount),ncol(binned.node.assignments)))
   		for(i in 1:length(bin.indices)){
   			node.assignments[bin.indices[[i]],] = binned.node.assignments[i,]
   		}
   		write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
   	}
-  	alphas = temp.list[[3]]
-  	lambdas = temp.list[[4]]
-  	gammas = temp.list[[5]]
-  	likelihoods = temp.list[[6]]
-  	BIC = temp.list[[7]]
-    AIC = temp.list[[8]]
-    DIC = temp.list[[9]]
-    mant.anc = temp.list[[10]]
-    mant.sib = temp.list[[11]]
-    mant.ide = temp.list[[12]]
+  	alphas = temp.list$alpha #[[3]]
+  	lambdas = temp.list$lambda #[[4]]
+  	gammas = temp.list$gamma #[[5]]
+  	likelihoods = temp.list$likelihood #[[6]]
+  	BIC = temp.list$BIC #[[7]]
+    AIC = temp.list$AIC #[[8]]
+    DIC = temp.list$DIC #[[9]]
+    mant.anc = temp.list$mant.anc #[[10]]
+    mant.sib = temp.list$mant.sib #[[11]]
+    mant.ide = temp.list$mant.ide #[[12]]
     if(parallel) {
       tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
     } else {
@@ -221,7 +221,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   	plotScores("log_likelihood", samplename, no,iters, likelihoods, "log-likelihood")
   	plotScores("BIC", samplename, no,iters, BIC, "BIC")
   	plotScores("AIC", samplename, no,iters, AIC, "AIC")
-  	plotScores("DIC", samplename, no,iters, BIC, "DIC")
+  	plotScores("DIC", samplename, no,iters, DIC, "DIC")
 
     writeScoresTable(likelihoods, "likelihood", samplename, no,iters)
     writeScoresTable(BIC, "BIC", samplename, no,iters)

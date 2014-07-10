@@ -130,7 +130,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	num.muts <- dim(y)[1]
 	num.samples <- dim(y)[2]
   
-  mant.every.iters = 100
+  mant.every.iters = 10
 	
 	# Set up data formats for recording iterations
 	trees.n <- vector("list", length=iter)  # The set of trees for each iteration
@@ -178,7 +178,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 
   AIC[1] = aic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]))
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
-  DIC[1] = dic2(y, n, kappa,all.likelihoods, all.thetas)
+  DIC[1] = dic(y, n, kappa,all.likelihoods, all.thetas)
 	mant.anc[1] = 0
   mant.sib[1] = 0
   mant.ide[1] = 0
@@ -189,7 +189,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 	for (m in 2:iter) {
 		print(paste("iter",m,sep=" "))
-    #save(file=paste('~/dp/iter_saves/', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC, m, conflict.array)
+#     save(file=paste('~/dp/iter_saves/oes_4_', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC, AIC, DIC, m, conflict.array)
 		curr.tree <- trees.n[[m-1]]
 
 		new.assignments = node.assignments[,m-1]
@@ -260,7 +260,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 
     AIC[m] = aic(complete.likelihood[m], num.samples, nrow(curr.tree))
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
-    DIC[m] = dic2(y, n, kappa,all.likelihoods, all.thetas)
+    DIC[m] = dic(y, n, kappa,all.likelihoods, all.thetas)
 		print(paste("log likelihood=",complete.likelihood[m],sep=""))
 		print(paste("BIC=",BIC[m]," AIC=",AIC[m]," DIC=",DIC[m],sep=""))
     
@@ -293,7 +293,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 		trees.n[[m]] <- curr.tree	
 	}
-	return(list(trees.n, node.assignments, alpha0, lambda, gamma, complete.likelihood, BIC, AIC, DIC, mant.anc, mant.sib, mant.ide))
+	return(list(trees=trees.n, assignments=node.assignments, alpha=alpha0, lambda=lambda, gamma=gamma, likelihood=complete.likelihood, BIC=BIC, AIC=AIC, DIC=DIC, mant.anc=mant.anc, mant.sib=mant.sib, mant.ide=mant.ide))
 } 
 
 find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1,nrow(tree))) {

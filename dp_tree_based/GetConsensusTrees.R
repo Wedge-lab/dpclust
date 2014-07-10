@@ -550,13 +550,13 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	#	}
 	#}
 	res = do_em(trees,node.assignments, ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number)
-	all.consensus.trees = res[[1]]
-	all.consensus.assignments = res[[2]]
-	likelihoods = res[[3]]
-	all.disaggregated.consensus.assignments = res[[4]]
-  post.mean.deviance = res[[5]]
-  all.likelihoods = res[[6]]
-  all.thetas = res[[7]]
+	all.consensus.trees = res$trees #[[1]]
+	all.consensus.assignments = res$all.consensus.assignments #[[2]]
+	likelihoods = res$likelihoods #[[3]]
+	all.disaggregated.consensus.assignments = res$all.disaggregated #[[4]]
+#   post.mean.deviance = res[[5]]
+  all.likelihoods = res$all.likelihoods #[[6]]
+  all.thetas = res$all.thetas #[[7]]
 
   print(paste("Finished EM in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 
@@ -572,14 +572,18 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	tree.sizes = sapply(1:length(all.consensus.trees),function(t,i){nrow(t[[i]])},t=all.consensus.trees)
   BIC = bic(likelihoods, no.subsamples, tree.sizes, no.muts)
   AIC = aic(likelihoods, no.subsamples, tree.sizes)
-  DIC = dic(likelihoods, post.mean.deviance)
+#   DIC = dic(likelihoods, post.mean.deviance)
   # Calculate the DIC for each tree separately. Usually the DIC takes into account previous theta's, but that's not what we want here.
   DIC = array(NA, ncol(all.likelihoods))
   for (i in 1:ncol(all.likelihoods)) {
+    print(dim(all.likelihoods))
+    print(length(all.thetas))
+    print(length(likelihoods))
+    
     # Subset the thetas to contain just those of the current tree
     all.thetas.i = list()
     for (j in 1:no.subsamples) { all.thetas.i[[j]] = all.thetas[[j]][,i] }
-    DIC[i] = dic2(y=mutCount, n=WTCount+mutCount, kappa, all.likelihoods[,i],all.thetas.i)
+    DIC[i] = dic(y=mutCount, n=WTCount+mutCount, kappa, all.likelihoods[,i],all.thetas.i)
   }
 
 	best.BIC.index = which.min(BIC)
@@ -613,7 +617,6 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 }
 
 do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number) {
-  save(file='~/dp/em.RData', trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number)
   
   start = Sys.time()
   print("Starting EM")
@@ -766,11 +769,20 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			
 # 			new.likelihood = calc.new.likelihood(no.subsamples, mutCount, mutCount+WTCount, kappa, new.consensus.tree, new.consensus.ass)
       colnames = paste("theta.S", 1:no.subsamples, sep="")
-      new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
-      likelihoods = c(likelihoods,new.likelihood)
-      mean.thetas = colMeans(new.consensus.tree[new.consensus.ass,colnames])
-      new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,no.muts),ncol=no.subsamples))
-      post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
+#       new.likelihood = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
+#       likelihoods = c(likelihoods,new.likelihood)
+#       mean.thetas = colMeans(new.consensus.tree[new.consensus.ass,colnames])
+#       new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,no.muts),ncol=no.subsamples))
+#       post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
+
+    new.likelihood = log.f.of.y(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
+    # Save the likelihood per mutation in order to calculate the DIC score later
+    all.likelihoods = cbind(all.likelihoods, new.likelihood)
+    likelihoods = c(likelihoods,sum(new.likelihood))
+    for (i in 1:no.subsamples) {
+      # Save the theta per subsample in a separate data.frame
+      all.thetas[[i]] = cbind(all.thetas[[i]], new.consensus.tree[new.consensus.ass,paste("theta.S",i,sep='')])
+    }
       
 			#fix tree structure and shuffle mutation assignments
 			if(resort.mutations){
@@ -851,9 +863,9 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
           all.thetas[[i]] = cbind(all.thetas[[i]], new.consensus.tree[new.consensus.ass,paste("theta.S",i,sep='')])
 			  }
 
-        mean.thetas = colMeans(new.consensus.tree[new.consensus.ass,colnames])
-        new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,no.muts),ncol=no.subsamples))
-        post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
+#         mean.thetas = colMeans(new.consensus.tree[new.consensus.ass,colnames])
+#         new.post.mean.deviance = calc.new.likelihood2(mutCount, mutCount+WTCount, kappa, matrix(rep(mean.thetas,no.muts),ncol=no.subsamples))
+#         post.mean.deviance = c(post.mean.deviance, new.post.mean.deviance)
 			
 				print("finished re-sorting mutations")
 			}
@@ -862,7 +874,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			node.added = F
 		}
 	}
-	return(list(all.consensus.trees, all.consensus.assignments, likelihoods, all.disaggregated.consensus.assignments, post.mean.deviance, all.likelihoods, all.thetas))
+	return(list(trees=all.consensus.trees, all.consensus.assignments=all.consensus.assignments, likelihoods=likelihoods, all.disaggregated=all.disaggregated.consensus.assignments, all.likelihoods=all.likelihoods, all.thetas=all.thetas))
 }
 
 is.assignment.known <- function(ass.tracker, consensus.ass.temp) {

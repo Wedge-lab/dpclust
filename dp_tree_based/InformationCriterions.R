@@ -32,11 +32,7 @@ bic <- function(likelihood, num.samples, num.trees, num.muts) {
   return(-2 * likelihood + 2 * num.samples * num.trees * log(num.muts))
 }
 
-dic <- function(likelihood, likelihood.theta.mean) {
-  return(-1*(2*mean(likelihood)-mean(likelihood.theta.mean)))
-}
-
-dic2 <- function(y, n, kappa, all.likelihoods, all.thetas) {
+dic <- function(y, n, kappa, all.likelihoods, all.thetas) {
   # all.likelihoods: matrix where each row corresponds to all likelihoods for MCMC iterations until now of a single mutation
   # all.thetas: list that contains a matrix for each subsample with each row a mutation and each column the theta's for the subsample of each MCMC iteration
   if (length(dim(all.likelihoods)) == 2) {
