@@ -874,6 +874,9 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			node.added = F
 		}
 	}
+	if(is.null(bin.indices)) {
+            all.disaggregated.consensus.assignments = list()
+        }
 	return(list(trees=all.consensus.trees, all.consensus.assignments=all.consensus.assignments, likelihoods=likelihoods, all.disaggregated=all.disaggregated.consensus.assignments, all.likelihoods=all.likelihoods, all.thetas=all.thetas))
 }
 
