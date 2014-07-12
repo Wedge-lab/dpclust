@@ -1,7 +1,8 @@
 datpath = "/lustre/scratch110/sanger/sd11/dirichlet/dp_nd/"
-setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
+setwd("~/repo/dirichlet/dp_tree_based/")
 source("RunTreeBasedDP.R")
 source("LoadData.R")
+setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
 
 args=commandArgs(TRUE)
 run = as.integer(args[1])

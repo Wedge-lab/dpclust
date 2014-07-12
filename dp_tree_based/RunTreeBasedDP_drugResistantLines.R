@@ -5,7 +5,11 @@ source('LoadData.R')
 
 args=commandArgs(TRUE)
 run = as.integer(args[1])
-bin.size = as.double(args[2])
+if (args[2] == 'NA') {
+  bin.size = NA
+} else {
+  bin.size = as.double(args[2])
+}
 no.iters = as.integer(args[3])
 burn.in.fraction = as.double(args[4])
 if (length(args) < 5) {
