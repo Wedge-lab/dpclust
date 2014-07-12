@@ -28,7 +28,7 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
   
   ###################################
   # Read in the data files
-  ################################### H3122 New: 26.14501 secs - Old: 18.03025 secs :: Oes New: 4.50324 mins - Old: 4.35321 mins
+  ###################################
 	no.subsamples = ncol(mutCount)
 
 	#aggregate mutations that have similar allele burden and the same kappa
@@ -190,7 +190,9 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
     lambdas = read.table(paste("lambdas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
     gammas = read.table(paste("gammas_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
     likelihoods = read.table(paste("likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t")
-    binned.node.assignments = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",header=T)
+    if(!is.na(bin.size)) {
+        binned.node.assignments = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",header=T)
+    }
   } 
 	
   if (is.na(phase) | phase == 'cons') {
