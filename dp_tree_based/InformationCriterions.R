@@ -24,12 +24,12 @@ calc.new.likelihood2 = function(y, n, kappa, thetas) {
   return(new.likelihood)
 }
 
-aic <- function(likelihood, num.samples, num.trees) {
-  return(- 2 * likelihood + 2 * num.samples * num.trees)
+aic <- function(likelihood, num.samples, num.nodes) {
+  return(- 2 * likelihood + 2 * num.samples * num.nodes)
 }
 
-bic <- function(likelihood, num.samples, num.trees, num.muts) {
-  return(-2 * likelihood + 2 * num.samples * num.trees * log(num.muts))
+bic <- function(likelihood, num.samples, num.nodes, num.muts) {
+  return(-2 * likelihood + 2 * num.samples * num.nodes * log(num.muts))
 }
 
 dic <- function(y, n, kappa, all.likelihoods, all.thetas) {
