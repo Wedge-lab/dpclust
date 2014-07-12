@@ -37,7 +37,9 @@ load.data <- function(datpath, samplename, list_of_data_files, Chromosome, WT.co
   not.there.cn = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=totalCopyNumber)
   not.there.cna = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=copyNumberAdjustment)
   not.there.kappa = sapply(1:no.muts, FUN=function(i, dat1) { sum(is.na(dat1[i,]))>0}, dat1=kappa)
-  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa)
+  # Remove those mutations that have no coverage. These cause for trouble lateron. A better solution should be found for these.
+  no.coverage = sapply(1:no.muts, FUN=function(i, dat1) { sum(dat1[i,]==0)>0}, dat1=WTCount+mutCount)
+  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | no.coverage)
   WTCount = WTCount[select,]
   mutCount = mutCount[select,]
   totalCopyNumber = totalCopyNumber[select,]
