@@ -128,6 +128,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 		print(paste("no.muts=",no.muts,sep=""))
 		print(paste("length(bin.indices)=",length(bin.indices),sep=""))
 		mut.table = vector(mode="numeric",length = no.nodes)
+		mut.table2 = vector(mode="numeric",length = no.nodes)
 		for(n in 1:no.nodes){
 			node = unique.nodes[n]
 			inds = which(consensus.assignments==node)
@@ -143,7 +144,7 @@ plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.i
 	}else{
 		mut.table = table(consensus.assignments[consensus.assignments!=""])
 	}
-  print(start-Sys.time())
+  print(Sys.time()-start)
 
 	#091013 - average theta, weighted by depth, which may be a better starting point for the whole.tree sampler
 	#this tree should be recorded (and plotted)
@@ -253,18 +254,11 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
 
-	subclonal.fraction = array(NA,dim(mutCount))
-        #for(i in 1:no.subsamples){
-        #       subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
-        #       subclonal.fraction[kappa[,i]==0,i] = NA
-        #}
-
- 	subclonal.fraction = sapply(1:no.subsamples, FUN=function(i,mutCount,WTCount,kappa) { mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i]) }, mutCount,WTCount,kappa)
- 	subclonal.fraction[kappa == 0] = NA
-
-	no.iters.post.burn.in = no.iters-no.iters.burn.in
+ 	subclonal.fraction = mutCount / ((mutCount+WTCount)*kappa)
+  subclonal.fraction[kappa == 0] = NA
 
 	# Assemble the current strengths for each pair of mutations
+  no.iters.post.burn.in = no.iters-no.iters.burn.in
 	ancestor.strengths = array(0,c(no.muts,no.muts))
 	sibling.strengths = array(0,c(no.muts,no.muts))
 	identity.strengths = array(0,c(no.muts,no.muts))
