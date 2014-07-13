@@ -42,19 +42,11 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
 		binned.kappa = array(NA,c(0,no.subsamples))
 		bin.indices = list()
     
-		for(u in 1:nrow(unique.kappa)){
-      if(parallel) {
-        inds = which(parSapply(cl=clp,X=1:nrow(kappa),FUN=function(k,i,u1){all(k[i,]==unique.kappa[u1,])},k=kappa, u1=u, simplify=TRUE, USE.NAMES=TRUE))
-      } else {
-        inds = which(sapply(1:nrow(kappa),function(k,i,u1){all(k[i,]==unique.kappa[u,])},k=kappa,u1=u))
-      }
+		for(u in 1:nrow(unique.kappa)){ 
+      inds = which(apply(kappa, 1, function(k,uk){all(k==uk)},uk=unique.kappa[u,]))
 			unique.AF = unique(array(rounded.allele.fractions[inds,],c(length(inds),no.subsamples)))
 			for(v in 1:nrow(unique.AF)){
-        if(parallel && length(inds) > 1) {
-          inds2 = inds[parSapply(cl=clp,X=inds,function(r,i,v1){all(r[i,]==unique.AF[v1,])},r=rounded.allele.fractions, v1=v, simplify=TRUE, USE.NAMES=TRUE)]
-        } else {
-          inds2 = inds[sapply(inds,function(r,i,v1){all(r[i,]==unique.AF[v1,])},r=rounded.allele.fractions, v1=v)]
-        }
+        inds2 = inds[apply(matrix(rounded.allele.fractions[inds,], nrow=length(inds)), 1, function(r,ua){all(r==ua)},ua=unique.AF[v,])]
 				bin.indices[[length(bin.indices)+1]] = inds2
 				if(length(inds2)>1){
 					binned.mutCount = rbind(binned.mutCount,colSums(mutCount[inds2,]))
@@ -114,12 +106,10 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
     mant.anc = temp.list$mant.anc #[[10]]
     mant.sib = temp.list$mant.sib #[[11]]
     mant.ide = temp.list$mant.ide #[[12]]
-    if(parallel) {
-      tree.sizes = parSapply(cl=clp,X=1:length(trees),function(t,i){nrow(t[[i]])},t=trees, simplify=TRUE, USE.NAMES=TRUE)
-    } else {
-      tree.sizes = sapply(1:length(trees),function(t,i){nrow(t[[i]])},t=trees)
-    }
-  	best.index = which.max(likelihoods)
+
+    tree.sizes = unlist(lapply(trees, nrow))
+
+    best.index = which.max(likelihoods)
   	best.BIC.index = which.min(BIC)
     best.AIC.index = which.min(AIC)
     best.DIC.index = which.min(DIC)
