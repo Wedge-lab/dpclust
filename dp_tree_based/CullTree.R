@@ -120,6 +120,11 @@ cull.tree <- function(tree1, curr.assignments) {
 	#get mapping between old and new labels
 	old.labels = saved.tree$label[match(tree1$node,saved.tree$node)]
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
+  
+  # Order the nodes in the tree by length of their name. Make sure that the plotter will insert the nodes in the right order.
+	node.name.lengths = unlist(lapply(as.list(rownames(tree1)), nchar))
+	tree1 = tree1[rownames(tree1)[order(node.name.lengths)],]
+  
 	return(list(culled.tree=tree1,mapping=df))
 }
 
