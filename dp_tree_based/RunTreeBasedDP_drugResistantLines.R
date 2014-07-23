@@ -1,21 +1,31 @@
 datpath = "/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/Data/"
-setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
+setwd("~/repo/dirichlet/dp_tree_based")
 source("RunTreeBasedDP.R")
 source('LoadData.R')
+setwd("/lustre/scratch110/sanger/sd11/dirichlet/dp_tree_based/")
 
 args=commandArgs(TRUE)
 run = as.integer(args[1])
-if (args[2] == 'NA') {
-  bin.size = NA
-} else {
-  bin.size = as.double(args[2])
-}
+bin.size = as.double(args[2])
 no.iters = as.integer(args[3])
 burn.in.fraction = as.double(args[4])
-if (length(args) < 5) {
-  phase = NA
+if (length(args) >= 5) {
+  phase = toString(args[5])
+  if (length(args) >= 6) {
+    blockid = as.integer(args[6])
+    if (length(args) >= 7) {
+      no.of.blocks = as.integer(args[7])
+    } else {
+      no.of.blocks = 1
+    }
+  } else { 
+    blockid = 1
+    no.of.blocks = 1
+  }
 } else {
-  phase = args[5]
+  blockid = 1
+  phase = NA
+  no.of.blocks = 1
 }
 
 parallel = TRUE
@@ -36,7 +46,7 @@ no.subsamples = length(subsamples[[run]])
 cellularity = rep(1,no.subsamples)
 
 
-res = load.data(datpath, samplename, subsamples[[run]], 'chr', 'WTCount', 'mutCount', 'subclonal.CN', 'no.chrs.bearing.mut', "_muts_withAllSubclonalCNinfoAndWithoutMutsOnDeletedChrs_June2013.txt")
+res = load.data(datpath, samplename, subsamples[[run]], cellularity, 'chr', 'WTCount', 'mutCount', 'subclonal.CN', 'no.chrs.bearing.mut', "_muts_withAllSubclonalCNinfoAndWithoutMutsOnDeletedChrs_June2013.txt")
 WTCount = res$WTCount
 mutCount = res$mutCount
 totalCopyNumber = res$totalCopyNumber
@@ -47,11 +57,11 @@ kappa = res$kappa
 
 if(is.na(bin.size)){
 	outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
-	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
+	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase, blockid=blockid, no.of.blocks=no.of.blocks)
   
   }else{
 	outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,"_burnin",no.iters.burn.in,sep="")
-	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase)
+	RunTreeBasedDP(mutCount,WTCount,kappa = kappa, samplename = samplename, subsamplenames = subsamples[[run]], no.iters=no.iters,no.iters.burn.in=no.iters.burn.in,bin.size = bin.size, resort.mutations = resort.mutations, outdir = outdir, parallel=parallel, phase=phase, blockid=blockid, no.of.blocks=no.of.blocks)
 }
 
 print(warnings())

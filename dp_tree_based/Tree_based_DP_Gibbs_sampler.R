@@ -1,4 +1,5 @@
 library(LIM)
+library(Matrix)
 library(vegan)
 source("CullTree.R")
 source("RemoveBranch.R")
@@ -130,7 +131,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	num.muts <- dim(y)[1]
 	num.samples <- dim(y)[2]
   
-  mant.every.iters = 10
+  mant.every.iters = 50
 	
 	# Set up data formats for recording iterations
 	trees.n <- vector("list", length=iter)  # The set of trees for each iteration
@@ -189,8 +190,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 	for (m in 2:iter) {
 		print(paste("iter",m,sep=" "))
-#     save(file=paste('~/dp/iter_saves/oes_4_', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC, AIC, DIC, m, conflict.array)
-		curr.tree <- trees.n[[m-1]]
+
+    curr.tree <- trees.n[[m-1]]
 
 		new.assignments = node.assignments[,m-1]
 		#remove node randomly, to cover more search space
@@ -226,6 +227,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 			curr.tree <- temp.assignments[[2]]
 			node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
 		}
+    
+    gc()
 		
 		#cull tree (remove empty nodes)
 		temp.list <- cull.tree(curr.tree, node.assignments[,m])
@@ -241,13 +244,15 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
       curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
+    
+    print(gc())
 		
 		print("# Resample hyperparameters")
-		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree, parallel=parallel, cluster=cluster)
+		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
 		alpha0[m] <- temp.hypers[1]
 		lambda[m] <- temp.hypers[2]
 		gamma[m] <- temp.hypers[3]
-		
+    
 		print("# Resample stick lengths")
 		curr.tree <- sample.sticks(curr.tree, node.assignments[,m], alpha0[m], lambda[m], gamma[m])
     
@@ -257,6 +262,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     all.likelihoods[,m] = curr.likelihoods
     for (i in 1:num.samples) { all.thetas[[i]][,m] = curr.tree[node.assignments[,m],paste("theta.S",i,sep='')] }
     complete.likelihood[m] = sum(curr.likelihoods)
+    
+    print(gc())
 
     AIC[m] = aic(complete.likelihood[m], num.samples, nrow(curr.tree))
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
@@ -275,18 +282,18 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
       }
        print("# Calculating agreements")
        # Perhaps calculate agreements for only the iterations since the last calculation?
-       res = calculate.mut.agreements(node.assignments[,1:m], num.muts, m)
-       ancestor.strengths[[curr]] = res[[1]]
-       sibling.strengths[[curr]] = res[[2]]
-       identity.strengths[[curr]] = res[[3]]
+       #res = calculate.mut.agreements(node.assignments[,1:m], num.muts, m)
+       #ancestor.strengths[[curr]] = res[[1]]
+       #sibling.strengths[[curr]] = res[[2]]
+       #identity.strengths[[curr]] = res[[3]]
        
- 		  mant.anc[curr] = mantel(ancestor.strengths[[curr-1]],ancestor.strengths[[curr]])$statistic
- 		  mant.sib[curr] = mantel(sibling.strengths[[curr-1]],sibling.strengths[[curr]])$statistic
- 		  mant.ide[curr] = mantel(identity.strengths[[curr-1]],identity.strengths[[curr]])$statistic
+ 	#	  mant.anc[curr] = mantel(ancestor.strengths[[curr-1]],ancestor.strengths[[curr]])$statistic
+ 	#	  mant.sib[curr] = mantel(sibling.strengths[[curr-1]],sibling.strengths[[curr]])$statistic
+ 	#	  mant.ide[curr] = mantel(identity.strengths[[curr-1]],identity.strengths[[curr]])$statistic
       
-      #mant.anc[curr] = 0
-      #mant.sib[curr] = 0
-      #mant.ide[curr] = 0
+      mant.anc[curr] = 0
+      mant.sib[curr] = 0
+      mant.ide[curr] = 0
       
       print(paste("Mantel anc=",mant.anc[curr]," sib=",mant.sib[curr]," ide=",mant.ide[curr],sep=""))
     }
@@ -444,7 +451,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	# y is a vector of y values for data points; n and kappa similar
 	# curr.assignments is a vector of assignments for each data point
 	# curr.thetas is a vector with the current theta values
-	
 	names(curr.thetas) <- row.names(curr.tree)
 	x.by.assignment <- curr.thetas[curr.assignments]
 	num.nodes <- length(curr.thetas)
@@ -455,7 +461,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	}	
 	
 	p.slice <- log(runif(n=1)) + log.f.of.y(y, n, kappa, x.by.assignment)
-	
 	# Initialise constraints matrix
 	constraints <- data.frame(matrix(0, nrow=num.nodes, ncol=length(ancs)), row.names=row.names(curr.tree))
 	names(constraints) <- ancs
@@ -470,7 +475,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	
 	exact.equality.for.M <- rep(0,num.nodes)
 	exact.equality.for.M[row.names(curr.tree) == "M:"] <- 1
-	
 	# Run the slice sampler
 	# max.repeats introduced, to prevent infinite looping
 	#max.repeats = 10000
@@ -491,7 +495,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 		#		print(paste("xsample iters=",count,sep=""))
 		#	}
 		#}
-		
 		if (max(-max.u - min.u) < 1E-6) {
 	 		print("Slice sampler shrank down: keep current state")
 	 		return(curr.thetas)
@@ -509,6 +512,7 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	 			curr.gradients <- sapply(1:num.nodes, function(curr.ass,node.names,y1,n1,kappa1,thetas,i) {gradient.log.f.of.xi(y1[curr.ass == node.names[i]], 
 	 				n1[curr.ass == node.names[i]], kappa1[curr.ass == node.names[i]], thetas[i])}, curr.ass=curr.assignments, node.names=row.names(curr.tree), y1=y, n1=n, 
 	 				kappa1=kappa,thetas=possible.theta)
+         
 	 			curr.gradients[row.names(curr.tree) == "M:"] <- 0
 	 			shrinkage.axis <- (abs(curr.gradients) * (-max.u-min.u) > shrinkage.threshold)
 	 			shrinkage.axis[which.max(abs(curr.gradients) * (-max.u-min.u))] <- TRUE
@@ -523,12 +527,8 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	}
 }
 
-sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.ranges, curr.tree, parallel=FALSE, cluster=NA) {
-  if (parallel) {
-	  curr.tree$depth <- parSapply(cl=cluster, curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}, simplify=TRUE, USE.NAMES=TRUE) - 1
-  } else {
-    curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
-  }
+sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.ranges, curr.tree) {
+  curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
 	log.alpha.fn <- function(x, tree, lambda) {sum(dbeta(tree$nu, 1, x*(lambda^tree$depth), log=TRUE))}
 	log.lambda.fn <- function(x, tree, alpha) {sum(dbeta(tree$nu, 1, alpha * (x^tree$depth), log=TRUE))}
 	log.gamma.fn <- function(x, tree) {sum(dbeta(tree$nu, 1, x, log=TRUE))}
@@ -568,12 +568,12 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 }
 
 calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
-  ancestor.strengths.m = array(0,c(no.muts,no.muts))
-  sibling.strengths.m = array(0,c(no.muts,no.muts))
-  identity.strengths.m = array(0,c(no.muts,no.muts))
+  ancestor.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+  sibling.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+  identity.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
   
   for(i in 1:iter){
-    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
+    ancestor.or.identity.relationship = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(NA,c(no.muts,no.muts))
     
     res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths.m, node.assignments, i, identity.strengths.m)
     ancestor.strengths.m = do.call(rbind,res[1,])
