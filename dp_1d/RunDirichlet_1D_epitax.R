@@ -19,4 +19,6 @@ samplename = samplenames[run]
 cellularity = cellularities[run]
 
 res = load.data(datpath,samplename,list(c("")), cellularity=cellularity, Chromosome="chr", WT.count="WT.count", mut.count="mut.count", subclonal.CN="subclonal.CN", no.chrs.bearing.mut="no.chrs.bearing.mut", data_file_suffix="_allDirichletProcessInfo.txt")
-RunDirichlet_1D(res$mutCount, res$WTCount, no.iters, no.iters.burn.in, cellularity, res$totalCopyNumber, res$copyNumberAdjustment, samplename, outdir)
+RunDirichlet_1D(mutCount=res$mutCount, WTCount=res$WTCount, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, cellularity=cellularity, 
+                totalCopyNumber=res$totalCopyNumber, mutation.copy.number=res$mutation.copy.number, copyNumberAdjustment=res$copyNumberAdjustment, 
+                samplename=samplename, outdir=outdir)
