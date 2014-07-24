@@ -1,3 +1,4 @@
+outdir = getwd()
 args=commandArgs(TRUE)
 run = as.integer(args[1]) # Sample id
 no.iters = as.integer(args[2]) # Number of iters
@@ -8,7 +9,7 @@ purity_file = toString(args[5]) # A file containing samplenames and purity
 setwd("~/repo/dirichlet/dp_1d")
 source("LoadData.R")
 source("RunDirichlet_1D.R")
-setwd(datpath)
+setwd(outdir)
 
 set.seed(123)
 
