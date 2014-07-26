@@ -3,8 +3,19 @@ source("subclone_Dirichlet_Gibbs_sampler_binomial.R")
 source("OneDimensionalClustering.R")
 
 RunDirichlet_1D <- function(mutCount, WTCount, no.iters, no.iters.burn.in, cellularity, totalCopyNumber, mutation.copy.number, copyNumberAdjustment, samplename, outdir) {
-  GS.data<-subclone.dirichlet.gibbs(y=mutCount,N=mutCount+WTCount, iter=no.iters, cellularity=cellularity, totalCopyNumber=totalCopyNumber, no.chrs.bearing.mut=copyNumberAdjustment)
-  density = Gibbs.subclone.density.est(GS.data, paste(samplename,"_DirichletProcessplot.png", sep=''), post.burn.in.start=no.iters.burn.in, post.burn.in.stop=no.iters, y.max=50, mutationCopyNumber=mutation.copy.number, no.chrs.bearing.mut=copyNumberAdjustment)
+  GS.data<-subclone.dirichlet.gibbs(y=mutCount,
+                                    N=mutCount+WTCount, 
+                                    iter=no.iters, 
+                                    cellularity=cellularity, 
+                                    totalCopyNumber=totalCopyNumber, 
+                                    no.chrs.bearing.mut=copyNumberAdjustment)
+  density = Gibbs.subclone.density.est(GS.data, 
+                                       paste(samplename,"_DirichletProcessplot.png", sep=''), 
+                                       post.burn.in.start=no.iters.burn.in, 
+                                       post.burn.in.stop=no.iters, 
+                                       y.max=50, 
+                                       mutationCopyNumber=mutation.copy.number, 
+                                       no.chrs.bearing.mut=copyNumberAdjustment)
   
   write.csv(GS.data$S.i,paste(outdir,"/",samplename,"_iters",no.iters,"_states.csv",sep=""))
   write.csv(GS.data$V.h,paste(outdir,"/",samplename,"_iters",no.iters,"_stickbreaking_weights.csv",sep=""))

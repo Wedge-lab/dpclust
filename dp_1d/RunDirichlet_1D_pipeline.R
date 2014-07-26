@@ -13,7 +13,7 @@ setwd(outdir)
 
 set.seed(123)
 
-sample2purity = read.table(purity_file, header=T)
+sample2purity = read.table(purity_file, header=T, stringsAsFactors=F)
 samplename = sample2purity[run,1]
 cellularity = sample2purity[run,2]
 

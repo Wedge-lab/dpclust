@@ -4,7 +4,8 @@ subclone.dirichlet.gibbs <- function(C=30, y, N, totalCopyNumber=array(1,length(
 	# C is the maximum number of clusters in the Dirichlet process
 	# iter is the number of iterations of the Gibbs sampler
 	
-	num.muts <- length(y)
+	num.muts <- nrow(y)
+	num.timepoints = ncol(y)
 	print(paste("num.muts=",num.muts,sep=""))
 	
 	# Hyperparameters for alpha
@@ -18,16 +19,18 @@ subclone.dirichlet.gibbs <- function(C=30, y, N, totalCopyNumber=array(1,length(
 	alpha <- rep(NA, iter)	
 	mutBurdens <- array(NA, c(iter, C,num.muts))
 
+  # Clustering takes place in mutation copynumber space, set outer limits with a bit of slack
 	mutCopyNum = mutationBurdenToMutationCopyNumber(y/N,totalCopyNumber,cellularity,normalCopyNumber) / no.chrs.bearing.mut
 	lower=min(mutCopyNum)
 	upper=max(mutCopyNum)
 	difference=upper-lower
-	lower=lower-difference/10
+  lower=lower-difference/10
 	upper=upper+difference/10
-	# randomise starting positions of clusters
+	# randomise starting positions of clusters in CN space
 	pi.h[1,]=runif(C,lower,upper)
+  # Expected mutation burdens if clusters reside in these places drawn above
 	for(c in 1:C){
-		mutBurdens[1,c,]=mutationCopyNumberToMutationBurden(pi.h[1,c]*no.chrs.bearing.mut,totalCopyNumber,cellularity,normalCopyNumber)
+		mutBurdens[1,c,]=mutationCopyNumberToMutationBurden(pi.h[1,c]*no.chrs.bearing.mut,c,cellularity,normalCopyNumber)
 	}	
 	
 	V.h[1,] <- c(rep(0.5,C-1), 1)
@@ -63,7 +66,18 @@ subclone.dirichlet.gibbs <- function(C=30, y, N, totalCopyNumber=array(1,length(
 			}			
 			Pr.S[k,is.na(Pr.S[k,])] = 0
 		}
+    
+#     Pr.S = t(sapply(1:num.muts, FUN=function(C, y, N, mutBurdens, V.h, k) { 
+#         # Special case as the first cluster does not rely on any others
+#         c(log(V.h[1]) + y[k]*log(mutBurdens[1,k]) + (N[k]-y[k])*log(1-mutBurdens[1,k]),
+#         sapply(2:C, function(V, obs.y, obs.N, pi, curr.k, j) {log(V[j]) + sum(log(1-V[1:(j-1)])) + obs.y[curr.k]*log(pi[j]) + (obs.N[curr.k] - obs.y[curr.k])*log(1-pi[j])}, V=V.h, pi=mutBurdens[,k], obs.y=y, obs.N = N, curr.k=k))
+#       }, C=C, V.h=V.h[m-1,], y=y, mutBurdens=mutBurdens[m-1,,], N=N, simplify=T))
+#     Pr.S = exp(Pr.S - max.col(Pr.S))
+#     Pr.S = Pr.S / rowSums(Pr.S)
 
+    # Assign to a single cluster by drawing from a multinomal distribution with probabilities of assigning to a particular
+    # cluster set to those obtained above. The drawing returns a vector of length C that contains one 1.
+    # Times the column number yields the assigned cluster number.
 		S.i[m,] <- sapply(1:num.muts, function(Pr, k) {sum(rmultinom(1,1,Pr[k,]) * (1:length(Pr[k,])))}, Pr=Pr.S)
 		
 		# Update stick-breaking weights
@@ -88,6 +102,7 @@ subclone.dirichlet.gibbs <- function(C=30, y, N, totalCopyNumber=array(1,length(
 	return(list(S.i=S.i, V.h=V.h, pi.h=pi.h, alpha=alpha, y1=y, N1=N))
 } 
 
+
 Gibbs.subclone.density.est <- function(GS.data, pngFile, density.smooth = 0.1, post.burn.in.start = 3000, post.burn.in.stop = 10000, density.from = 0, y.max=5, mutationCopyNumber = NA,no.chrs.bearing.mut = NA) {
 	print(paste("density.smooth=",density.smooth,sep=""))
 	png(filename=pngFile,,width=1500,height=1000)
@@ -109,8 +124,8 @@ Gibbs.subclone.density.est <- function(GS.data, pngFile, density.smooth = 0.1, p
 		xlabel = "fraction of tumour cells"
 	}
 
-	V.h.cols <- GS.data$V.h
-	pi.h.cols <- GS.data$pi.h
+	V.h.cols <- GS.data$V.h # weights
+	pi.h.cols <- GS.data$pi.h # discreteMutationCopyNumbers
 	wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
 	wts[,1] <- V.h.cols[,1]
 	wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
@@ -119,9 +134,8 @@ Gibbs.subclone.density.est <- function(GS.data, pngFile, density.smooth = 0.1, p
 	post.ints <- matrix(NA, ncol=post.burn.in.stop - post.burn.in.start + 1, nrow=512)
 
 	x.max = ceiling(max(mutationCopyNumber)*12)/10
-	
+  
 	xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
-
 
 	for (i in post.burn.in.start : post.burn.in.stop) {
 		post.ints[,i - post.burn.in.start + 1] <- density(c(pi.h.cols[i-1,]), weights=c(wts[i,]) / sum(c(wts[i,])), adjust=density.smooth, from=density.from, to=x.max)$y
@@ -144,4 +158,6 @@ Gibbs.subclone.density.est <- function(GS.data, pngFile, density.smooth = 0.1, p
 	print(paste("highest density is at ",xx[which.max(yy)],sep=""))
 	write.table(cbind(xx,yy),gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
 	write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
+  
+  return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
 }
