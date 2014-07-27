@@ -56,23 +56,24 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(2,
 	V.h[1:iter, C] <- rep(1, iter)
 
 	for (m in 2:iter) {
-		#if (m / 100 == round(m/100)) {print(m)}
-		print.freq = ceiling(iter/100)
-		if(m %% print.freq ==0){print(m)}
+    if(m %% 100 == 0){print(m)}
 
 		# Update cluster allocation for each individual mutation
 		for (k in 1:num.muts) {			
 			#use log-space to avoid problems with very high counts
 			Pr.S[k,1] <- log(V.h[m-1,1])
-			for(j in 2:C){
-				Pr.S[k,j] <- log(V.h[m-1,j]) + sum(log(1-V.h[m-1,1:(j-1)]))
-			}
-			for(t in 1:num.timepoints){
+      Pr.S[k,2:C] = sapply(2:C, FUN=function(j, V) { log(V[j]) + sum(log(1-V[1:(j-1)])) }, V=V.h[m-1,])
+
+      
+      for(t in 1:num.timepoints){
 				for(c in 1:C){
 					#Pr.S[k,c] <- Pr.S[k,c] + mutCount[k,t]*log(mutBurdens[m-1,c,t,k]) + WTCount[k,t]*log(1-mutBurdens[m-1,c,t,k])
 					#080214
 					Pr.S[k,c] <- Pr.S[k,c] + mutCount[k,t]*log(mutBurdens[c,t,k]) + WTCount[k,t]*log(1-mutBurdens[c,t,k])
 				}
+        # It would be faster to use apply here, but it is returning values with small difference as compared to the above code. The scaling below 
+        # blows these differences up to significant impact.
+#         Pr.S2[k,] <- Pr.S2[k,] + sapply(1:C, FUN=function(c, t, k, mutCount, mutBurdens, WTCount) { mutCount[k,t]*log(mutBurdens[c,t,k]) + WTCount[k,t]*log(1-mutBurdens[c,t,k]) }, t=t,k=k,mutCount=mutCount,mutBurdens=mutBurdens,WTCount=WTCount)
 			}			
 			Pr.S[k,is.na(Pr.S[k,])] = 0
 			Pr.S[k,] = Pr.S[k,] - max(Pr.S[k,])
@@ -80,13 +81,13 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(2,
 			Pr.S[k,] <- Pr.S[k,] / sum(Pr.S[k,])				
 		}
 		
-		#print(paste("Pr.S=",Pr.S))
 		if(sum(is.na(Pr.S))>0){
 			print(paste("Pr.S=",Pr.S))
 		}
 		
-    ## 1:length(Pr[k,]) can be replaced by 1:C - sd11
-		S.i[m,] <- sapply(1:num.muts, function(Pr, k) {sum(rmultinom(1,1,Pr[k,]) * (1:length(Pr[k,])))}, Pr=Pr.S)
+    ## Determine which cluster each mutation is assigned to
+# 		S.i[m,] <- sapply(1:num.muts, function(Pr, k) {sum(rmultinom(1,1,Pr[k,]) * (1:length(Pr[k,])))}, Pr=Pr.S)
+    S.i[m,] = apply(Pr.S, 1, function(mut) { which(rmultinom(1,1,mut)==1) })
 
 		# Update stick-breaking weights
 		V.h[m,1:(C-1)]  <- sapply(1:(C-1), function(S, curr.m, curr.alpha, h) {rbeta(1, 1+sum(S[curr.m,] == h), curr.alpha+sum(S[curr.m,] > h))}, S=S.i, curr.m=m, curr.alpha=alpha[m-1])
@@ -318,4 +319,63 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
 	write.csv(xvals,gsub(".png","_xvals.csv",pngFile))
 	write.csv(yvals,gsub(".png","_yvals.csv",pngFile))	
 	write.csv(median.density,gsub(".png","_zvals.csv",pngFile))	
+}
+
+Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, density.smooth = 0.1, post.burn.in.start = 3000, post.burn.in.stop = 10000, density.from = 0, y.max=5, mutationCopyNumber = NA,no.chrs.bearing.mut = NA) {
+  print(paste("density.smooth=",density.smooth,sep=""))
+  png(filename=pngFile,,width=1500,height=1000)
+  # GS.data is the list output from the above function
+  # density.smooth is the smoothing factor used in R's density() function
+  # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
+  
+  xlabel = "mutation copy number"
+  if(!is.matrix(mutationCopyNumber) && is.na(mutationCopyNumber)){
+    print("No mutationCopyNumber. Using mutation burden")
+    y <- GS.data$y1
+    N <- GS.data$N1
+    mutationCopyNumber = y/N
+    xlabel = "mutation burden"
+  }
+  
+  if(is.matrix(no.chrs.bearing.mut) && !is.na(no.chrs.bearing.mut)){
+    mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
+    xlabel = "fraction of tumour cells"
+  }
+  
+  V.h.cols <- GS.data$V.h # weights
+  pi.h.cols <- GS.data$pi.h[,,1] # discreteMutationCopyNumbers
+  wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
+  wts[,1] <- V.h.cols[,1]
+  wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
+  for (i in 3:dim(wts)[2]) {wts[,i] <- apply(1-V.h.cols[,1:(i-1)], MARGIN=1, FUN=prod) * V.h.cols[,i]}
+  
+  post.ints <- matrix(NA, ncol=post.burn.in.stop - post.burn.in.start + 1, nrow=512)
+  
+  x.max = ceiling(max(mutationCopyNumber)*12)/10
+  
+  xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
+  
+  for (i in post.burn.in.start : post.burn.in.stop) {
+    post.ints[,i - post.burn.in.start + 1] <- density(c(pi.h.cols[i-1,]), weights=c(wts[i,]) / sum(c(wts[i,])), adjust=density.smooth, from=density.from, to=x.max)$y
+  }
+  
+  polygon.data = c(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.975), rev(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.025)))
+  if(is.na(y.max)){
+    y.max=ceiling(max(polygon.data)/10)*10
+  }
+  
+  par(mar = c(5,6,4,1)+0.1)
+  hist(mutationCopyNumber, breaks=seq(-0.1, x.max, 0.025), col="lightgrey",freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
+  polygon(c(xx, rev(xx)), polygon.data, border="plum4", col=cm.colors(1,alpha=0.3))
+  
+  yy = apply(post.ints, MARGIN=1, FUN=quantile, probs=0.5)
+  
+  lines(xx, yy, col="plum4", lwd=3)
+  
+  dev.off()
+  print(paste("highest density is at ",xx[which.max(yy)],sep=""))
+  write.table(cbind(xx,yy),gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
+  write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
+  
+  return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
 }
