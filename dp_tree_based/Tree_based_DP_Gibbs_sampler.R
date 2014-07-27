@@ -245,7 +245,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
       curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
     
-    print(gc())
+    gc()
 		
 		print("# Resample hyperparameters")
 		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
@@ -263,7 +263,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     for (i in 1:num.samples) { all.thetas[[i]][,m] = curr.tree[node.assignments[,m],paste("theta.S",i,sep='')] }
     complete.likelihood[m] = sum(curr.likelihoods)
     
-    print(gc())
+    gc()
 
     AIC[m] = aic(complete.likelihood[m], num.samples, nrow(curr.tree))
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
