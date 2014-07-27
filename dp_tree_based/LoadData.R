@@ -45,6 +45,15 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   not.coverage = sapply(1:no.muts, FUN=function(i, dat1) { any(dat1[i,]==0)}, dat1=WTCount+mutCount)
   not.cna = sapply(1:no.muts, FUN=function(i, dat1) { any(dat1[i,]==0)}, dat1=copyNumberAdjustment)
   
+  
+  print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
+  print(paste("Removed", sum(not.there.mut),"with missing mutCount", sep=" "))
+  print(paste("Removed", sum(not.there.cn),"with missing totalCopyNumber", sep=" "))
+  print(paste("Removed", sum(not.there.cna),"with missing copyNumberAdjustment", sep=" "))
+  print(paste("Removed", sum(not.there.kappa),"with missing kappa", sep=" "))
+  print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
+  print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
+  
   select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna)
   WTCount = WTCount[select,]
   mutCount = mutCount[select,]
