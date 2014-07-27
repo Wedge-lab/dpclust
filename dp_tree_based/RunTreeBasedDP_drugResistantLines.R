@@ -49,8 +49,8 @@ cellularity = rep(1,no.subsamples)
 res = load.data(datpath, samplename, subsamples[[run]], cellularity, 'chr', 'WTCount', 'mutCount', 'subclonal.CN', 'no.chrs.bearing.mut', "_muts_withAllSubclonalCNinfoAndWithoutMutsOnDeletedChrs_June2013.txt")
 WTCount = res$WTCount
 mutCount = res$mutCount
-totalCopyNumber = res$totalCopyNumber
-copyNumberAdjustment = res$copyNumberAdjustment
+# totalCopyNumber = res$totalCopyNumber
+# copyNumberAdjustment = res$copyNumberAdjustment
 non.deleted.muts = res$non.deleted.muts
 kappa = res$kappa
 
