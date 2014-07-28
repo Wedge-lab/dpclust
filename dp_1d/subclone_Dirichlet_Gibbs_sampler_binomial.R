@@ -4,8 +4,7 @@ subclone.dirichlet.gibbs <- function(C=30, y, N, totalCopyNumber=array(1,length(
 	# C is the maximum number of clusters in the Dirichlet process
 	# iter is the number of iterations of the Gibbs sampler
 	
-	num.muts <- nrow(y)
-	num.timepoints = ncol(y)
+	num.muts <- length(y)
 	print(paste("num.muts=",num.muts,sep=""))
 	
 	# Hyperparameters for alpha
