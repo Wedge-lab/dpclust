@@ -49,7 +49,7 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
   best.AIC.index = which.min(AIC)
   best.DIC.index = which.min(DIC)
   
-  pdf(paste("all_trees_",samplename,"_",no.iters,"iters_block",blockid,".pdf",sep=""),height=4,width=3*no.subsamples)
+  pdf(paste("all_trees_",samplename,"_",no.iters,"iters_block",blockid,".pdf",sep=""),height=4,width=3*ncol(mutCount))
   for(iter in 1:no.iters){
     tree = trees[[iter]]
     tree$annotation = NA
