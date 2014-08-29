@@ -36,15 +36,9 @@ cellularities = list(
 samplename = samplenames[run]
 no.subsamples = length(subsamples[[run]])
 cellularity = cellularities[[run]]
-outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
+outdir = paste(samplename,"_nD_DirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
 
-res = load.data(datpath, samplename, subsamples[[run]], 'Chromosome', 'WT.count', 'mut.count', 'subclonal.CN', 'no.chrs.bearing.mut', "_allDirichletProcessInfo.txt")
-# WTCount = res$WTCount
-# mutCount = res$mutCount
-# totalCopyNumber = res$totalCopyNumber
-# copyNumberAdjustment = res$copyNumberAdjustment
-# non.deleted.muts = res$non.deleted.muts <= not used
-# kappa = res$kappa <= not used
+res = load.data(datpath, samplename, subsamples[[run]], cellularity, 'Chromosome', 'WT.count', 'mut.count', 'subclonal.CN', 'no.chrs.bearing.mut', "_allDirichletProcessInfo.txt")
 
-RunDirichletProcess(res$mutCount, res$WTCount, res$totalCopyNumber, res$copyNumberAdjustment, cellularity, outdir, noiters, burn.in.iters, conc_param, cluster_conc)
+RunDirichletProcess(mutCount=res$mutCount, WTCount=res$WTCount, totalCopyNumber=res$totalCopyNumber, copyNumberAdjustment=res$copyNumberAdjustment, mutation.copy.number=res$mutation.copy.number, cellularity=cellularity, output_folder=outdir, noiters=no.iters, burn.in.iters=no.iters.burn.in, subsamplesrun=subsamples[[run]], samplename=samplename, conc_param=conc_param, cluster_conc=cluster_conc)
 

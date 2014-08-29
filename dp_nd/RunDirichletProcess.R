@@ -50,9 +50,11 @@ RunDirichletProcess <- function(mutCount, WTCount, totalCopyNumber, copyNumberAd
                                             y.max=50, 
                                             mutationCopyNumber=mutation.copy.number, 
                                             no.chrs.bearing.mut=copyNumberAdjustment)
-    subclonal.fraction = mutation.copy.number / copyNumberAdjustment
-    subclonal.fraction[is.nan(subclonal.fraction)] = 0
-    oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+    if (!is.null(copyNumberAdjustment) && !is.null(mutation.copy.number)) {
+      subclonal.fraction = mutation.copy.number / copyNumberAdjustment
+      subclonal.fraction[is.nan(subclonal.fraction)] = 0
+      oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+    }
     setwd(curr_dir)
   }
 

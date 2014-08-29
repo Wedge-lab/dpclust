@@ -521,7 +521,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 				all.disaggregated.consensus.assignments[[length(all.disaggregated.consensus.assignments)+1]] = temp[[3]]
 			}
 			
-      colnames = paste("theta.S", 1:no.subsamples, sep="")
+      colnames = paste("theta.S", 1:ncol(mutCount), sep="")
       new.likelihood = log.f.of.y(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
       # Save the likelihood per mutation in order to calculate the DIC score later
       all.likelihoods = cbind(all.likelihoods, new.likelihood)

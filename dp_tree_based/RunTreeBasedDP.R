@@ -83,9 +83,9 @@ RunTreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)),
     
     trees_start_time = Sys.time()
     if(!is.na(bin.size)) {
-      RunTreeBasedDPMCMC(binned.mutCount, binned.WTCount, binned.kappa, nrow(mutCount), annotation, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, bin.indices=bin.indices, blockid=blockid)
+      RunTreeBasedDPMCMC(binned.mutCount, binned.WTCount, binned.kappa, nrow(mutCount), annotation, samplename, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, bin.indices=bin.indices, blockid=blockid)
     } else {
-      RunTreeBasedDPMCMC(mutCount, WTCount, kappa, nrow(mutCount), annotation, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, bin.indices=NULL, blockid=blockid)
+      RunTreeBasedDPMCMC(mutCount, WTCount, kappa, nrow(mutCount), annotation, samplename, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, bin.indices=NULL, blockid=blockid)
     }
     trees_end_time = Sys.time()
     print(paste("Finished tree.struct.dirichlet in", as.numeric(trees_end_time-trees_start_time,units="secs"), "seconds"))

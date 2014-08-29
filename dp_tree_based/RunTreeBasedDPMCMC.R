@@ -1,4 +1,4 @@
-RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL) {
+RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, samplename, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL) {
 
 #   if(is.na(bin.size)){
   temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)

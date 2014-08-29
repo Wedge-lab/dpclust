@@ -5,7 +5,8 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(2,
 	# N is a p-by-q matrix of the number of reads in total across the base in question (in the same order as Y obviously!, p=number of mutations,q=number of timepoints / related samples)
 	# C is the maximum number of clusters in the Dirichlet process
 	# iter is the number of iterations of the Gibbs sampler
-	
+	if (is.null(copyNumberAdjustment)) { copyNumberAdjustment = array(1,dim(mutCount)) }
+  
 	num.muts <- NROW(mutCount)
 	num.timepoints  = NCOL(mutCount)
 	
@@ -134,7 +135,7 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(2,
 		# Update alpha
 		alpha[m] <- rgamma(1, shape=C+A-1, rate=B-sum(log(1-V.h[m,1:(C-1)]))) 
 	}
-	return(list(S.i=S.i, V.h=V.h, pi.h=pi.h, mutBurdens=mutBurdens, alpha=alpha))
+	return(list(S.i=S.i, V.h=V.h, pi.h=pi.h, mutBurdens=mutBurdens, alpha=alpha, y1=mutCount, N1=mutCount+WTCount))
 }
 
 Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth = 0.1, post.burn.in.start = 3000, post.burn.in.stop = 10000, samplenames = c("sample 1","sample 2"), indices = NA) {
@@ -321,7 +322,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
 	write.csv(median.density,gsub(".png","_zvals.csv",pngFile))	
 }
 
-Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, density.smooth = 0.1, post.burn.in.start = 3000, post.burn.in.stop = 10000, density.from = 0, y.max=5, mutationCopyNumber = NA,no.chrs.bearing.mut = NA) {
+Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, density.smooth = 0.1, post.burn.in.start = 3000, post.burn.in.stop = 10000, density.from = 0, y.max=5, mutationCopyNumber = NULL,no.chrs.bearing.mut = NULL) {
   print(paste("density.smooth=",density.smooth,sep=""))
   png(filename=pngFile,,width=1500,height=1000)
   # GS.data is the list output from the above function
@@ -329,15 +330,21 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, density.smooth = 0.1
   # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
   
   xlabel = "mutation copy number"
-  if(!is.matrix(mutationCopyNumber) && is.na(mutationCopyNumber)){
+  if(is.null(mutationCopyNumber)){
     print("No mutationCopyNumber. Using mutation burden")
     y <- GS.data$y1
     N <- GS.data$N1
+    print("y")
+    print(y)
+    print("N")
+    print(N)
     mutationCopyNumber = y/N
+    print("MutCopyNr")
+    print(mutationCopyNumber)
     xlabel = "mutation burden"
   }
   
-  if(is.matrix(no.chrs.bearing.mut) && !is.na(no.chrs.bearing.mut)){
+  if(!is.null(no.chrs.bearing.mut)){
     mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
     xlabel = "fraction of tumour cells"
   }
