@@ -1,250 +1,7 @@
 source("Tree_based_DP_Gibbs_sampler.R")
 # source("interconvertMutationBurdens.R")
-source("PlotTreeWithIgraph.R")
-source("DensityEstimator.R")
 source("CullTree.R")
-
-makeValidThetas<-function(tree){
-	theta.cols = names(tree)[grep("theta",names(tree))]
-	levels = sapply(1:nrow(tree),function(t,i){length(strsplit(rownames(t)[i],":")[[1]])},t=tree)
-	print(levels)
-	if(max(levels)>1){
-		for(level in 2:max(levels)){
-			level.list = rownames(tree)[levels==level]
-			print(level)
-			print(level.list)
-			for(anc in unique(tree[level.list,"ancestor"])){
-				node.list = level.list[tree$ancestor[match(level.list,rownames(tree))]==anc]
-				print(tree$ancestor[match(level.list,rownames(tree))])
-				print(anc)
-				print(node.list)
-				for(tc in theta.cols){
-					if(sum(tree[node.list,tc]) > 0.99 * tree[anc,tc]){
-						tree[node.list,tc] = tree[node.list,tc] * 0.99 * tree[anc,tc] / sum(tree[node.list,tc])
-					}
-				}
-			}
-		}
-	}
-	return(tree)
-}
-
-plotConsensusTree<-function(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in, node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices=NULL,shrinkage.threshold = 0.1, tree.number=NA){
-  start = Sys.time()
-  print("Starting plotConcensusTree")
-  no.iters.post.burn.in = no.iters-no.iters.burn.in
-	no.subsamples = length(subsamplenames)
-	no.muts = length(consensus.assignments)
-	
-	subclonal.fraction = array(NA,dim(mutCount))
-	for(i in 1:no.subsamples){
-		subclonal.fraction[,i] = mutCount[,i] / ((mutCount[,i]+WTCount[,i])*kappa[,i])
-		subclonal.fraction[kappa[,i]==0,i] = NA
-	}
-
-  print("Getting node info")
-	##############################Get Node Info############################################################
-	temp.unique.nodes = unique(consensus.assignments)
-	levels = sapply(1:length(temp.unique.nodes),function(t,i){length(strsplit(t[i],":")[[1]])},t=temp.unique.nodes)
-	max.level = max(levels)
-	unique.nodes=character(0)
-	for(l in 1:max.level){
-		nodes = temp.unique.nodes[levels==l]
-		unique.nodes=c(unique.nodes,sort(nodes))
-	}
-  print(start-Sys.time())
-
-  print("Getting consensus thetas")
-	consensus.thetas=list()
-	no.nodes = length(unique.nodes)
-	is.single.point=vector(mode="logical",length=no.nodes)
-  print(Sys.time()-start)
-	for(n in 1:no.nodes){
-		print(paste(length(trees),n,sep=","))
-		IDs = which(consensus.assignments==unique.nodes[n])
-		if(length(IDs)==1){
-			is.single.point[n]=T
-		}
-		consensus.theta = array(NA,c(no.subsamples,length(IDs),no.iters.post.burn.in))
-		for(x in 1:no.subsamples){
-			consensus.theta[x,,] = sapply((no.iters.burn.in+1):no.iters,function(t,a,p,i){t[[i]][match(a[p,i],t[[i]]$label),paste("theta.S",x,sep="")]},t=trees,a=node.assignments,p=IDs)				
-		}
-		consensus.thetas[[n]] = consensus.theta
-	}
-  print(Sys.time()-start)
-	##############################PLOTTING############################################################
-  print("Starting plotting")
-	dev.set(which = hist.device)
-	for(n in 1:no.nodes){
-		for(p in 1:no.subsamples){
-			#hist(consensus.thetas[[n]][p,,],breaks = seq(0,1,0.025),main=paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts, ",no.nodes," nodes)",sep=""),xlab="subclonal fraction")
-			if(is.na(tree.number)){
-				hist(consensus.thetas[[n]][p,,],breaks = seq(0,1,0.025),main=paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep=""),xlab="subclonal fraction")				
-			}else{
-				hist(consensus.thetas[[n]][p,,],breaks = seq(0,1,0.025),main=paste("tree #",tree.number,": ",samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep=""),xlab="subclonal fraction")				
-			}
-		}
-	}
-	ancs = paste(c("Root",sapply(2:no.nodes,function(n,i){spl = strsplit(n[i],":");paste(spl[[1]][1:(length(spl[[1]])-1)],collapse=":")},n=unique.nodes)),":",sep="")
-
-	dev.set(which = density.device)
-	highest.density.thetas = array(NA,c(no.subsamples,no.nodes))
-  print(start-Sys.time())
-  
-	# Estimate theta densities
-  print("Estimating densities")
-	for(n in 1:no.nodes){
-		for(p in 1:no.subsamples){
-			main = paste(samplename,subsamplenames[p]," ",unique.nodes[n],", (",dim(consensus.thetas[[n]])[2]," muts)",sep="")
-			if(is.single.point[n]){
-				temp.cons.thetas = array(consensus.thetas[[n]][p,,],c(1,no.iters.post.burn.in))
-			} else {
-				temp.cons.thetas = consensus.thetas[[n]][p,,]
-			}
-
-			if(!is.na(tree.number)){
-				main = paste("tree #",tree.number,": ",main,sep="")
-			}
-		
-			highest.density.thetas[p,n] = DensityEstimator(temp.cons.thetas,subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=main,density.smooth=1,x.max=1.2)							
-		}
-	}
-  print(start-Sys.time())
-
-	dev.set(which = tree.device)
-	consensus.tree = as.data.frame(cbind(unique.nodes,t(highest.density.thetas),ancs,NA),stringsAsFactors=F)
-	names(consensus.tree) = c("label",paste("theta.S",1:no.subsamples,sep=""),"ancestor","annotation")
-	for(n in 1:no.subsamples){
-		consensus.tree[,n+1] = as.numeric(consensus.tree[,n+1])
-	}
-	row.names(consensus.tree) = consensus.tree$label
-	plotTree(consensus.tree,main=paste(samplename,subsamplenames,sep=""),font.size=1.25)
-  print(Sys.time()-start)
-	print("finished plotting tree")
-
-	#check how many mutations were aggregated in the binning
-  print("Checking aggregated mutations")
-	if(!is.null(bin.indices)){
-		print(paste("no.muts=",no.muts,sep=""))
-		print(paste("length(bin.indices)=",length(bin.indices),sep=""))
-		mut.table = vector(mode="numeric",length = no.nodes)
-		mut.table2 = vector(mode="numeric",length = no.nodes)
-		for(n in 1:no.nodes){
-			node = unique.nodes[n]
-			inds = which(consensus.assignments==node)
-			mut.table[n] = sum(sapply(inds,function(b,i){length(b[[i]])},b=bin.indices))
-		}
-		mut.table = as.table(mut.table)
-		names(mut.table) = unique.nodes
-
-		disaggregated.consensus.assignments = rep(NA,sum(mut.table))
-		for(m in 1:no.muts){
-			disaggregated.consensus.assignments[bin.indices[[m]]] = consensus.assignments[m]
-		}
-	}else{
-		mut.table = table(consensus.assignments[consensus.assignments!=""])
-	}
-  print(Sys.time()-start)
-
-	#091013 - average theta, weighted by depth, which may be a better starting point for the whole.tree sampler
-	#this tree should be recorded (and plotted)
-  print("Building consensus trees")
-	for (k in 1:no.subsamples) {
-		for(n in 1:no.nodes){
-			node.inds = which(consensus.assignments==unique.nodes[n])
-			weights = mutCount[node.inds,k] + WTCount[node.inds,k]
-			weights = weights/sum(weights)
-			average.theta = mean(sapply((no.iters.burn.in+1):no.iters,function(i){sum(trees[[i]][node.assignments[node.inds,i],paste("theta.S",k,sep="")]*weights)}))			
-      average.theta[is.na(average.theta)] = 0
-			consensus.tree[unique.nodes[n],k+1] = average.theta
-		}
-	}
-  print(Sys.time()-start)
-	print("average tree:")
-	print(consensus.tree)
-	
-	#adjust thetas to make a valid tree, otherwise whole.tree.slice.sampler will be unable to find a solution
-	consensus.tree = makeValidThetas(consensus.tree)
-	print("adjusted average tree:")
-	print(consensus.tree)
-	
-	#resample whole tree
-  print("Resampling whole tree")
-	no.slice.samples = 20
-	capped.kappa = kappa
-	capped.kappa[capped.kappa>0.999] = 0.999
-	for (k in 1:no.subsamples) {
-		curr.thetas = consensus.tree[,k+1]
-		curr.thetas[curr.thetas<0.001] = 0.001
-		curr.thetas[curr.thetas>0.999] = 0.999
-		#consensus.tree[,k+1] <- whole.tree.slice.sampler(consensus.tree, curr.thetas, mutCount[,k], mutCount[,k] + WTCount[,k], capped.kappa[,k], consensus.assignments, shrinkage.threshold)
-		#this may be slow, but it gives better estimates, plus, potentially, confidence intervals
-		theta.samples = array(NA,c(no.slice.samples,no.nodes))
-
-		call.whole.tree.slice.sampler = function(l,k1,consensus.tree1,curr.thetas1,mutCount1,WTCount1,capped.kappa1,consensus.assignments1,shrinkage.threshold1) { whole.tree.slice.sampler(consensus.tree1, curr.thetas1, mutCount1[,k1], mutCount1[,k1] + WTCount1[,k1], capped.kappa1[,k1], consensus.assignments1, shrinkage.threshold1) }
-
-		theta.samples = t(sapply(1:no.slice.samples, FUN=call.whole.tree.slice.sampler, k=k, consensus.tree1=consensus.tree, curr.thetas1=curr.thetas, mutCount1=mutCount, WTCount1=WTCount, capped.kappa1=capped.kappa, consensus.assignments1=consensus.assignments, shrinkage.threshold1=shrinkage.threshold))
-
-		consensus.tree[,k+1] = apply(theta.samples,2,median)
-		print("median and stdev of consensus tree resamples:")
-		print(cbind(consensus.tree[,k+1], apply(theta.samples,2,sd)))
-	}	
-	dev.set(which=optimised.tree.device)
-  print(Sys.time()-start)
-  
-  print("Plotting actual tree")
-	plotTree(consensus.tree,main=paste(samplename,subsamplenames,sep=""),font.size=1.25)
-  print(Sys.time()-start)
-	print("finished plotting optimised tree")
-
-	dev.set(which=tree.population.device)
-	population.tree=consensus.tree[,c("label","theta.S1","ancestor","annotation")]
-	for(n in 1:no.nodes){
-		#population.tree[unique.nodes[n],"theta.S1"] = mut.table[unique.nodes[n],1]
-		population.tree[unique.nodes[n],"theta.S1"] = mut.table[unique.nodes[n]]
-	}
-	plotTree(population.tree,main=samplename,font.size=1.25,plotAsPercentage=F)
-  print(Sys.time()-start)
-	print("population tree plotted")
-
-	if(no.subsamples>1){
-		#its hard to distinguish more than 8 different colours
-		max.cols = 8
-		cols = rainbow(min(max.cols,no.nodes))
-		dev.set(which = scatter.device)
-		plot.data = subclonal.fraction
-		plot.data[is.na(plot.data)]=0
-		for(i in 1:(no.subsamples-1)){
-			for(j in (i+1):no.subsamples){
-				plot(plot.data[,i],plot.data[,j],type = "n",xlab = paste(samplename,subsamplenames[i]," subclonal fraction",sep=""), ylab = paste(samplename,subsamplenames[j]," subclonal fraction",sep=""),xlim = c(0,max(plot.data[,i])*1.2))
-				for(n in 1:no.nodes){
-					points(plot.data[,i][consensus.assignments==unique.nodes[n]],plot.data[,j][consensus.assignments==unique.nodes[n]],col=cols[(n-1) %% max.cols + 1],pch=20 + floor((n-1)/max.cols))
-				}
-				#legend(max(plot.data[,i]),max(plot.data[,j]),legend = unique.nodes[n],col=cols[(n-1) %% max.cols + 1],pch=20 + floor((n-1)/max.cols))
-				legend(max(plot.data[,i]),max(plot.data[,j]),legend = unique.nodes,col=cols[(0:(no.nodes-1)) %% max.cols + 1],pch=20 + floor((0:(no.nodes-1))/max.cols),cex=0.5)
-			}
-		}
-	}
-  print("Done plotConsensusTrees")
-  print(Sys.time()-start)
-	#returned optimised tree and node assignments	
-	if(!is.null(bin.indices)){
-		return(list(consensus.tree,consensus.assignments,disaggregated.consensus.assignments))
-	}else{
-		return(list(consensus.tree,consensus.assignments))
-	}
-}
-	
-calc.ancestor.strengths <- function(m,ancestor.strengths, node.assignments, no.iters.since.burnin, identity.strengths) {
-	node.assignments.all = node.assignments[,no.iters.since.burnin]
-	node.assignments.m = node.assignments[m,no.iters.since.burnin]
-
-	temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
-	temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
-	temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
-  
-	return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths))
-}
+source("PlotConsensusTree.R")
 
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = array(0.5,dim(mutCount)), samplename="sample", subsamplenames = 1:ncol(mutCount), no.iters = 1250, no.iters.burn.in = 250, resort.mutations = T, shrinkage.threshold = 0.1, init.alpha = 0.01, outdir = getwd(),bin.indices = NULL){
   start = Sys.time()
@@ -254,71 +11,30 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	tree.number=1
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
-
- 	subclonal.fraction = mutCount / ((mutCount+WTCount)*kappa)
-  subclonal.fraction[kappa == 0] = NA
+  no.iters.post.burn.in = no.iters-no.iters.burn.in
 
 	# Assemble the current strengths for each pair of mutations
-  no.iters.post.burn.in = no.iters-no.iters.burn.in
-	ancestor.strengths = array(0,c(no.muts,no.muts))
-	sibling.strengths = array(0,c(no.muts,no.muts))
-	identity.strengths = array(0,c(no.muts,no.muts))
+  strengths = get.mut.ass.strengths(no.muts, no.iters, no.iters.post.burn.in, node.assignments)
+  ancestor.strengths = strengths$ancestor.strengths
+  sibling.strengths = strengths$sibling.strengths
+  identity.strengths = strengths$identity.strengths
 
-	for(i in 1:no.iters.post.burn.in){
-    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-
-		res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
-		ancestor.strengths = do.call(rbind,res[1,])
-		ancestor.or.identity.relationship = do.call(rbind,res[2,])
-		identity.strengths = do.call(rbind,res[3,])
-
-		sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
-	}
-
+  # Save the strengths as output
   write.table(ancestor.strengths, file='ancestor.strengths.csv', row.names=F, sep=",")
   write.table(sibling.strengths, file='sibling.strengths.csv', row.names=F, sep=",")
   write.table(identity.strengths, file='identity.strengths.csv', row.names=F, sep=",")
   
   print(Sys.time()-start)
 
-	pdf(paste("histograms_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
-	hist.device=dev.cur()
-	par(mfrow=c(2,no.subsamples))	
-	pdf(paste("densities_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
-	density.device=dev.cur()	
-	par(mfrow=c(2,no.subsamples))
-	pdf(paste("consensus_trees_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
-	tree.device=dev.cur()
-	pdf(paste("consensus_trees_optimised_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
-	optimised.tree.device=dev.cur()
-	pdf(paste("consensus_trees_no_of_muts_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4)
-	tree.population.device=dev.cur()
-	if(no.subsamples>1){
-		pdf(paste("consensus_scatter_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=no.subsamples*(no.subsamples-1)*2)
-		scatter.device=dev.cur()
-		par(mfrow=c(1,no.subsamples*(no.subsamples-1)/2))
-	}
+  # Create devices to push plots towards lateron
+  devs = create.plotting.devices(samplename, no.iters, no.iters.burn.in, no.subsamples)
+  hist.device = devs$hist.device; density.device = devs$density.device; tree.device = devs$tree.device; tree.population.device = devs$tree.population.device; scatter.device = devs$scatter.device; optimised.tree.device = devs$optimised.tree.device
 
   print("Obtaining current agreement")
 	consensus.assignments = rep("M:",no.muts)
-	no.nodes=1
-	current.agreement = 0
-	for(i in unique(consensus.assignments)){
-		inds1 = which(consensus.assignments==i)
-		for(j in unique(consensus.assignments)){
-			inds2 = which(consensus.assignments==j)
-			if(i==j){
-				current.agreement = current.agreement + sum(identity.strengths[inds1,inds2])
-			}else if(younger.direct.descendants(i,j)){
-				current.agreement = current.agreement + sum(ancestor.strengths[inds1,inds2])
-			}else if(younger.direct.descendants(j,i)){
-				current.agreement = current.agreement + sum(ancestor.strengths[inds2,inds1])
-			}else{
-				current.agreement = current.agreement + sum(sibling.strengths[inds1,inds2])
-			}		
-		}
-	}
+  current.agreement = calc.curr.agreement(consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 	fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
+
   print(Sys.time()-start)
 	print(paste("M:",current.agreement,fractional.current.agreement))
 	
@@ -346,7 +62,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	            scatter.device=scatter.device,
 	            tree.number=tree.number)
   
-	all.consensus.trees = res$trees
+	all.consensus.trees = res$trees; 
 	all.consensus.assignments = res$all.consensus.assignments
 	likelihoods = res$likelihoods
 	all.disaggregated.consensus.assignments = res$all.disaggregated
@@ -355,14 +71,8 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 
   print(paste("Finished EM in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 
-	dev.off(which = hist.device)
-	dev.off(which = density.device)
-	dev.off(which = tree.device)
-	dev.off(which = optimised.tree.device)
-	dev.off(which = tree.population.device)
-	if(no.subsamples>1){
-		dev.off(which = scatter.device)
-	}
+  # No more trees to be plotted. Close the devices
+  close.plotting.devices(no.subsamples, hist.device, density.device, tree.device, optimised.tree.device, tree.population.device, scatter.device)
 
 	tree.sizes = sapply(1:length(all.consensus.trees),function(t,i){nrow(t[[i]])},t=all.consensus.trees)
   BIC = bic(likelihoods, no.subsamples, tree.sizes, no.muts)
@@ -401,6 +111,46 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	}	
 }
 
+get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.assignments) {
+  #
+  # Calculates for each pair of mutations how often the pair is assigned to:
+  #   - The same node (identity)
+  #   - Nodes in parent-offspring relation (ancestor)
+  #   - Nodes that are siblings (sibling)
+  #
+  calc.ancestor.strengths <- function(m,ancestor.strengths, node.assignments, no.iters.since.burnin, identity.strengths) {
+    #
+    # Calculates the strengths for iteration m of the MCMC algorithm
+    #
+    node.assignments.all = node.assignments[,no.iters.since.burnin]
+    node.assignments.m = node.assignments[m,no.iters.since.burnin]
+    
+    temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
+    temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
+    temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
+    
+    return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths))
+  }
+  
+  ancestor.strengths = array(0,c(no.muts,no.muts))
+  sibling.strengths = array(0,c(no.muts,no.muts))
+  identity.strengths = array(0,c(no.muts,no.muts))
+  
+  for(i in 1:no.iters.post.burn.in){ # for each iteration past burnin
+    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
+    
+    # i+no.iters-no.iters.post.burn.in = no.iters-no.iters.post.burn.in is where the burn.in stops, i represents the iterations after that point
+    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
+    ancestor.strengths = do.call(rbind,res[1,])
+    ancestor.or.identity.relationship = do.call(rbind,res[2,])
+    identity.strengths = do.call(rbind,res[3,])
+    
+    sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+  }
+  
+  return(list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths))
+}
+
 do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, resort.mutations, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number) {
   
   start = Sys.time()
@@ -409,6 +159,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 	no.muts=nrow(mutCount)
   no.subsamples=length(subsamplenames)
 
+  # Set up storage variables
 	likelihoods = numeric(0)
   all.likelihoods = array(NA,c(no.muts,0))
   all.thetas = list()
@@ -420,103 +171,25 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 		all.disaggregated.consensus.assignments = list()
 	}	
 	new.pairwise.agreements = list()
+  
 	node.added=T
 	while(node.added){	
-		unique.nodes = unique(consensus.assignments)
-		no.nodes = length(unique.nodes)
-		new.agreements = array(NA,2*no.nodes)
-		new.nodes = array(NA,2*no.nodes)
-		muts.to.move = list()
-		for(n in 1:no.nodes){
-      # 
-      # for each node
-      #   add a new node below current node
-		  #   while a mutation was moved 
-		  #     move each mutation to the new node, or move it back when it was already assigned there
-		  #     calculate agreement
-		  #     if agreement is better, then move the mutation permanently
-		  #   
-      #   then add new node above current node and perform the shuffling
-      #
-      #   save which mutations are to be moved
-      #
-			for(above in c(F,T)){
-				new.pairwise.agreements[[2*(n-1)+above+1]] = pairwise.agreements
-				new.consensus.assignments = consensus.assignments
-				level = length(strsplit(unique.nodes[n],":")[[1]])
-				if(above){
-					# Add the new node above the current level
-					res = add.node.above.curr.level(n,unique.nodes,new.consensus.assignments,level)
-					new.node = res[[1]]
-					new.consensus.assignments = res[[2]]
-				}else{
-					# Add new node below current level
-					new.node = add.node.below.curr.level(n,unique.nodes,level)
-				}
-				new.nodes[2*(n-1)+above+1] = new.node
-				new.unique.nodes = unique(c(new.consensus.assignments,new.node))
-
-				#EM algorithm - iteratively move muts to the new node or back again
-				mut.moved=T
-				count=1
-        
-				saved.consensus.assignments = new.consensus.assignments
-				#we may need to avoid infinite cycling by checking whether a set of node assignments has been repeated
-				while(mut.moved){
-          
-				  if (! count %% 50) {
-				    print(paste("Round 1: ",count, sep=''))
-            print(start-Sys.time())
-				  }
-          
-					count=count+1
-					mut.moved=F
-					rand.inds = sample(no.muts)
-					for(r in rand.inds){
-						# Check whether mutation was already assigned to the new node
-						if(new.consensus.assignments[r]==new.node){
-							# Move mut back to old node
-							new.ass = saved.consensus.assignments[r]
-						}else{
-							# Save the new node as the node to be assigned to
-							new.ass = new.node
-						}
-						res = get.desc.and.anc(r, new.ass, new.unique.nodes, new.consensus.assignments)
-            desc = res[[1]]
-            anc = res[[2]]
-            temp.ass = res[[3]]
-            
-						# Calculate new agreement by summing the scores for ancestor and siblings
-            new.agreement = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
-            # Get assignment to same node for this mutation with all others
-            old.agreement = sum(new.pairwise.agreements[[2*(n-1)+above+1]][r,])
-
-						# When the new agreement is better, move the mutation
-						if(new.agreement > old.agreement){
-							mut.moved=T
-							new.consensus.assignments[r] = new.ass
-							new.pairwise.agreements = move.mut1(2*(n-1)+above+1, r, new.ass, desc, anc, new.pairwise.agreements, new.consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
-							old.agreement = new.agreement
-						}
-					}
-				}
-				new.agreements[2*(n-1)+above+1] = sum(new.pairwise.agreements[[2*(n-1)+above+1]])
-				#don't move a whole node of mutations - not sure whether this should be allowed
-				if(length(unique(new.consensus.assignments))<=no.nodes){
-					new.agreements[2*(n-1)+above+1] = 0
-				}			
-				muts.to.move[[2*(n-1)+above+1]] = which(new.consensus.assignments == new.node)
-			}
-		}
+    # Perform EM to try out various layout extensions
+    res = do_em_layout(no.muts, consensus.assignments, pairwise.agreements, new.pairwise.agreements, identity.strengths, ancestor.strengths, sibling.strengths)
+    new.agreements = res$new.agreements
+    new.nodes = res$new.nodes
+    muts.to.move = res$muts.to.move
+    new.pairwise.agreements = res$new.pairwise.agreements
     print("Moving round1 done")
 		
     #
-    # pull out the best agreement found above
+    # pull out the best extension/agreement found above
     # if there is a higher agreement than we have currently
     #   insert the new node into the tree
     #   get optimised tree and node assignments and save them
     #   calculate the likelihood of the new tree
-
+    unique.nodes = unique(consensus.assignments)
+    
     best.node = which.max(new.agreements)
 		if(new.agreements[best.node] > current.agreement){
 			new.node = new.nodes[best.node]
@@ -587,7 +260,6 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 						possible.ass = unique.nodes[unique.nodes != curr.ass]
             
             # Get best new agreement
-						new.agreements = array(NA,length(possible.ass))
             new.agreements = as.array(sapply(1:length(possible.ass), FUN=get.new.agreements, r, possible.ass, unique.nodes, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths))
 						new.agreement = max(new.agreements)
 						best.index = which.max(new.agreements)
@@ -600,7 +272,10 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
             # Check if the new assignment when moving this mut was not seen before
             if(new.agreement > old.agreement) { #} & !is.assignment.known(assignments.tracker, consensus.ass.temp)){
 							mut.moved=T
-							pairwise.agreements = move.mut2(r,possible.ass[best.index], unique.nodes, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
+							res = get.desc.and.anc(possible.ass[best.index], unique.nodes)
+              anc = res$anc; desc = res$desc
+# 							pairwise.agreements = move.mut2(r,possible.ass[best.index], unique.nodes, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
+							pairwise.agreements = update.agreements(r1, possible.ass[best.index], desc, anc, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 						}
 					}
 				}
@@ -646,23 +321,145 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 	return(list(trees=all.consensus.trees, all.consensus.assignments=all.consensus.assignments, likelihoods=likelihoods, all.disaggregated=all.disaggregated.consensus.assignments, all.likelihoods=all.likelihoods, all.thetas=all.thetas))
 }
 
+
+do_em_layout = function(no.muts, consensus.assignments, pairwise.agreements, new.pairwise.agreements, identity.strengths, ancestor.strengths, sibling.strengths) {
+  #
+  # Searches for nodes that benefit from having a new node assigned either below or above it.
+  # Mutations are then shuffled around to see whether the layout change has improved the agreements.
+  # It returns a list that contains an array of new nodes and the associated agreements.
+  #
+  unique.nodes = unique(consensus.assignments)
+  no.nodes = length(unique.nodes)
+  
+  new.agreements = array(NA,2*no.nodes)
+  new.nodes = array(NA,2*no.nodes)
+  muts.to.move = list()
+  for(n in 1:no.nodes){
+    # 
+    # for each node
+    #   add a new node below current node
+    #   while a mutation was moved 
+    #     move each mutation to the new node, or move it back when it was already assigned there
+    #     calculate agreement
+    #     if agreement is better, then move the mutation permanently
+    #   
+    #   then add new node above current node and perform the shuffling
+    #
+    #   save which mutations are to be moved
+    #
+    for(above in c(F,T)){
+      new.pairwise.agreements[[2*(n-1)+above+1]] = pairwise.agreements
+      new.consensus.assignments = consensus.assignments
+      level = length(strsplit(unique.nodes[n],":")[[1]])
+      if(above){
+        # Add the new node above the current level
+        res = add.node.above.curr.level(n,unique.nodes,new.consensus.assignments,level)
+        new.node = res[[1]]
+        new.consensus.assignments = res[[2]]
+      }else{
+        # Add new node below current level
+        new.node = add.node.below.curr.level(n,unique.nodes,level)
+      }
+      new.nodes[2*(n-1)+above+1] = new.node
+      new.unique.nodes = unique(c(new.consensus.assignments,new.node))
+      
+      #EM algorithm - iteratively move muts to the new node or back again
+      mut.moved=T
+      count=1
+      
+      saved.consensus.assignments = new.consensus.assignments
+      #we may need to avoid infinite cycling by checking whether a set of node assignments has been repeated
+      while(mut.moved){
+        
+        if (! count %% 50) {
+          print(paste("Round 1: ",count, sep=''))
+          print(start-Sys.time())
+        }
+        
+        count=count+1
+        mut.moved=F
+        rand.inds = sample(no.muts)
+        for(r in rand.inds){
+          # Check whether mutation was already assigned to the new node
+          if(new.consensus.assignments[r]==new.node){
+            # Move mut back to old node
+            new.ass = saved.consensus.assignments[r]
+          }else{
+            # Save the new node as the node to be assigned to
+            new.ass = new.node
+          }
+          res = get.desc.and.anc(new.ass, new.unique.nodes)
+          desc = res$desc; anc = res$anc
+          
+          temp.ass = new.consensus.assignments
+          temp.ass[r] = new.ass
+          
+          # Calculate new agreement by summing the scores for ancestor and siblings
+          new.agreement = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
+          # Get assignment to same node for this mutation with all others
+          old.agreement = sum(new.pairwise.agreements[[2*(n-1)+above+1]][r,])
+          
+          # When the new agreement is better, move the mutation
+          if(new.agreement > old.agreement){
+            mut.moved=T
+            new.consensus.assignments[r] = new.ass
+            new.pairwise.agreements[[2*(n-1)+above+1]] = update.agreements(r, new.ass, desc, anc, new.pairwise.agreements[[2*(n-1)+above+1]], new.consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
+            old.agreement = new.agreement
+          }
+        }
+      }
+      new.agreements[2*(n-1)+above+1] = sum(new.pairwise.agreements[[2*(n-1)+above+1]])
+      #don't move a whole node of mutations - not sure whether this should be allowed
+      if(length(unique(new.consensus.assignments))<=no.nodes){
+        new.agreements[2*(n-1)+above+1] = 0
+      }			
+      muts.to.move[[2*(n-1)+above+1]] = which(new.consensus.assignments == new.node)
+    }
+  }
+  return(list(new.agreements=new.agreements, new.nodes=new.nodes, muts.to.move=muts.to.move, new.pairwise.agreements=new.pairwise.agreements))
+}
+
+add.node.above.curr.level = function(n1,unique.nodes1,new.consensus.assignments1,level1) {
+  # Add the new node above the current level
+  for(y in which(younger.direct.descendants(unique.nodes1[n1],unique.nodes1))){
+    # move the mutations to the node where they were previously assigned for each direct descendant
+    spl = strsplit(unique.nodes1[y],":")[[1]]
+    if(unique.nodes1[n1] == unique.nodes1[y]){
+      # new top node
+      new.consensus.node = paste(paste(c(spl[1:level1],1),collapse=":"),":",sep="")						
+    }else{
+      # new inbetween node
+      new.consensus.node = paste(paste(c(spl[1:level1],1,spl[(level1+1):length(spl)]),collapse=":"),":",sep="")
+    }
+    new.consensus.assignments1[new.consensus.assignments1 == unique.nodes1[y]] = new.consensus.node
+  }
+  return(list(unique.nodes1[n1],new.consensus.assignments1))
+}
+
+add.node.below.curr.level = function(n1,unique.nodes1,level1) {
+  # Add new node below current level
+  # Check whether there are any children
+  no.children=0
+  for(y in which(younger.direct.descendants(unique.nodes1[n1],unique.nodes1))){
+    spl = strsplit(unique.nodes1[y],":")[[1]]
+    if(length(spl)==level1+1){
+      no.children = max(no.children,as.numeric(spl[level1+1]))
+    }
+  }
+  # New node is no.children (current) + 1
+  return(paste(unique.nodes1[n1],no.children+1,":",sep=""))
+}
+
+
 is.assignment.known <- function(ass.tracker, consensus.ass.temp) {
   res = sapply(1:ncol(ass.tracker), FUN=function(col, ass.tracker, consensus.ass.temp) { identical(ass.tracker[,col],consensus.ass.temp) }, ass.tracker, consensus.ass.temp)
   return(sum(res) > 0)
 }
 
-get.new.agreements <- function(n, r, possible.ass, unique.nodes, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths) {
-  new.ass = possible.ass[n]
-  res = get.desc.and.anc(r, new.ass, unique.nodes, consensus.assignments)
-  desc = res[[1]]
-  anc = res[[2]]
-  temp.ass = res[[3]]
-  new.agreement = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
-  return(new.agreement)
-}
-
 cullTree = function(consensus.assignments, all.consensus.trees) {
-	#cull tree (remove empty nodes), and reassign labels
+  #
+	# cull tree (remove empty nodes), and reassign labels
+  #
 	temp.tree = all.consensus.trees[[length(all.consensus.trees)]]
 	temp.tree$node = 1:nrow(temp.tree)
 	temp.list <- cull.tree(temp.tree, consensus.assignments)
@@ -674,85 +471,117 @@ cullTree = function(consensus.assignments, all.consensus.trees) {
 	return(new.node.assignments)
 }
 
-add.node.above.curr.level = function(n1,unique.nodes1,new.consensus.assignments1,level1) {
-	# Add the new node above the current level
-	for(y in which(younger.direct.descendants(unique.nodes1[n1],unique.nodes1))){
-		# move the mutations to the node where they were previously assigned for each direct descendant
-		spl = strsplit(unique.nodes1[y],":")[[1]]
-		if(unique.nodes1[n1] == unique.nodes1[y]){
-			# new top node
-			new.consensus.node = paste(paste(c(spl[1:level1],1),collapse=":"),":",sep="")						
-		}else{
-			# new inbetween node
-			new.consensus.node = paste(paste(c(spl[1:level1],1,spl[(level1+1):length(spl)]),collapse=":"),":",sep="")
-		}
-		new.consensus.assignments1[new.consensus.assignments1 == unique.nodes1[y]] = new.consensus.node
-	}
-	return(list(unique.nodes1[n1],new.consensus.assignments1))
+update.agreements = function(r1, new.ass1, desc1, anc1, new.pairwise.agreements1, new.consensus.assignments1, identity.strengths1, ancestor.strengths1, sibling.strengths1) {
+  #
+  # This method reassigns the agreements from identity, sibling and ancestor strenghts after mutations have been reassigned.
+  # The resulting matrix then contains pairwise aggreements, which are supposed to go up when the consensus tree becomes more
+  # like the trees that are created during MCMC.
+  #
+  new.pairwise.agreements1[r1,] = NA
+  new.pairwise.agreements1[,r1] = NA
+  new.pairwise.agreements1[r1,new.consensus.assignments1==new.ass1] = identity.strengths1[r1,new.consensus.assignments1==new.ass1]
+  new.pairwise.agreements1[new.consensus.assignments1==new.ass1,r1] = identity.strengths1[new.consensus.assignments1==new.ass1,r1]
+  new.pairwise.agreements1[r1,new.consensus.assignments1 %in% desc1] = ancestor.strengths1[r1,new.consensus.assignments1 %in% desc1]
+  new.pairwise.agreements1[new.consensus.assignments1 %in% desc1,r1] = ancestor.strengths1[r1,new.consensus.assignments1 %in% desc1]
+  new.pairwise.agreements1[new.consensus.assignments1 %in% anc1,r1] = ancestor.strengths1[new.consensus.assignments1 %in% anc1,r1]
+  new.pairwise.agreements1[r1,new.consensus.assignments1 %in% anc1] = ancestor.strengths1[new.consensus.assignments1 %in% anc1,r1]
+  new.pairwise.agreements1[!(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1,r1] = sibling.strengths1[!(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1,r1]
+  new.pairwise.agreements1[r1, !(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1] = sibling.strengths1[r1, !(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1]
+  return(new.pairwise.agreements1)
 }
 
-add.node.below.curr.level = function(n1,unique.nodes1,level1) {
-	# Add new node below current level
-	# Check whether there are any children
-	no.children=0
-	for(y in which(younger.direct.descendants(unique.nodes1[n1],unique.nodes1))){
-		spl = strsplit(unique.nodes1[y],":")[[1]]
-		if(length(spl)==level1+1){
-			no.children = max(no.children,as.numeric(spl[level1+1]))
-		}
-	}
-	# New node is no.children (current) + 1
-	return(paste(unique.nodes1[n1],no.children+1,":",sep=""))
+calc.curr.agreement = function(consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths) {
+  #
+  # Calculates the current agreement of node assignments by looking at the strengths for each pair of nodes.
+  #
+  current.agreement = 0
+  for(i in unique(consensus.assignments)){
+    inds1 = which(consensus.assignments==i)
+    for(j in unique(consensus.assignments)){
+      inds2 = which(consensus.assignments==j)
+      if(i==j){
+        current.agreement = current.agreement + sum(identity.strengths[inds1,inds2])
+      }else if(younger.direct.descendants(i,j)){
+        current.agreement = current.agreement + sum(ancestor.strengths[inds1,inds2])
+      }else if(younger.direct.descendants(j,i)){
+        current.agreement = current.agreement + sum(ancestor.strengths[inds2,inds1])
+      }else{
+        current.agreement = current.agreement + sum(sibling.strengths[inds1,inds2])
+      }		
+    }
+  }
+  return(current.agreement)
 }
 
-move.mut1 = function(m, r1, new.ass1, desc1, anc1, new.pairwise.agreements1, new.consensus.assignments1, identity.strengths1, ancestor.strengths1, sibling.strengths1) {
-	#new.consensus.assignments[r] = new.ass
-	new.pairwise.agreements1[[m]][r1,]=NA
-	new.pairwise.agreements1[[m]][,r1]=NA
-	new.pairwise.agreements1[[m]][r1,new.consensus.assignments1==new.ass1] = identity.strengths1[r1,new.consensus.assignments1==new.ass1]
-	new.pairwise.agreements1[[m]][new.consensus.assignments1==new.ass1,r1] = identity.strengths1[new.consensus.assignments1==new.ass1,r1]
-	new.pairwise.agreements1[[m]][r1,new.consensus.assignments1 %in% desc1] = ancestor.strengths1[r1,new.consensus.assignments1 %in% desc1]
-	new.pairwise.agreements1[[m]][new.consensus.assignments1 %in% desc1,r1] = ancestor.strengths1[r1,new.consensus.assignments1 %in% desc1]
-	new.pairwise.agreements1[[m]][new.consensus.assignments1 %in% anc1,r1] = ancestor.strengths1[new.consensus.assignments1 %in% anc1,r1]
-	new.pairwise.agreements1[[m]][r1,new.consensus.assignments1 %in% anc1] = ancestor.strengths1[new.consensus.assignments1 %in% anc1,r1]
-	new.pairwise.agreements1[[m]][!(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1,r1] = sibling.strengths1[!(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1,r1]
-	new.pairwise.agreements1[[m]][r1, !(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1] = sibling.strengths1[r1, !(new.consensus.assignments1 %in% anc1) & !(new.consensus.assignments1 %in% desc1) & new.consensus.assignments1 != new.ass1]
-	return(new.pairwise.agreements1)
-}
-move.mut2 = function(r1, new.ass, unique.nodes1, pairwise.agreements1, consensus.assignments1, identity.strengths1, ancestor.strengths1, sibling.strengths1) {
-	#new.ass = possible.ass1[best.index]
-	desc1 = unique.nodes1[younger.direct.descendants(new.ass,unique.nodes1)]
-	desc1 = desc1[desc1 != new.ass]
-	anc1 = unique.nodes1[ancestors(new.ass,unique.nodes1)]
-	anc1 = anc1[anc1 != new.ass]			
-	consensus.assignments1[r1] = new.ass
-	pairwise.agreements1[r1,]=NA
-	pairwise.agreements1[,r1]=NA
-	pairwise.agreements1[r1,consensus.assignments1==new.ass] = identity.strengths1[r1,consensus.assignments1==new.ass]
-	pairwise.agreements1[consensus.assignments1==new.ass,r1] = identity.strengths1[consensus.assignments1==new.ass,r1]
-	pairwise.agreements1[r1,consensus.assignments1 %in% desc1] = ancestor.strengths1[r1,consensus.assignments1 %in% desc1]
-	pairwise.agreements1[consensus.assignments1 %in% desc1,r1] = ancestor.strengths1[r1,consensus.assignments1 %in% desc1]
-	pairwise.agreements1[consensus.assignments1 %in% anc1,r1] = ancestor.strengths1[consensus.assignments1 %in% anc1,r1]
-	pairwise.agreements1[r1,consensus.assignments1 %in% anc1] = ancestor.strengths1[consensus.assignments1 %in% anc1,r1]
-	pairwise.agreements1[!(consensus.assignments1 %in% anc1) & !(consensus.assignments1 %in% desc1) & consensus.assignments1 != new.ass,r1] = sibling.strengths1[!(consensus.assignments1 %in% anc1) & !(consensus.assignments1 %in% desc1) & consensus.assignments1 != new.ass,r1]
-	pairwise.agreements1[r1, !(consensus.assignments1 %in% anc1) & !(consensus.assignments1 %in% desc1) & consensus.assignments1 != new.ass] = sibling.strengths1[r1, !(consensus.assignments1 %in% anc1) & !(consensus.assignments1 %in% desc1) & consensus.assignments1 != new.ass]
-	return(pairwise.agreements1)
+get.new.agreements <- function(n, r, possible.ass, unique.nodes, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths) {
+  #
+  # Returns the agreement if a possible assignment was to be performed
+  #
+  new.ass = possible.ass[n]
+  res = get.desc.and.anc(new.ass, unique.nodes)
+  desc = res$desc; anc = res$anc
+  
+  temp.ass = consensus.assignments
+  temp.ass[r] = new.ass
+  
+  new.agreement = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
+  return(new.agreement)
 }
 
 calc.new.agreement = function(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths) {
+  #
+  # Calculates the new agreement when a new assignment is the temp assignment. This is used in order to test
+  # whether a possible 
+  #
   return(sum(identity.strengths[r,temp.ass==new.ass]) + 
     sum(ancestor.strengths[r,temp.ass %in% desc]) + 
     sum(ancestor.strengths[temp.ass %in% anc,r]) + 
     sum(sibling.strengths[!(temp.ass %in% anc) & !(temp.ass %in% desc) & temp.ass != new.ass,r]))
 }
 
-get.desc.and.anc = function(index, new.ass, unique.nodes, consensus.assignments) {
-  # Returns the descendants and ancestor of the node as well as new consensus assignments based on the new node assignments
-  desc = unique.nodes[younger.direct.descendants(new.ass,unique.nodes)]
-  desc = desc[desc != new.ass]
-  anc = unique.nodes[ancestors(new.ass,unique.nodes)]
-  anc = anc[anc != new.ass]
-  new.consensus.assignments = consensus.assignments
-  new.consensus.assignments[index] = new.ass
-  return(list(desc,anc,new.consensus.assignments))
+get.desc.and.anc = function(node, unique.nodes) {
+  #
+  # Returns the descendants and ancestor of the node
+  #
+  desc = unique.nodes[younger.direct.descendants(node,unique.nodes)]
+  desc = desc[desc != node]
+  anc = unique.nodes[ancestors(node,unique.nodes)]
+  anc = anc[anc != node]
+
+  return(list(desc=desc,anc=anc))
 }
+
+create.plotting.devices = function(samplename, no.iters, no.iters.burn.in, no.subsamples) {
+  pdf(paste("histograms_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
+  hist.device=dev.cur()
+  par(mfrow=c(2,no.subsamples))	
+  pdf(paste("densities_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
+  density.device=dev.cur()	
+  par(mfrow=c(2,no.subsamples))
+  pdf(paste("consensus_trees_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
+  tree.device=dev.cur()
+  pdf(paste("consensus_trees_optimised_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4*no.subsamples)
+  optimised.tree.device=dev.cur()
+  pdf(paste("consensus_trees_no_of_muts_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=4)
+  tree.population.device=dev.cur()
+  if(no.subsamples>1){
+    pdf(paste("consensus_scatter_",samplename,"_",no.iters,"iters_",no.iters.burn.in,"burnin.pdf",sep=""),height=4,width=no.subsamples*(no.subsamples-1)*2)
+    scatter.device=dev.cur()
+    par(mfrow=c(1,no.subsamples*(no.subsamples-1)/2))
+  } else {
+    scatter.device = NA
+  }
+  return(list(hist.device=hist.device, density.device=density.device, tree.device=tree.device, optimised.tree.device=optimised.tree.device, tree.population.device=tree.population.device, scatter.device=scatter.device))
+}
+
+close.plotting.devices = function(no.subsamples, hist.device, density.device, tree.device, optimised.tree.device, tree.population.device, scatter.device) {
+  dev.off(which = hist.device)
+  dev.off(which = density.device)
+  dev.off(which = tree.device)
+  dev.off(which = optimised.tree.device)
+  dev.off(which = tree.population.device)
+  if(no.subsamples>1){
+    dev.off(which = scatter.device)
+  }
+}
+
