@@ -3,12 +3,11 @@ source("Tree_based_DP_Gibbs_sampler.R")
 source("CullTree.R")
 source("PlotConsensusTree.R")
 
-GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = array(0.5,dim(mutCount)), samplename="sample", subsamplenames = 1:ncol(mutCount), no.iters = 1250, no.iters.burn.in = 250, resort.mutations = T, shrinkage.threshold = 0.1, init.alpha = 0.01, outdir = getwd(),bin.indices = NULL){
+GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), no.iters=1250, no.iters.burn.in=250, resort.mutations=T, shrinkage.threshold=0.1, init.alpha=0.01, outdir=getwd(), bin.indices=NULL){
   start = Sys.time()
   
   setwd(outdir)
 	
-	tree.number=1
 	no.subsamples = ncol(mutCount)
 	no.muts = nrow(mutCount)
   no.iters.post.burn.in = no.iters-no.iters.burn.in
@@ -27,11 +26,15 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
   print(Sys.time()-start)
 
   # Create devices to push plots towards lateron
-  devs = create.plotting.devices(samplename, no.iters, no.iters.burn.in, no.subsamples)
-  hist.device = devs$hist.device; density.device = devs$density.device; tree.device = devs$tree.device; tree.population.device = devs$tree.population.device; scatter.device = devs$scatter.device; optimised.tree.device = devs$optimised.tree.device
+  plot.devs = create.plotting.devices(samplename, no.iters, no.iters.burn.in, no.subsamples)
 
   print("Obtaining current agreement")
-	consensus.assignments = rep("M:",no.muts)
+  consensus.assignments = rep("M:",no.muts)
+#   subclonal.fraction = mutCount / ((mutCount+WTCount)*kappa)
+#   subclonal.fraction[kappa == 0] = NA
+#   start.pos = find.cons.start.pos(subclonal.fraction, identity.strengths, sibling.strengths, ancestor.strengths, 0.1)
+#   consensus.assignments = start.pos$assignments
+  
   current.agreement = calc.curr.agreement(consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 	fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
 
@@ -54,13 +57,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
 	            no.iters.burn.in=no.iters.burn.in, 
 	            subsamplenames=subsamplenames, 
 	            resort.mutations=resort.mutations, 
-	            hist.device=hist.device,
-	            density.device=density.device,
-	            tree.device=tree.device,
-	            optimised.tree.device=optimised.tree.device,
-	            tree.population.device=tree.population.device,
-	            scatter.device=scatter.device,
-	            tree.number=tree.number)
+	            plot.devs=plot.devs)
   
 	all.consensus.trees = res$trees; 
 	all.consensus.assignments = res$all.consensus.assignments
@@ -72,7 +69,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa = 
   print(paste("Finished EM in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 
   # No more trees to be plotted. Close the devices
-  close.plotting.devices(no.subsamples, hist.device, density.device, tree.device, optimised.tree.device, tree.population.device, scatter.device)
+  close.plotting.devices(no.subsamples, plot.devs)
 
 	tree.sizes = sapply(1:length(all.consensus.trees),function(t,i){nrow(t[[i]])},t=all.consensus.trees)
   BIC = bic(likelihoods, no.subsamples, tree.sizes, no.muts)
@@ -151,11 +148,12 @@ get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.
   return(list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths))
 }
 
-do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, resort.mutations, hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,tree.number) {
+do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, resort.mutations, plot.devs) {
   
   start = Sys.time()
 	pairwise.agreements = identity.strengths
   
+  tree.number=1
 	no.muts=nrow(mutCount)
   no.subsamples=length(subsamplenames)
 
@@ -211,7 +209,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			current.agreement = new.agreements[best.node]
 			pairwise.agreements = new.pairwise.agreements[[best.node]]
 			fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
-      temp = plotConsensusTree(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in,node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices,tree.number)
+      temp = plotConsensusTree(consensus.assignments, samplename, subsamplenames, no.iters, no.iters.burn.in, node.assignments, trees, mutCount, WTCount, kappa, plot.devs, bin.indices, tree.number)
 			new.consensus.tree = temp[[1]]
       new.consensus.ass = temp[[2]]
       
@@ -275,13 +273,13 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 							res = get.desc.and.anc(possible.ass[best.index], unique.nodes)
               anc = res$anc; desc = res$desc
 # 							pairwise.agreements = move.mut2(r,possible.ass[best.index], unique.nodes, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
-							pairwise.agreements = update.agreements(r1, possible.ass[best.index], desc, anc, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
+							pairwise.agreements = update.agreements(r, possible.ass[best.index], desc, anc, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 						}
 					}
 				}
   			print("Moving round2 done")
 				# Remove empty nodes
-				#save(file=paste("cullTree_",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RData", sep=""), consensus.assignments, all.consensus.trees)
+				save(file=paste("cullTree_",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RData", sep=""), consensus.assignments, all.consensus.trees)
 				consensus.assignments = cullTree(consensus.assignments, all.consensus.trees)
         #if(ncol(assignments.tracker) == no.assignments.tracked) {
         #  ## The assignments tracker is getting full, extend it with more columns
@@ -290,7 +288,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
         #assignments.tracker[,no.assignments.tracked+1] = consensus.assignments
 				#no.assignments.tracked = no.assignments.tracked+1
         
-				temp = plotConsensusTree(consensus.assignments,samplename,subsamplenames,no.iters, no.iters.burn.in,node.assignments,trees,mutCount,WTCount,kappa,hist.device,density.device,tree.device,optimised.tree.device,tree.population.device,scatter.device,bin.indices,tree.number)
+				temp = plotConsensusTree(consensus.assignments, samplename, subsamplenames, no.iters, no.iters.burn.in, node.assignments, trees, mutCount, WTCount, kappa, plot.devs, bin.indices, tree.number)
         new.consensus.tree = temp[[1]]
         new.consensus.ass = temp[[2]]
         tree.number = tree.number+1
@@ -574,14 +572,15 @@ create.plotting.devices = function(samplename, no.iters, no.iters.burn.in, no.su
   return(list(hist.device=hist.device, density.device=density.device, tree.device=tree.device, optimised.tree.device=optimised.tree.device, tree.population.device=tree.population.device, scatter.device=scatter.device))
 }
 
-close.plotting.devices = function(no.subsamples, hist.device, density.device, tree.device, optimised.tree.device, tree.population.device, scatter.device) {
-  dev.off(which = hist.device)
-  dev.off(which = density.device)
-  dev.off(which = tree.device)
-  dev.off(which = optimised.tree.device)
-  dev.off(which = tree.population.device)
+# close.plotting.devices = function(no.subsamples, hist.device, density.device, tree.device, optimised.tree.device, tree.population.device, scatter.device) {
+close.plotting.devices = function(no.subsamples, plot.devs) {
+  dev.off(which = plot.devs$hist.device)
+  dev.off(which = plot.devs$density.device)
+  dev.off(which = plot.devs$tree.device)
+  dev.off(which = plot.devs$optimised.tree.device)
+  dev.off(which = plot.devs$tree.population.device)
   if(no.subsamples>1){
-    dev.off(which = scatter.device)
+    dev.off(which = plot.devs$scatter.device)
   }
 }
 
