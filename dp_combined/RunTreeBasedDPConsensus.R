@@ -1,16 +1,12 @@
 RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, kappa, samplename, subsamplenames, annotation, no.iters, no.iters.burn.in, resort.mutations, bin.indices=NULL) {
 
   no.subsamples = ncol(mutCount)
-#   if(is.na(bin.size)){
-  temp.list = GetConsensusTrees(trees, node.assignments, mutCount, WTCount, kappa = kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations)
-#   }else{
-#     temp.list = GetConsensusTrees(trees, binned.node.assignments, binned.mutCount, binned.WTCount, kappa = binned.kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations,bin.indices = bin.indices)
-#   }
-  print(names(temp.list))
-  
+  temp.list = GetConsensusTrees(trees, node.assignments, mutCount, WTCount, subclonal.fraction=NULL, kappa = kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations)
   all.consensus.trees = temp.list$all.consensus.trees
   save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
-#   if(!is.na(bin.size)){
+
+  print(names(temp.list))
+  
   if(!is.null(bin.indices)) {
     all.consensus.assignments = temp.list$all.consensus.assignments
     all.disaggregated.consensus.assignments = temp.list$all.disaggregated.consensus.assignments
@@ -20,10 +16,9 @@ RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, 
     all.consensus.assignments = temp.list$all.consensus.assignments
     save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
   }
-  likelihoods = temp.list$likelihoods
-  BIC = temp.list$BIC
-  AIC = temp.list$AIC
-  DIC = temp.list$DIC
+  
+  likelihoods = temp.list$likelihoods; BIC = temp.list$BIC; AIC = temp.list$AIC; DIC = temp.list$DIC
+  
   plotScores("log_likelihood", samplename, no,iters, 0, likelihoods, "log-likelihood")
   plotScores("BIC", samplename, no,iters, 0, BIC, "BIC")
   plotScores("AIC", samplename, no,iters, 0, AIC, "AIC")
@@ -33,24 +28,19 @@ RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, 
   writeScoresTable(BIC, "BIC", samplename, no,iters)
   writeScoresTable(AIC, "AIC", samplename, no,iters)
   writeScoresTable(DIC, "DIC", samplename, no,iters)
-  #   	write.table(data.frame(tree.index = 1:length(likelihoods),likelihood=likelihoods),paste("consensus_likelihoods_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
-  #   	write.table(data.frame(tree.index = 1:length(BIC),BIC=BIC),paste("consensus_BICs_",samplename,"_",no.iters,"iters.txt",sep=""),sep="\t",row.names=F,quote=F)
   
   best.index = which.min(BIC)
   best.tree = all.consensus.trees[[best.index]]
-#   if(!is.na(bin.size)){
+
   if(!is.null(bin.indices)) {
     best.node.assignments = all.disaggregated.consensus.assignments[[best.index]]
   }else{
     best.node.assignments = all.consensus.assignments[[best.index]]
   }
   
-  #png(paste("bestConsensusTree_",samplename,"_",no.iters,"iters.png",sep=""))
   png(paste("bestConsensusTree_",samplename,"_",no.iters,"iters.png",sep=""),width=no.subsamples*1000,height=1000)
-#   if(!is.na(bin.size)){
   if(!is.null(bin.indices)) {
     plotTree(annotateTree(best.tree,all.disaggregated.consensus.assignments,annotation),font.size=2,main=paste(samplename,subsamplenames,sep=""))
-    
   }else{
     plotTree(annotateTree(best.tree,all.consensus.assignments,annotation),font.size=2,main=paste(samplename,subsamplenames,sep=""))
   }
