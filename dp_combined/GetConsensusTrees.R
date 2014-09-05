@@ -2,6 +2,7 @@ source("Tree_based_DP_Gibbs_sampler.R")
 # source("interconvertMutationBurdens.R")
 source("CullTree.R")
 source("PlotConsensusTree.R")
+source("GetConsensusStartPosition.R")
 
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), no.iters=1250, no.iters.burn.in=250, resort.mutations=T, shrinkage.threshold=0.1, init.alpha=0.01, outdir=getwd(), bin.indices=NULL){
   start = Sys.time()
@@ -178,6 +179,9 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
     new.nodes = res$new.nodes
     muts.to.move = res$muts.to.move
     new.pairwise.agreements = res$new.pairwise.agreements
+    
+    gc()
+    
     print("Moving round1 done")
 		
     #
@@ -272,11 +276,15 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 							mut.moved=T
 							res = get.desc.and.anc(possible.ass[best.index], unique.nodes)
               anc = res$anc; desc = res$desc
+              consensus.assignments[r] = possible.ass[best.index]
 # 							pairwise.agreements = move.mut2(r,possible.ass[best.index], unique.nodes, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 							pairwise.agreements = update.agreements(r, possible.ass[best.index], desc, anc, pairwise.agreements, consensus.assignments, identity.strengths, ancestor.strengths, sibling.strengths)
 						}
 					}
 				}
+        
+        gc()
+
   			print("Moving round2 done")
 				# Remove empty nodes
 				save(file=paste("cullTree_",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RData", sep=""), consensus.assignments, all.consensus.trees)
@@ -371,7 +379,7 @@ do_em_layout = function(no.muts, consensus.assignments, pairwise.agreements, new
         
         if (! count %% 50) {
           print(paste("Round 1: ",count, sep=''))
-          print(start-Sys.time())
+          print(Sys.time()-start)
         }
         
         count=count+1

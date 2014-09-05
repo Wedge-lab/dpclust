@@ -56,13 +56,14 @@ plotConsensusTree<-function(consensus.assignments, samplename, subsamplenames, n
     }
     consensus.theta = array(NA,c(no.subsamples,length(IDs),no.iters.post.burn.in))
     for(x in 1:no.subsamples){
-      consensus.theta[x,,] = sapply((no.iters.burn.in+1):no.iters,function(t,a,p,i){t[[i]][match(a[p,i],t[[i]]$label),paste("theta.S",x,sep="")]},t=trees,a=node.assignments,p=IDs)				
+      res = sapply((no.iters.burn.in+1):no.iters,function(t,a,p,i){t[[i]][match(a[p,i],t[[i]]$label),paste("theta.S",x,sep="")]},t=trees,a=node.assignments,p=IDs)				
+      consensus.theta[x,,] = res
     }
     consensus.thetas[[n]] = consensus.theta
   }
+  
 
   ############################## PLOTTING ############################################################
-  print("Starting plotting")
   #### HISTOGRAMS ####
   dev.set(which = plot.devs$hist.device)
   for(n in 1:no.nodes){
@@ -80,7 +81,7 @@ plotConsensusTree<-function(consensus.assignments, samplename, subsamplenames, n
   #### DENSITY ####
   dev.set(which = plot.devs$density.device)
   highest.density.thetas = array(NA,c(no.subsamples,no.nodes))
-  print(start-Sys.time())
+  print(Sys.time()-start)
   
   # Estimate theta densities
   print("Estimating densities")
@@ -96,7 +97,6 @@ plotConsensusTree<-function(consensus.assignments, samplename, subsamplenames, n
       if(!is.na(tree.number)){
         main = paste("tree #",tree.number,": ",main,sep="")
       }
-      
       highest.density.thetas[p,n] = DensityEstimator(temp.cons.thetas,subclonal.fraction[,p][consensus.assignments==unique.nodes[n]],main=main,density.smooth=1,x.max=1.2)							
     }
   }
@@ -114,7 +114,6 @@ plotConsensusTree<-function(consensus.assignments, samplename, subsamplenames, n
   #### OPTIMISED TREE ####
   #091013 - average theta, weighted by depth, which may be a better starting point for the whole.tree sampler
   #this tree should be recorded (and plotted)
-  print("Building consensus trees")
   for (k in 1:no.subsamples) {
     for(n in 1:no.nodes){
       node.inds = which(consensus.assignments==unique.nodes[n])
@@ -134,7 +133,6 @@ plotConsensusTree<-function(consensus.assignments, samplename, subsamplenames, n
   print(consensus.tree)
   
   # resample whole tree
-  print("Resampling whole tree")
   no.slice.samples = 20
   capped.kappa = kappa
   capped.kappa[capped.kappa>0.999] = 0.999

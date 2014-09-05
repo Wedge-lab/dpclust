@@ -48,7 +48,7 @@ younger.direct.descendants <- function(curr.node, other.nodes) {
 	return(grepl(curr.node, other.nodes))
 }
 
-get.conflicts <- function(index, conflict.array, node.assignments, whole.tree, parallel=FALSE){
+get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
 	all.nodes = row.names(whole.tree)
 	penalties = vector(mode="numeric",length=length(all.nodes))	
 	penalties = rep(1,length(all.nodes))
@@ -162,10 +162,11 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	names(trees.n[[1]]) <- c(names(trees.n[[1]])[1:7], paste("theta.S", 1:num.samples, sep=""))
   
   # Calculate the first set mut agreements
- 	res = calculate.mut.agreements(node.assignments, num.muts, 1)
- 	ancestor.strengths[[1]] = res[[1]]
- 	sibling.strengths[[1]] = res[[2]]
- 	identity.strengths[[1]] = res[[3]]
+	# Commented out because Mantel test is not used anymore
+#  	res = calculate.mut.agreements(node.assignments, num.muts, 1)
+#  	ancestor.strengths[[1]] = res[[1]]
+#  	sibling.strengths[[1]] = res[[2]]
+#  	identity.strengths[[1]] = res[[3]]
   
 	# Keep track of all the likelihoods and all thetas for DIC calculation
 	all.likelihoods = matrix(NA,num.muts,iter)
@@ -195,33 +196,38 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		new.assignments = node.assignments[,m-1]
 		#remove node randomly, to cover more search space
     do_update = FALSE
-		if(!is.na(remove.branch.frequency)){ # && nrow(curr.tree) > 1 (do not remove the root node)
+		if(!is.na(remove.branch.frequency) && nrow(curr.tree)>1){ # && nrow(curr.tree) > 1 (do not remove the root node)
 			if(m %% remove.branch.frequency ==0){
+        print("opt1")
 				temp.list = remove.branch(curr.tree,new.assignments, y, n, kappa)
         do_update = TRUE
 				
-			}else if(!is.na(remove.node.frequency)){ # Is this block strictly required? Removing the else from the else if below would make this obsolete
+			}else if(!is.na(remove.node.frequency) && nrow(curr.tree) > 1){ # Is this block strictly required? Removing the else from the else if below would make this obsolete
 				if(m %% remove.node.frequency ==0){
+				  print("opt2")
 					temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
 					do_update = TRUE
 				}
 			}
-		}else if(!is.na(remove.node.frequency)){ # && nrow(curr.tree) > 1 (do not remove the root node)
+		}else if(!is.na(remove.node.frequency) && nrow(curr.tree) > 1){ # && nrow(curr.tree) > 1 (do not remove the root node)
 			if(m %% remove.node.frequency ==0){
+			  print("opt3")
 				temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
 				do_update = TRUE
 			}
 		}
     
     if (do_update) {
+      curr.tree = temp.list$tree
       new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], new.assignments, num.muts, y, n, kappa)
     }
-			
+
+		print("# Sampling mutation assignments")
 		#randomise the order of muts
 		rand.inds = sample(num.muts)
 		node.assignments[,m] = new.assignments
  		for (i in 1:num.muts) {
-			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree, parallel=parallel)
+			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
 			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
       curr.tree <- temp.assignments[[2]]
 			node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
@@ -243,6 +249,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		for (k in grep("theta", names(curr.tree))) {
         curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
+    print("AFTER SAMPLING")
+    print(curr.tree)
 
 #    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
 #      curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
@@ -284,6 +292,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
         curr = floor(iter/mant.every.iters) + 2
       }
        print("# Calculating agreements")
+       # Commented out because Mantel test is not used anymore
        # Perhaps calculate agreements for only the iterations since the last calculation?
        #res = calculate.mut.agreements(node.assignments[,1:m], num.muts, m)
        #ancestor.strengths[[curr]] = res[[1]]
@@ -455,6 +464,13 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	# y is a vector of y values for data points; n and kappa similar
 	# curr.assignments is a vector of assignments for each data point
 	# curr.thetas is a vector with the current theta values
+  
+  if (nrow(curr.tree) == 1) {
+    # If curr.tree has only a single node the thetas cannot be anything else than 1
+    return(as.numeric(1))
+  }
+  
+  
 	names(curr.thetas) <- row.names(curr.tree)
 	x.by.assignment <- curr.thetas[curr.assignments]
 	num.nodes <- length(curr.thetas)
@@ -488,7 +504,11 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	#save(exact.equality.for.M,constraints.matrix,ancs,curr.thetas,file=paste("beforeRepeat_",format(Sys.time(), "%X"),"RData",sep=""))
 	#print("whole.tree.slice.sampler before repeat")
 	repeat {
+#     print(paste("REPEAT count",repeat.count, sep=" "))
+#     print(exact.equality.for.M)
 		possible.theta <- xsample(E=exact.equality.for.M, F=1, G=constraints.matrix, H=c(rep(0, length(ancs)), min.u, max.u), iter=500, x0=curr.thetas)$X[500,]
+#     print("POSSS")
+#     print(possible.theta)
 		#xsample fails if x0 is not a valid solution, but re-calling xsample doesn't help!
 		#possible.theta = try(xsample(E=exact.equality.for.M, F=1, G=constraints.matrix, H=c(rep(0, length(ancs)), min.u, max.u), iter=500, x0=curr.thetas)$X[500,],T)
 		#count=0
@@ -574,23 +594,24 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 	return(curr.tree[,!is.element(names(curr.tree), c("depth", "num.assignments"))])
 }
 
-calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
-  ancestor.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
-  sibling.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
-  identity.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
-  
-  for(i in 1:iter){
-    ancestor.or.identity.relationship = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(NA,c(no.muts,no.muts))
-    
-    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths.m, node.assignments, i, identity.strengths.m)
-    ancestor.strengths.m = do.call(rbind,res[1,])
-    ancestor.or.identity.relationship = do.call(rbind,res[2,])
-    identity.strengths.m = do.call(rbind,res[3,])
-    
-    sibling.strengths.m = sibling.strengths.m + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
-  }
-  return(list(ancestor.strengths.m, ancestor.strengths.m, identity.strengths.m))
-}
+# Commented out because Mantel test is not used anymore
+# calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
+#   ancestor.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+#   sibling.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+#   identity.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+#   
+#   for(i in 1:iter){
+#     ancestor.or.identity.relationship = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(NA,c(no.muts,no.muts))
+#     
+#     res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths.m, node.assignments, i, identity.strengths.m)
+#     ancestor.strengths.m = do.call(rbind,res[1,])
+#     ancestor.or.identity.relationship = do.call(rbind,res[2,])
+#     identity.strengths.m = do.call(rbind,res[3,])
+#     
+#     sibling.strengths.m = sibling.strengths.m + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+#   }
+#   return(list(ancestor.strengths.m, ancestor.strengths.m, identity.strengths.m))
+# }
 
 
 # Not used - sd11

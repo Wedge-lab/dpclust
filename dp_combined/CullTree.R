@@ -139,7 +139,14 @@ createInventory <- function(tree1, curr.assignments) {
   nodes.in.tree$keep.node[1] <- TRUE
   # Now create inventory of which nodes are to be replaced
   res = sapply(2:dim(nodes.in.tree)[1], FUN=createInventoryInner, nodes.in.tree, nodes.with.data)
-  res = rbind(c(F,F), as.data.frame(t(res)))
+  
+  # A single node in the tree should not be removed at all times
+  if (nrow(tree1) == 1) { 
+    res = data.frame(c(F),c(F))
+    colnames(res) = c("replace.with.descendants", "replace.with.siblings")
+  } else {
+    res = rbind(c(F,F), as.data.frame(t(res)))
+  }
   nodes.in.tree$replace.with.siblings = unlist(res$replace.with.siblings)
   nodes.in.tree$replace.with.descendants = unlist(res$replace.with.descendants)
   return(nodes.in.tree)
