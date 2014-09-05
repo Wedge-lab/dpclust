@@ -135,6 +135,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                          remove.branch.frequency=remove.branch.frequency)
     }
     
+    # Set these variables in case both trees and cons need to be run consecutively in one R call
     trees_interleaved = mcmcResults$trees
     node.assignments_interleaved = mcmcResults$node.assignments
     binned.node.assignments_interleaved = mcmcResults$binned.node.assignments
@@ -161,19 +162,15 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     }
     
     for(i in 1:no.of.blocks) {
-      ## list, dataframe per iter
       load(file=paste("",samplename,"_trees_iters",no.iters,"_block",i,".Rdata",sep=""))
+      ## list, dataframe per iter
       trees_all[[i]] = trees
-      print("assignments")
       ## Col per iter
       node.assignments_all[[i]] = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-#       node.assignments = cbind(node.assignments,node.assignments_block)
       
       if(!is.na(bin.size)) {
         ## Col per iter
         binned.node.assignments_all[[i]] = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-#         binned.node.assignments_block = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-#         binned.node.assignments = cbind(binned.node.assignments, binned.node.assignments_block)
       }
     }
     
@@ -207,7 +204,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     no.iters = no.iters*no.of.blocks
 
     # Print the combined trees
-    pdf(paste("all_trees_",samplename,"_",no.iters,"iters.pdf",sep=""),height=4,width=3*3)#ncol(mutCount)
+    pdf(paste("all_trees_",samplename,"_",no.iters,"iters.pdf",sep=""),height=4,width=4*no.subsamples)#ncol(mutCount)
     for(iter in 1:no.iters){
       tree = trees_interleaved[[iter]]
       tree$annotation = NA
@@ -282,7 +279,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   if(!file.exists(output_folder)){
     dir.create(output_folder)
   }
-if(0) { # temp disabled  
   GS.data<-subclone.dirichlet.gibbs(mutCount=mutCount,
                                     WTCount=WTCount,
                                     totalCopyNumber=totalCopyNumber, 
@@ -310,13 +306,12 @@ if(0) { # temp disabled
   write.csv(GS.data$V.h,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""))
   write.csv(GS.data$pi.h,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""))
   write.csv(GS.data$alpha,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""))
-  } # end disable
   
-     GS.data = list()
-     GS.data$S.i = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_states.csv",sep=""),row.names=1))
-     GS.data$V.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""),row.names=1))
-     GS.data$pi.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""),row.names=1))
-     GS.data$alpha = read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""),row.names=1)
+#      GS.data = list()
+#      GS.data$S.i = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_states.csv",sep=""),row.names=1))
+#      GS.data$V.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""),row.names=1))
+#      GS.data$pi.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""),row.names=1))
+#      GS.data$alpha = read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""),row.names=1)
   # nD dataset, plot sample versus sample
   if (ncol(mutCount) > 1) {
     for(i in 1:(length(subsamplesrun)-1)){
@@ -337,7 +332,7 @@ if(0) { # temp disabled
     setwd(output_folder)
     density = Gibbs.subclone.density.est.1d(GS.data, 
                                             paste(samplename,"_DirichletProcessplot.png", sep=''), 
-					    samplename=samplename,
+					                                  samplename=samplename,
                                             post.burn.in.start=no.iters.burn.in, 
                                             post.burn.in.stop=no.iters,
                                             y.max=15, 
