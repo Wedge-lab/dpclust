@@ -1,77 +1,78 @@
 source("interconvertMutationBurdens.R")
 
-getSimpleSubclones <- function(n, size, prob, cellularity) {
-  mutCount = c()
-  WTCount = c()
-  no.chrs.bearing.mut = c()
-  totalCopyNumber = c()
-  for (i in 1:length(n)) {
-    new.muts = rbinom(n[i], size[i], prob[i])
-    mutCount = c(mutCount,new.muts)
-    WTCount = c(WTCount, rep(size[i],n[i])-new.muts)
-    no.chrs.bearing.mut = c(no.chrs.bearing.mut, rep(1,n[i]))
-    totalCopyNumber = c(totalCopyNumber, rep(2,n[i]))
-  }
-  mutation.copy.number = mutCount/(mutCount+WTCount) * totalCopyNumber
-  mutation.copy.number[is.na(mutation.copy.number)] = 0
-  
-  kappa = mutationCopyNumberToMutationBurden(1,totalCopyNumber,cellularity) * no.chrs.bearing.mut
-  
-  return(list(mutCount=matrix(mutCount), WTCount=matrix(WTCount), kappa=matrix(kappa), copyNumberAdjustment=matrix(no.chrs.bearing.mut), totalCopyNumber=matrix(totalCopyNumber), mutation.copy.number=matrix(mutation.copy.number)))
-}
-
-createCNA <- function(n, lambda=rep(1, length(n)), round_numbers=T) {
-  copyNumber = c()
-  for (i in 1:length(n)) {
-    copyNumber = c(copyNumber, rpois(n[i],lambda))
-  }
-
-  if (!round_numbers) {
-    # Add some noise only to those where there is a CNA
-    # TODO: perhaps it would be better to use the same random number for stretches of mutations
-    inv = copyNumber>0
-    copyNumber[inv] = copyNumber[inv] + runif(sum(inv),0,1)
-  }
-  # TODO: possibly add large (>10) number of copies with a very small chance
-  
-  return(copyNumber)
-}
-
-applyCNA <- function(mutCount, WTCount, no.chrs.bearing.mut, totalCopyNumber, cellularity, new_copynumber) {
-  for (i in 1:length(new_copynumber)) {
-    cna_on_mutation = runif(1) < 0.5
-    if (cna_on_mutation) {
-      mutCount[i] = mutCount[i] * new_copynumber[i]
-      if (new_copynumber[i] > 0) {
-        no.chrs.bearing.mut[i] = no.chrs.bearing.mut[i] + new_copynumber[i]
-      } else {
-        no.chrs.bearing.mut[i] = 0
-      }
-    } else {
-      WTCount[i] = WTCount[i] * new_copynumber[i]
-    }
-    totalCopyNumber[i] = totalCopyNumber[i] + new_copynumber[i]
-  }
-  mutation.copy.number = mutCount/(mutCount+WTCount) * totalCopyNumber
-  mutation.copy.number[is.na(mutation.copy.number)] = 0
-  
-  kappa = mutationCopyNumberToMutationBurden(1,totalCopyNumber,cellularity) * no.chrs.bearing.mut
-  return(list(mutCount=matrix(mutCount), WTCount=matrix(WTCount), kappa=matrix(kappa), copyNumberAdjustment=matrix(no.chrs.bearing.mut), totalCopyNumber=matrix(totalCopyNumber), mutation.copy.number=matrix(mutation.copy.number)))
-}
-
-# createCopyNumberAdjustment <- function(mutCount) {
-# #   alleleAffected = runif(n,0,1) <= 0.5
-#   # is 1, unless there is no mutCount  
-#   copyNumberAdjustment = rep(1,length(mutCount))
-#   copyNumberAdjustment[mutCount == 0] = 0
-#   return(copyNumberAdjustment)
-# }
+#
+# Testcases
+# - getSimpleSubclones with 0.5, 0.3 and 0.1 should yield 3 clusters with allele frequencies around those numbers
 # 
-# createDepthProfile <- function() {
-#   function that creates varying depth
-# }
+#
+#
+#
+#
+
+# Datasets generated:
+# cellularity = c(1,1,1)
+# no.muts = 50
+# sim = simulate.muts(100, 50, 3, mut.frac.of.cells=c(1,1,1))
+# ds = sim.muts2dataset(sim, 100, cellularity)
+# writeDataset("", "simulated_1", c("1", "2", "3"), "dp_input.txt", ds, cellularity)
+# 
+# ds2 = sim.muts2dataset(simulate.muts(25, 50, 3, mut.frac.of.cells=c(1,1,0)), 25, cellularity)
+# ds3 = sim.muts2dataset(simulate.muts(25, 50, 3, mut.frac.of.cells=c(1,0,1)), 25, cellularity)
+# combined = appendSubcloneData(list(ds, ds2, ds3))
+# writeDataset("", "simulated_2", c("1", "2", "3"), "dp_input.txt", ds, cellularity)
+
+
+simulate.muts = function(no.muts, depth.per.cn, no.subsamples, mut.cn=rep(1, no.subsamples), mut.subcl.cn=rep(0, no.subsamples), wt.cn=rep(1, no.subsamples), wt.subcl.cn=rep(0, no.subsamples), mut.frac.of.cells=rep(1, no.subsamples), cellularity=rep(1, no.subsamples), mut.align.bias=1) {
+  #
+  # Function that simulates mutations. It calculates the exact number of reads we expect to see carying the mutation as well as
+  # the depth. It will then put these numbers into a poisson (depth) and binomial (reads for mutation) to simulate readcounts.
+  # returned are mutCount, depth, the true.mutCount and the true.WTcount.
+  #
+  mutCount = array(NA, no.muts)
+  WTcount = array(NA, no.muts)
+  nmut = matrix(NA, nrow=no.muts, ncol=no.subsamples)
+  ndepth = matrix(NA, nrow=no.muts, ncol=no.subsamples)
+  for (i in 1:no.subsamples) { # for each subsample
+    mutCount.i = cellularity[i]*(mut.frac.of.cells[i]*((mut.subcl.cn[i]+mut.cn[i])*(depth.per.cn*mut.align.bias)))
+    WTcount.1.i = cellularity[i]*((1-mut.frac.of.cells[i])*((mut.subcl.cn[i]+mut.cn[i])*(depth.per.cn*(2-mut.align.bias))))
+    WTcount.2.i = (1+1-cellularity[i])*(1*((wt.subcl.cn[i]+wt.cn[i])*(depth.per.cn*(2-mut.align.bias))))
+    WTcount.i = WTcount.1.i + WTcount.2.i
+    
+    # Depth takes on a poisson distribution
+    ndepth.i = rpois(no.muts,mutCount.i+WTcount.i)
+    # mutCount a binomial
+    nmut.i = rbinom(no.muts, round(mutCount.i+WTcount.i), mutCount.i/(mutCount.i+WTcount.i))
+    print(nmut.i)    
+    # Store this subsample
+    mutCount[i] = mutCount.i
+    WTcount[i] = WTcount.i
+    nmut[,i] = nmut.i
+    ndepth[,i] = ndepth.i
+  }
+  return(list(mutCount=nmut, depth=ndepth, true.mutCount=mutCount, true.WTcount=WTcount))#, WTcount.1=WTcount.1, WTcount.2=WTcount.2))
+}
+sim.muts2dataset = function(sim, no.muts, cellularity) {
+  #
+  # Converts simulated mutations into a dataset.
+  #
+  no.subsamples = ncol(sim$mutCount)
+  dataset = list()
+  dataset$mutCount = sim$mutCount
+  dataset$WTCount = sim$depth-sim$mutCount
+  dataset$copyNumberAdjustment = matrix(rep(1, no.subsamples*no.muts), ncol=no.subsamples)
+  dataset$totalCopyNumber = matrix(rep(2, no.subsamples*no.muts), ncol=no.subsamples)
+  dataset$mutation.copy.number = sim$mutCount/sim$depth * dataset$totalCopyNumber
+  dataset$kappa = mutationCopyNumberToMutationBurden(1,dataset$totalCopyNumber,cellularity) * dataset$copyNumberAdjustment
+  dataset$subclonal.fraction = sim$mutCount / (sim$depth*dataset$kappa)
+  dataset$subclonal.fraction[dataset$kappa == 0] = NA
+  
+  return(dataset)
+}
 
 appendSubcloneData <- function(list_of_subclone_datasets) {
+  #
+  # rbinds a list of datasets together into one
+  #
   combined = do.call(cbind, list_of_subclone_datasets)
   mutCount = do.call(rbind, combined['mutCount',])
   WTCount = do.call(rbind, combined['WTCount',])
@@ -79,10 +80,14 @@ appendSubcloneData <- function(list_of_subclone_datasets) {
   totalCopyNumber = do.call(rbind, combined['totalCopyNumber',])
   mutation.copy.number = do.call(rbind, combined['mutation.copy.number',])
   kappa = do.call(rbind, combined['kappa',])
-  return(list(mutCount=mutCount, WTCount=WTCount, kappa=kappa, copyNumberAdjustment=copyNumberAdjustment, totalCopyNumber=totalCopyNumber, mutation.copy.number=mutation.copy.number))
+  subclonal.fraction = do.call(rbind, combined['subclonal.fraction'])
+  return(list(mutCount=mutCount, WTCount=WTCount, kappa=kappa, copyNumberAdjustment=copyNumberAdjustment, totalCopyNumber=totalCopyNumber, mutation.copy.number=mutation.copy.number, subclonal.fraction=subclonal.fraction))
 }
 
-mergeData <- function(list_of_datasets) {
+mergeColumns <- function(list_of_datasets) {
+  #
+  # cbinds a list of datasets together into one
+  #
   combined = do.call(cbind, list_of_datasets)
   mutCount = do.call(cbind, combined['mutCount',])
   WTCount = do.call(cbind, combined['WTCount',])
@@ -90,18 +95,27 @@ mergeData <- function(list_of_datasets) {
   totalCopyNumber = do.call(cbind, combined['totalCopyNumber',])
   mutation.copy.number = do.call(cbind, combined['mutation.copy.number',])
   kappa = do.call(cbind, combined['kappa',])
-  return(list(mutCount=mutCount, WTCount=WTCount, kappa=kappa, copyNumberAdjustment=copyNumberAdjustment, totalCopyNumber=totalCopyNumber, mutation.copy.number=mutation.copy.number))
+  subclonal.fraction = do.call(cbind, combined['subclonal.fraction'])
+  return(list(mutCount=mutCount, WTCount=WTCount, kappa=kappa, copyNumberAdjustment=copyNumberAdjustment, totalCopyNumber=totalCopyNumber, mutation.copy.number=mutation.copy.number, subclonal.fraction=subclonal.fraction))
 }
 
 simulatedDataToInputFile <- function(dataset, outfile_names) {
   no.muts = nrow(dataset$mutCount)
   no.subsamples = ncol(dataset$mutCount)
-  column_names = c("Chromosome","WT.count", "mut.count", "subclonal.CN","mutation.copy.number","no.chrs.bearing.mut")
+  column_names = c("chr","pos","WT.count", "mut.count", "subclonal.CN","mutation.copy.number","subclonal.fraction","no.chrs.bearing.mut")
   
   for (i in 1:no.subsamples) {
-    dat = cbind(rep(1,no.muts),dataset$WTCount[,i],dataset$mutCount[,i],dataset$totalCopyNumber[,i], dataset$mutation.copy.number[,i],dataset$copyNumberAdjustment[,i])
+    dat = cbind(array(rep(1,no.muts)),
+                array(rep(1,no.muts)),
+                dataset$WTCount[,i],
+                dataset$mutCount[,i],
+                dataset$totalCopyNumber[,i],
+                dataset$mutation.copy.number[,i],
+                dataset$subclonal.fraction[,i],
+                dataset$copyNumberAdjustment[,i])
+
     colnames(dat) = column_names
-    write.table(dat,filename=outfile_names[i],quote=F,row.names=F, sep="\t")
+    write.table(dat,file=outfile_names[i],quote=F,row.names=F, sep="\t")
   }
 }
 
@@ -116,8 +130,8 @@ writeDataset <- function(outpath, samplename, subsamplenames, datafile_suffix, d
   for (i in 1:no.subsamples) {
     outfile_names = c(outfile_names, paste(outpath,samplename,"_",subsamplenames[i],"_",datafile_suffix, sep=""))
   }
-  
+
   dataset_index = data.frame(sample=rep(samplename, no.subsamples), subsample=subsamplenames, datafile=outfile_names, cellularity=cellularity)
-  write.table(dataset_index,filename=paste(outpath,samplename,".txt",sep=""),quote=F,row.names=F, sep="\t")
+  write.table(dataset_index,file=paste(outpath,samplename,".txt",sep=""),quote=F,row.names=F, sep="\t")
   simulatedDataToInputFile(dataset, outfile_names)
 }
