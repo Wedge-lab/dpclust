@@ -1,3 +1,5 @@
+library(lattice)
+library(KernSmooth)
 source("interconvertMutationBurdens.R")
 
 subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,dim(mutCount)), normalCopyNumber=array(2,dim(mutCount)), copyNumberAdjustment = array(1,dim(mutCount)),C=30, cellularity=rep(1,ncol(mutCount)),iter=1000,conc_param=1,cluster_conc=10) {
@@ -271,7 +273,6 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   #print(paste("wts=",wts[1000,],sep=""))
   #2-D kernel smoother
   #library(ks)
-  library(KernSmooth)
   
   gridsize=c(64L,64L)
   
@@ -319,7 +320,6 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
     range=c(floor(min(burden)*10)-1,ceiling(max(burden[,1])*10)+1)/10
   }
   
-  
   #no.density.points=1000
   no.density.points=10000
   no.clusters=ncol(V.h.cols)
@@ -363,9 +363,9 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   #	filled.contour(xvals,yvals,median.density,plot.axes={ axis(1); axis(2); points(burden,pch=".",cex=4)},xlab="mutation copy number sample 1",ylab="mutation copy number sample 2")	
   #	dev.off()
   
+  print("Creating density plot1")
   colours=colorRampPalette(c("white","red"))
   #for plotting with axes scaled equally
-  library(lattice)
   png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)
   #	fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
   #		panel = function(...) { 
@@ -384,7 +384,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   )    
   print(fig)
   dev.off()
-  
+
   png(filename=gsub(".png","_withMutations.png",pngFile),width=1500,height=1000)
   #	fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
   #		panel = function(...) { 
@@ -424,7 +424,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   #)
   #print(fig)
   #dev.off()
-  
+
   #levelplot sometimes fails, so save the values and plot afterwards	
   #write.csv(xx[1,],gsub(".png","_xvals.csv",pngFile))
   #write.csv(xx[2,],gsub(".png","_yvals.csv",pngFile))
@@ -457,7 +457,7 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
   }
   
   V.h.cols <- GS.data$V.h # weights
-  pi.h.cols <- GS.data$pi.h #[,,1] # discreteMutationCopyNumbers
+  pi.h.cols <- GS.data$pi.h[,,1] # discreteMutationCopyNumbers
   wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
   wts[,1] <- V.h.cols[,1]
   wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
