@@ -19,7 +19,7 @@ source("interconvertMutationBurdens.R")
 # ds2 = sim.muts2dataset(simulate.muts(25, 50, 3, mut.frac.of.cells=c(1,1,0)), 25, cellularity)
 # ds3 = sim.muts2dataset(simulate.muts(25, 50, 3, mut.frac.of.cells=c(1,0,1)), 25, cellularity)
 # combined = appendSubcloneData(list(ds, ds2, ds3))
-# writeDataset("", "simulated_2", c("1", "2", "3"), "dp_input.txt", ds, cellularity)
+# writeDataset("", "simulated_2", c("1", "2", "3"), "dp_input.txt", combined, cellularity)
 
 
 simulate.muts = function(no.muts, depth.per.cn, no.subsamples, mut.cn=rep(1, no.subsamples), mut.subcl.cn=rep(0, no.subsamples), wt.cn=rep(1, no.subsamples), wt.subcl.cn=rep(0, no.subsamples), mut.frac.of.cells=rep(1, no.subsamples), cellularity=rep(1, no.subsamples), mut.align.bias=1) {
@@ -80,7 +80,7 @@ appendSubcloneData <- function(list_of_subclone_datasets) {
   totalCopyNumber = do.call(rbind, combined['totalCopyNumber',])
   mutation.copy.number = do.call(rbind, combined['mutation.copy.number',])
   kappa = do.call(rbind, combined['kappa',])
-  subclonal.fraction = do.call(rbind, combined['subclonal.fraction'])
+  subclonal.fraction = do.call(rbind, combined['subclonal.fraction',])
   return(list(mutCount=mutCount, WTCount=WTCount, kappa=kappa, copyNumberAdjustment=copyNumberAdjustment, totalCopyNumber=totalCopyNumber, mutation.copy.number=mutation.copy.number, subclonal.fraction=subclonal.fraction))
 }
 
