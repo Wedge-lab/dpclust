@@ -93,11 +93,15 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
   d.m = data.frame()
   for (i in 1:ncol(d)) {
     d.loc = d[dataset$subclonal.fraction > 1.5,i]
-    d.m = rbind(d.m, data.frame(variable=colnames(d)[i], value=factor(d.loc)))
+    if(length(d.loc) > 0) { 
+      d.m = rbind(d.m, data.frame(variable=colnames(d)[i], value=factor(d.loc)))
+    }
   }
   
-  p = createHistFacetPlot(d.m, paste(samplename, "subclonal fraction > 1.5"), "Chromosome", "Count", binwidth=1)
-  createPng(p, paste(outpath, samplename, "_large.subclonal.fraction.by.chrom.png", sep=""), width=1500, height=500*length(subsamplenames))
+  if (nrow(d.m) > 0) {
+    p = createHistFacetPlot(d.m, paste(samplename, "subclonal fraction > 1.5"), "Chromosome", "Count", binwidth=1)
+    createPng(p, paste(outpath, samplename, "_large.subclonal.fraction.by.chrom.png", sep=""), width=1500, height=500*length(subsamplenames))
+  }
 #   
 #   
 #   
