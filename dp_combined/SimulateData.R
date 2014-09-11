@@ -65,25 +65,26 @@ source("interconvertMutationBurdens.R")
 # }
 create.testing.samples = function() {
   no.subsamples = 3
+  #if(0) {
   # Affected by nothing, 3 simple subclones across 3 samples
   ds = generate.dataset(no.subclones=3, 
                         no.muts=c(100,25,25), 
                         no.subsamples=no.subsamples, 
                         cov=c(50,50,50), 
-                        mut.frac.of.cells=matrix(c(rep(1,3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
                         sample.cn.param=c(-1,-1,-1), # pois parameter that affects CN values per sample
                         sample.cn.frac=c(0,0,0), # frac of muts affected by CN per sample
                         sample.cn.del.frac=c(0,0,0), # frac of muts that are affected by a deletion
                         sample.subcl.cn.frac=c(0,0,0), # frac of muts affected by subclonal CN per sample
                         cellularity=rep(1, no.subsamples)) #rnorm(3,mean=0.7,sd=0.2))
   writeDataset("", "simulated_001", c("01", "02", "03"), "dp_input.txt", ds, ds$cellularity)
-  
+
   # Affected by clonal copynumber
   ds = generate.dataset(no.subclones=3, 
                         no.muts=c(100,25,25), 
                         no.subsamples=no.subsamples, 
                         cov=c(50,50,50), 
-                        mut.frac.of.cells=matrix(c(rep(1,3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
                         sample.cn.param=c(1.45,1.55,1.5), # pois parameter that affects CN values per sample
                         sample.cn.frac=c(0.25,0.25,0.25), # frac of muts affected by CN per sample
                         sample.cn.del.frac=c(0,0,0), # frac of muts that are affected by a deletion
@@ -96,7 +97,7 @@ create.testing.samples = function() {
                         no.muts=c(100,25,25), 
                         no.subsamples=no.subsamples, 
                         cov=c(50,50,50), 
-                        mut.frac.of.cells=matrix(c(rep(1,3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
                         sample.cn.param=c(-1,-1,-1), # pois parameter that affects CN values per sample
                         sample.cn.frac=c(0,0,0), # frac of muts affected by CN per sample
                         sample.cn.del.frac=c(0.09,0.11,0.1), # frac of muts that are affected by a deletion
@@ -109,7 +110,7 @@ create.testing.samples = function() {
                         no.muts=c(100,25,25), 
                         no.subsamples=no.subsamples, 
                         cov=c(50,50,50), 
-                        mut.frac.of.cells=matrix(c(rep(1,3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
                         sample.cn.param=c(-1,-1,-1), # pois parameter that affects CN values per sample
                         sample.cn.frac=c(0,0,0), # frac of muts affected by CN per sample
                         sample.cn.del.frac=c(0,0,0), # frac of muts that are affected by a deletion
@@ -118,35 +119,57 @@ create.testing.samples = function() {
   writeDataset("", "simulated_004", c("01", "02", "03"), "dp_input.txt", ds, ds$cellularity)
   
   # Affected by lower cellularity
+  cellularity = rnorm(no.subsamples,mean=0.7,sd=0.2)
+  cellularity[cellularity > 1] = 1
   ds = generate.dataset(no.subclones=3, 
                         no.muts=c(100,25,25), 
                         no.subsamples=no.subsamples, 
                         cov=c(50,50,50), 
-                        mut.frac.of.cells=matrix(c(rep(1,3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
                         sample.cn.param=c(-1,-1,-1), # pois parameter that affects CN values per sample
                         sample.cn.frac=c(0,0,0), # frac of muts affected by CN per sample
                         sample.cn.del.frac=c(0,0,0), # frac of muts that are affected by a deletion
                         sample.subcl.cn.frac=c(0,0,0), # frac of muts affected by subclonal CN per sample
-                        cellularity=rnorm(3,mean=0.7,sd=0.2))
+                        cellularity=cellularity)
   writeDataset("", "simulated_005", c("01", "02", "03"), "dp_input.txt", ds, ds$cellularity)
   
   # All above combined
+  cellularity = rnorm(no.subsamples,mean=0.7,sd=0.2)
+  cellularity[cellularity > 1] = 1
   ds = generate.dataset(no.subclones=3, 
                         no.muts=c(100,25,25), 
                         no.subsamples=no.subsamples, 
                         cov=c(50,50,50), 
-                        mut.frac.of.cells=matrix(c(rep(1,3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
                         sample.cn.param=c(1.45,1.55,1.5), # pois parameter that affects CN values per sample
                         sample.cn.frac=c(0.25,0.25,0.25), # frac of muts affected by CN per sample
                         sample.cn.del.frac=c(0.09,0.11,0.1), # frac of muts that are affected by a deletion
                         sample.subcl.cn.frac=c(0.11,0.09,0.1), # frac of muts affected by subclonal CN per sample
-                        cellularity=rnorm(no.subsamples,mean=0.7,sd=0.2))
+                        cellularity=cellularity)
   writeDataset("", "simulated_006", c("01", "02", "03"), "dp_input.txt", ds, ds$cellularity)
+
+  # This sample was created to test a few things, but it turned out to be a fundamental bug that affected all samples.
+  # They therefore needed to be regenerated anyway. This sample is the same as 006.
+  cellularity = rnorm(no.subsamples,mean=0.7,sd=0.2)
+  cellularity[cellularity > 1] = 1
+  ds = generate.dataset(no.subclones=3, 
+                        no.muts=c(100,25,25), 
+                        no.subsamples=no.subsamples, 
+                        cov=c(50,50,50), 
+                        mut.frac.of.cells=matrix(c(c(1,0.5,0.3), c(1,0,1), c(1,1,0)), ncol=no.subsamples),
+                        sample.cn.param=c(1.45,1.55,1.5), # pois parameter that affects CN values per sample
+                        sample.cn.frac=c(0.25,0.25,0.25), # frac of muts affected by CN per sample
+                        sample.cn.del.frac=c(0.09,0.11,0.1), # frac of muts that are affected by a deletion
+                        sample.subcl.cn.frac=c(0.11,0.09,0.1), # frac of muts affected by subclonal CN per sample
+                        cellularity=cellularity)
+  writeDataset("", "simulated_007", c("01", "02", "03"), "dp_input.txt", ds, ds$cellularity)
+#   }
 }
 
 generate.dataset = function(no.subclones, no.muts, no.subsamples, cov=rep(50, no.subsamples), mut.frac.of.cells=matrix(rep(1, no.subclones*no.subsamples), ncol=no.subsamples), sample.cn.param=rep(-1, no.subsamples), sample.cn.frac=rep(0, no.subsamples), sample.cn.del.frac=rep(0, no.subsamples), sample.subcl.cn.frac=rep(0, no.subsamples), cellularity=rep(1, no.subsamples)) {
   dataset = list()
   for (i in 1:no.subclones) {
+#     print(paste("",i))
     subclone = simulate.subclone(no.muts[i], 
                                  no.subsamples=no.subsamples, 
                                  cov=cov, 
@@ -160,10 +183,14 @@ generate.dataset = function(no.subclones, no.muts, no.subsamples, cov=rep(50, no
 
     dataset[[i]] = mergeColumns(subclone)
     dataset[[i]]$subcloneid = matrix(rep(i, no.muts[i]), ncol=1)
+    
+#     print(cbind(dataset[[i]]$mutCount, dataset[[i]]$WTCount, dataset[[i]]$subclonal.fraction))
+#     print()
   }
   
   dataset = appendSubcloneData(dataset)
   dataset$cellularity = cellularity
+  
   return(dataset)
 }
 
@@ -207,7 +234,7 @@ simulate.subclone = function(no.muts, no.subsamples, cov, mut.frac.of.cells, mut
   
   subclone = list()
   for (i in 1:no.subsamples) {
-    
+#     print(paste("\t",i))
     mut.cn = create.cn(no.muts, mut.cn.lambda[i], sample.cn.frac[i], sample.cn.del.frac[i])
     mut.subcl.cn = create.subcl.cn(no.muts, sample.subcl.cn.frac[i])
     wt.cn = create.cn(no.muts, wt.cn.lambda[i], sample.cn.frac[i], sample.cn.del.frac[i])
@@ -253,19 +280,29 @@ simulate.subclone = function(no.muts, no.subsamples, cov, mut.frac.of.cells, mut
 # }
 
 generate.mut = function(no.muts, depth.per.cn, mut.cn, mut.subcl.cn, wt.cn, wt.subcl.cn, mut.frac.of.cells, cellularity, mut.align.bias) {
-  mutCount = abs(cellularity*(mut.frac.of.cells*((mut.subcl.cn+mut.cn)*(depth.per.cn*mut.align.bias))))
-  WTcount.1 = cellularity*((1-mut.frac.of.cells)*((mut.subcl.cn+mut.cn)*(depth.per.cn*(2-mut.align.bias))))
-  WTcount.2 = (1+1-cellularity)*(1*((wt.subcl.cn+wt.cn)*(depth.per.cn*(2-mut.align.bias))))
-  WTcount = abs(WTcount.1) + abs(WTcount.2)
-  mutCount[is.na(mutCount)] = 0
-  WTcount[is.na(WTcount) | WTcount==0] = 1 # Setting WTcount to 1 in order to obtain a finite, but very small AF below
+#   mutCount = cellularity*(mut.frac.of.cells*((mut.subcl.cn+mut.cn)*(depth.per.cn*mut.align.bias)))
+#   WTcount.1 = cellularity*((1-mut.frac.of.cells)*((mut.subcl.cn+mut.cn)*(depth.per.cn*(2-mut.align.bias))))
+#   WTcount.2 = (1+1-cellularity)*(1*((wt.subcl.cn+wt.cn)*(depth.per.cn*(2-mut.align.bias))))
+#   print(paste("\t\t",mut.frac.of.cells))
+  # Tumour cells carying mut
+  mutCount = cellularity*(mut.cn+mut.subcl.cn)*mut.frac.of.cells*depth.per.cn*mut.align.bias
+  # Tumour cells carying WT - 1+1-mut.frac.of.cells here accounts for 1*tumour cells WT and (1-mut.frac.of.cells)*tumour cells not mut
+  WTcount.1 = cellularity*(wt.cn+wt.subcl.cn)*(1+1-mut.frac.of.cells)*depth.per.cn*(2-mut.align.bias)
+  # Stromal cells
+  WTcount.2 = rep((1-cellularity)*2*depth.per.cn*(2-mut.align.bias), no.muts) #(1-mut.frac.of.cells)*
+  
+  WTcount = WTcount.1 + WTcount.2
+  WTcount[WTcount==0] = 1 # Setting WTcount to 1 in order to obtain a finite, but very small AF below 
   
   totalCopyNumber = mut.cn+mut.subcl.cn+wt.cn+wt.subcl.cn #rep(mut.cn+mut.subcl.cn+wt.cn+wt.subcl.cn, no.muts)
-  copyNumberAdjustment = mut.cn #rep(mut.cn, no.muts)
+  copyNumberAdjustment = mut.cn #+mut.subcl.cn #add mut.subcl.cn here to achieve cleaner data. without it some mutations are in too high fraction of cells
   # Depth takes on a poisson distribution
   ndepth = rpois(no.muts,mutCount+WTcount)
   # mutCount a binomial
-  nmut = rbinom(no.muts, round(mutCount+WTcount), mutCount/(mutCount+WTcount))
+  #nmut = rbinom(no.muts, round(mutCount+WTcount), mutCount/(mutCount+WTcount))
+  nmut = rbinom(no.muts, round(ndepth), mutCount/(mutCount+WTcount))
+  nmut[ndepth==0] = 0
+  
   return(list(mutCount=nmut, depth=ndepth, true.mutCount=mutCount, true.WTcount=WTcount, totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment))
 }
 
@@ -278,9 +315,11 @@ sim.muts2dataset = function(sim, no.muts, cellularity) {
   dataset = list()
   dataset$mutCount = sim$mutCount
   dataset$WTCount = sim$depth-sim$mutCount
+  dataset$WTCount[dataset$WTCount < 0] = 0
   dataset$copyNumberAdjustment = sim$copyNumberAdjustment #matrix(rep(1, no.subsamples*no.muts), ncol=no.subsamples)
   dataset$totalCopyNumber = sim$totalCopyNumber #matrix(rep(2, no.subsamples*no.muts), ncol=no.subsamples)
-  dataset$mutation.copy.number = sim$mutCount/sim$depth * dataset$totalCopyNumber
+#   dataset$mutation.copy.number = sim$mutCount/sim$depth * dataset$totalCopyNumber
+  dataset$mutation.copy.number = mutationBurdenToMutationCopyNumber(sim$mutCount/(sim$depth), sim$totalCopyNumber, cellularity, rep(2,length(sim$mutCount)))
   dataset$kappa = mutationCopyNumberToMutationBurden(1,dataset$totalCopyNumber,cellularity) * dataset$copyNumberAdjustment
   dataset$subclonal.fraction = sim$mutCount / (sim$depth*dataset$kappa)
   dataset$subclonal.fraction[dataset$kappa == 0] = 0
