@@ -30,7 +30,7 @@ meltFacetPlotData <- function(data, subsamplenames) {
 }
 
 createHistFacetPlot <- function(data, title, xlab, ylab, binwidth) {
-  p = ggplot(data) + aes(x=value, y=..count..) + geom_histogram(binwidth=binwidth) + facet_grid(variable ~ .)
+  p = ggplot(data) + aes(x=value, y=..count..) + geom_histogram(binwidth=binwidth, colour="black", fill="gray") + facet_grid(variable ~ .)
   p = p + theme_bw(base_size=35) + ggtitle(title) + xlab(xlab) + ylab(ylab)
   return(p)
 }
@@ -46,6 +46,7 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
   createPng(p, paste(outpath, samplename, "_totalCopyNumber.png", sep=""), width=1500, height=500*length(subsamplenames))
   
   p = createHistFacetPlot(meltFacetPlotData(res$mutation.copy.number, subsamplenames), paste(samplename, "mutation.copy.number"), "mutation.copy.number", "Count", binwidth=0.1)
+  p = p + xlim(0,5)
   createPng(p, paste(outpath, samplename, "_mutation.copy.number.png", sep=""), width=1500, height=500*length(subsamplenames))
 
   p = createHistFacetPlot(meltFacetPlotData(res$copyNumberAdjustment, subsamplenames), paste(samplename, "copyNumberAdjustment"), "copyNumberAdjustment", "Count (log10)", binwidth=1)
@@ -66,8 +67,8 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
 
 #   fractionOfCells = res$mutation.copy.number / res$copyNumberAdjustment
 #   meltFacetPlotData(fractionOfCells, subsamplenames)
-  p = createHistFacetPlot(meltFacetPlotData(res$subclonal.fraction, subsamplenames), paste(samplename, "Fraction Of Cells"), "Fraction of Cells", "Count (log10)", binwidth=0.03)
-  p = p + scale_y_log10() + geom_vline(xintercept=0.5, colour="red")+ geom_vline(xintercept=1.5, colour="red")
+  p = createHistFacetPlot(meltFacetPlotData(res$subclonal.fraction, subsamplenames), paste(samplename, "Fraction Of Cells"), "Fraction of Cells", "Count", binwidth=0.05)
+  p = p + geom_vline(xintercept=0.5, colour="red", linetype="longdash", size=2) + geom_vline(xintercept=1.5, colour="red", linetype="longdash", size=2) + xlim(0,3) #scale_y_log10()
   createPng(p, paste(outpath, samplename, "_fractionOfCells.png", sep=""), width=1500, height=500*length(subsamplenames))
   
 #   manualMutCopyNum = mutationBurdenToMutationCopyNumber(res$mutCount/(res$mutCount+res$WTCount),res$totalCopyNumber ,cellularity)
@@ -147,6 +148,6 @@ for (samplename in unique(sample2purity$sample)) {
   datafiles = sample2purity[sample2purity$sample==samplename,]$datafile
   subsamples = sample2purity[sample2purity$sample==samplename,]$subsample
   cellularity = sample2purity[sample2purity$sample==samplename,]$cellularity
-  dataset = load.data(datpath,"",datafiles, cellularity=cellularity, Chromosome="chr", WT.count="WT.count", mut.count="mut.count", subclonal.CN="subclonal.CN", no.chrs.bearing.mut="no.chrs.bearing.mut", mutation.copy.number="mutation.copy.number", subclonal.fraction="subclonal.fraction", data_file_suffix="")
+  dataset = load.data(datpath,"",datafiles, cellularity=cellularity, Chromosome="chr", position="pos", WT.count="WT.count", mut.count="mut.count", subclonal.CN="subclonal.CN", no.chrs.bearing.mut="no.chrs.bearing.mut", mutation.copy.number="mutation.copy.number", subclonal.fraction="subclonal.fraction", data_file_suffix="")
   createQCDocument(dataset, samplename, subsamples, outpath, cellularity)
 }
