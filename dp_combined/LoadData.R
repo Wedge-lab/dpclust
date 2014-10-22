@@ -1,4 +1,4 @@
-load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chromosome, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, data_file_suffix) {
+load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, data_file_suffix) {
   # Takes:
   # - An array of data file names to be read in
   # - WT.count, the colname of the column in the data files that contains the number of WT reads
@@ -7,7 +7,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   # - no.chrs.bearing.mut, the column that contains the number of chromosomes not bearing any mutations
   data=list()
   for(s in 1:length(list_of_data_files)){
-    data[[s]] = read.table(paste(datpath,samplename,list_of_data_files[s],data_file_suffix,sep=""),header=T,sep="\t")
+    data[[s]] = read.table(paste(datpath,samplename,list_of_data_files[s],data_file_suffix,sep=""),header=T,sep="\t",stringsAsFactors=F)
     data[[s]] = data[[s]][data[[s]][,Chromosome] %in% 1:22,]
   }
 
@@ -15,6 +15,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   no.muts = nrow(data[[1]])
   
   chromosome = matrix(0,no.muts,no.subsamples)
+  mut.position = matrix(0,no.muts,no.subsamples)
   WTCount = matrix(0,no.muts,no.subsamples)
   mutCount = matrix(0,no.muts,no.subsamples)
   totalCopyNumber = matrix(0,no.muts,no.subsamples)
@@ -24,6 +25,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   subclonalFraction = matrix(NA,no.muts,no.subsamples)
   for(s in 1:length(list_of_data_files)){
     chromosome[,s] = as.numeric(data[[s]][,Chromosome])
+    mut.position[,s] = as.numeric(data[[s]][,position])
     WTCount[,s] = as.numeric(data[[s]][,WT.count])
     mutCount[,s] = as.numeric(data[[s]][,mut.count])
     totalCopyNumber[,s] = as.numeric(data[[s]][,subclonal.CN])
@@ -47,6 +49,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   not.there.kappa = apply(kappa, 1, function(x) { sum(is.na(x))>0 })
   # Remove those mutations that have no coverage. These cause for trouble lateron.
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0) })
+  #not.mut = apply(mutCount, 1, function(x) { any(x<5) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
   
   print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
@@ -55,10 +58,12 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   print(paste("Removed", sum(not.there.cna),"with missing copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.there.kappa),"with missing kappa", sep=" "))
   print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
+  #print(paste("Removed", sum(not.mut),"with not enough quality coverage of mut", sep=" "))
   print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
 
   select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna)
   chromosome = as.matrix(chromosome[select,])
+  mut.position = as.matrix(mut.position[select,])
   WTCount = as.matrix(WTCount[select,])
   mutCount = as.matrix(mutCount[select,])
   totalCopyNumber = as.matrix(totalCopyNumber[select,])
@@ -69,5 +74,5 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   subclonalFraction = as.matrix(subclonalFraction[select,])
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
 
-  return(list(chromosome=chromosome, WTCount=WTCount, mutCount=mutCount, totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber, subclonal.fraction=subclonalFraction))
+  return(list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount, totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber, subclonal.fraction=subclonalFraction))
 }
