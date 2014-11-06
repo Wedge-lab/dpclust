@@ -148,6 +148,8 @@ for (samplename in unique(sample2purity$sample)) {
   datafiles = sample2purity[sample2purity$sample==samplename,]$datafile
   subsamples = sample2purity[sample2purity$sample==samplename,]$subsample
   cellularity = sample2purity[sample2purity$sample==samplename,]$cellularity
-  dataset = load.data(datpath,"",datafiles, cellularity=cellularity, Chromosome="chr", position="pos", WT.count="WT.count", mut.count="mut.count", subclonal.CN="subclonal.CN", no.chrs.bearing.mut="no.chrs.bearing.mut", mutation.copy.number="mutation.copy.number", subclonal.fraction="subclonal.fraction", data_file_suffix="")
-  createQCDocument(dataset, samplename, subsamples, outpath, cellularity)
+  if (file.exists(paste(datpath,datafiles, sep=""))) {
+    dataset = load.data(datpath,"",datafiles, cellularity=cellularity, Chromosome="chr", position="pos", WT.count="WT.count", mut.count="mut.count", subclonal.CN="subclonal.CN", no.chrs.bearing.mut="no.chrs.bearing.mut", mutation.copy.number="mutation.copy.number", subclonal.fraction="subclonal.fraction", data_file_suffix="")
+    createQCDocument(dataset, samplename, subsamples, outpath, cellularity)
+  }
 }
