@@ -72,7 +72,7 @@ dataset = load.data(datpath,
                     datafiles, 
                     cellularity=cellularity, 
                     Chromosome="chr", 
-                    position="pos",
+                    position="POS",
                     WT.count="WT.count", 
                     mut.count="mut.count", 
                     subclonal.CN="subclonal.CN", 
@@ -98,4 +98,5 @@ RunDP(analysis_type=analysis_type,
       remove.branch.frequency=51, #51
       annotation=vector(mode="character",length=nrow(dataset$mutCount)),
       init.alpha=0.01, 
-      shrinkage.threshold=0.1)
+      shrinkage.threshold=0.1,
+      bin.size=bin.size)
