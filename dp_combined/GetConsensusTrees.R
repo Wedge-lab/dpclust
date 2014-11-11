@@ -14,6 +14,7 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=ar
   no.iters.post.burn.in = no.iters-no.iters.burn.in
 
 	# Assemble the current strengths for each pair of mutations
+  print("Calculating mutation strengths")
   strengths = get.mut.ass.strengths(no.muts, no.iters, no.iters.post.burn.in, node.assignments)
   ancestor.strengths = strengths$ancestor.strengths
   sibling.strengths = strengths$sibling.strengths
@@ -69,9 +70,14 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=ar
 
   print(paste("Finished EM in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 
+  # There cannot possibly be no consensus trees. If this happens the random walk data is not right. Therefore exit.
+  if (length(all.consensus.trees) == 0) {
+    print("Did not find any consensus tree. Exit")
+    q(save="no", status=1)
+  }
+
   # No more trees to be plotted. Close the devices
   close.plotting.devices(no.subsamples, plot.devs)
-
 	tree.sizes = sapply(1:length(all.consensus.trees),function(t,i){nrow(t[[i]])},t=all.consensus.trees)
   BIC = bic(likelihoods, no.subsamples, tree.sizes, no.muts)
   AIC = aic(likelihoods, no.subsamples, tree.sizes)
@@ -99,12 +105,12 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=ar
 	
 	#save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
 	if(!is.null(bin.indices)){
-		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.disaggregated.consensus.assignments = all.disaggregated.consensus.assignments, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
+		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.disaggregated.consensus.assignments = all.disaggregated.consensus.assignments, all.likelihoods=all.likelihoods, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
 		#save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allBinnedConsensusAssignments.RData",sep=""))
 		#save(all.disaggregated.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))		
 	}else{
 		#save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
-		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
+		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.likelihoods=all.likelihoods, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
 
 	}	
 }
@@ -213,6 +219,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 			current.agreement = new.agreements[best.node]
 			pairwise.agreements = new.pairwise.agreements[[best.node]]
 			fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
+
       temp = plotConsensusTree(consensus.assignments, samplename, subsamplenames, no.iters, no.iters.burn.in, node.assignments, trees, mutCount, WTCount, kappa, plot.devs, bin.indices, tree.number)
 			new.consensus.tree = temp[[1]]
       new.consensus.ass = temp[[2]]
@@ -268,8 +275,8 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
             
             # Change the consensus assignment temporarily and check whether this new set of assignments was already 
             # tried. If it was already tried it should not be tried again
-            consensus.ass.temp = consensus.assignments
-						consensus.ass.temp[r] = possible.ass[best.index]
+#             consensus.ass.temp = consensus.assignments
+# 						consensus.ass.temp[r] = possible.ass[best.index]
 
             # Check if the new assignment when moving this mut was not seen before
             if(new.agreement > old.agreement) { #} & !is.assignment.known(assignments.tracker, consensus.ass.temp)){
@@ -287,7 +294,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 
   			print("Moving round2 done")
 				# Remove empty nodes
-				save(file=paste("cullTree_",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RData", sep=""), consensus.assignments, all.consensus.trees)
+# 				save(file=paste("cullTree_",format(Sys.time(), "%Y-%m-%d-%H-%M-%S"), ".RData", sep=""), consensus.assignments, all.consensus.trees)
 				consensus.assignments = cullTree(consensus.assignments, all.consensus.trees)
         #if(ncol(assignments.tracker) == no.assignments.tracked) {
         #  ## The assignments tracker is getting full, extend it with more columns
