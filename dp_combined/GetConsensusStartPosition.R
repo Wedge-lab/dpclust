@@ -1,35 +1,38 @@
-# outdir = getwd()
-args=commandArgs(TRUE)
-run = as.integer(args[1])
-datpath = toString(args[2])
-purity_file = toString(args[3])
-identfile = toString(args[4])
-siblingfile = toString(args[5])
-ancestorfile = toString(args[6])
+# # outdir = getwd()
+# args=commandArgs(TRUE)
+# run = as.integer(args[1])
+# datpath = toString(args[2])
+# purity_file = toString(args[3])
+# identfile = toString(args[4])
+# siblingfile = toString(args[5])
+# ancestorfile = toString(args[6])
+# 
+# library(ggplot2)
+# library(reshape2)
+# 
+# source("~/repo/dirichlet/dp_combined/LoadData.R")
+# source("~/repo/dirichlet/dp_combined/interconvertMutationBurdens.R")
+# 
+# ###################### Set data variables ##########################
+# # datpath = "/lustre/scratch110/sanger/sd11/dirichlet/simulated/Data/"
+# #datafiles = c("simulated_2_sample1_3clusters_150muts_no_cna.txt", "simulated_2_sample2_3clusters_150muts_no_cna.txt", "simulated_2_sample3_3clusters_150muts_no_cna.txt")
+# #cellularity = c(1, 1, 1)
+# # identfile = "identity.strengths.csv"
+# # siblingfile = "sibling.strengths.csv"
+# # ancestorfile = "ancestor.strengths.csv"
+# 
+# sample2purity = read.table(purity_file, header=T, stringsAsFactors=F)
+# samplename = unique(sample2purity$sample)[run]
+# datafiles = sample2purity[sample2purity$sample==samplename,]$datafile
+# subsamples = sample2purity[sample2purity$sample==samplename,]$subsample
+# cellularity = sample2purity[sample2purity$sample==samplename,]$cellularity
+# 
+# read.in.data = function(filename) {
+#   return(as.data.frame(read.table(filename, sep=",", header=T)))
+# }
 
-library(ggplot2)
 library(reshape2)
-
-source("~/repo/dirichlet/dp_combined/LoadData.R")
-source("~/repo/dirichlet/dp_combined/interconvertMutationBurdens.R")
-
-###################### Set data variables ##########################
-# datpath = "/lustre/scratch110/sanger/sd11/dirichlet/simulated/Data/"
-#datafiles = c("simulated_2_sample1_3clusters_150muts_no_cna.txt", "simulated_2_sample2_3clusters_150muts_no_cna.txt", "simulated_2_sample3_3clusters_150muts_no_cna.txt")
-#cellularity = c(1, 1, 1)
-# identfile = "identity.strengths.csv"
-# siblingfile = "sibling.strengths.csv"
-# ancestorfile = "ancestor.strengths.csv"
-
-sample2purity = read.table(purity_file, header=T, stringsAsFactors=F)
-samplename = unique(sample2purity$sample)[run]
-datafiles = sample2purity[sample2purity$sample==samplename,]$datafile
-subsamples = sample2purity[sample2purity$sample==samplename,]$subsample
-cellularity = sample2purity[sample2purity$sample==samplename,]$cellularity
-
-read.in.data = function(filename) {
-  return(as.data.frame(read.table(filename, sep=",", header=T)))
-}
+library(ggplot2)
 
 transform.data = function(df) {
   #
@@ -37,7 +40,7 @@ transform.data = function(df) {
   # This method melts the df and then selects the lower half
   # which is returned in its melted form.
   #
-  
+  df = as.data.frame(df)  
   # Add the column names as an additional column
   df$id = factor(colnames(df), levels=colnames(df))
   # Melt the data creating colname-colname-value tripples
@@ -71,9 +74,11 @@ get.best.cut = function(clustering, no.muts, min.frac=0.1) {
   #
   best.cut = 1
   best.count = 1
+  clusters = NULL
   for (i in 1:30) {
     tree.cut = cutree(clustering, k=i)
     unique.clusters = unique(tree.cut)
+    selected.clusters = c()
     
     # Investigate the cut at this level
     cut.count = 0
@@ -82,6 +87,7 @@ get.best.cut = function(clustering, no.muts, min.frac=0.1) {
       cl.count = sum(tree.cut==cluster)
       if (cl.count > floor(min.frac*no.muts)) {
         cut.count = cut.count + 1
+        selected.clusters = c(selected.clusters, j)
       }
     }
     
@@ -89,9 +95,10 @@ get.best.cut = function(clustering, no.muts, min.frac=0.1) {
     if (cut.count > best.count) {
       best.cut = i
       best.count = cut.count
+      clusters = selected.clusters
     }
   }
-  return(best.cut)
+  return(list(best.cut=best.cut, clusters=clusters))
 }
 
 create.empty.tree = function(no.thetas) {
@@ -138,7 +145,7 @@ get.next.cluster = function(tree.cut, curr.node, clusters, sibs, anc) {
   agreement.sibs = 0
   most.likely.sib = -1
   for (i in 1:length(clusters)) {
-    a = sum(rowSums(sibs[tree.cut==curr.node,tree.cut==clusters[i]]))
+    a = mean(rowSums(sibs[tree.cut==curr.node,tree.cut==clusters[i]]))
     if (a > agreement.sibs) {
       agreement.sibs = a
       most.likely.sib = clusters[i]
@@ -149,7 +156,7 @@ get.next.cluster = function(tree.cut, curr.node, clusters, sibs, anc) {
   agreement.anc = 0
   most.likely.anc = -1
   for (i in 1:length(clusters)) {
-    a = sum(rowSums(anc[tree.cut==curr.node,tree.cut==clusters[i]]))
+    a = mean(rowSums(anc[tree.cut==curr.node,tree.cut==clusters[i]]))
     if (a > agreement.anc) {
       agreement.anc = a
       most.likely.anc = clusters[i]
@@ -279,7 +286,7 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
   # min.frac is the minimum fraction of mutations that need to be assigned to a
   # cluster of mutations in order to consider it as a node on the starting tree
   #
-  if(0) {
+#   if(0) {
   ###################### Cluster ##########################
   print("Clustering")
   rows = hclust(dist(ident))
@@ -291,28 +298,37 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
   dat.m = transform.data(ident[rows$order, cols$order])
   p = createHeatmap(dat.m, x="id", y="variable", value="value",xlab="Mutation", ylab="Mutation")
   createPng(p, filename=paste("find.cons.start.tree_ident", ".png", sep=""), width=1000, height=1000)
-  
+
   dat.m = transform.data(sibs[rows$order, cols$order])
   p = createHeatmap(dat.m, x="id", y="variable", value="value",xlab="Mutation", ylab="Mutation")
   createPng(p, filename=paste("find.cons.start.tree_sibs", ".png", sep=""), width=1000, height=1000)
-  
+
   dat.m = transform.data(anc[rows$order, cols$order])
   p = createHeatmap(dat.m, x="id", y="variable", value="value",xlab="Mutation", ylab="Mutation")
   createPng(p, filename=paste("find.cons.start.tree_anc", ".png", sep=""), width=1000, height=1000)
-  }
-  load("getconsensus_clustering.RData")
+#   }
+#   load("getconsensus_clustering.RData")
   ###################### Obtain best cut ##########################
   print("Getting best cut")
-  best.cut = get.best.cut(rows, nrow(ident), min.frac=min.frac)
+  res = get.best.cut(rows, nrow(ident), min.frac=min.frac)
+  best.cut = res$best.cut
+  clusters = res$clusters
   tree.cut = cutree(rows, k=best.cut)
   
   ###################### Obtain theta estimates from subclonal.fractions ##########################
-  clusters = unique(tree.cut)
+  #clusters = unique(tree.cut)
   thetas = list()
   for (i in 1:length(clusters)) {
     cluster = clusters[i]
-    # TODO: Perhaps replace this by a draw from a gamma distribution?
-    thetas[[i]] = colSums(subclonal.fraction[tree.cut==cluster,])/sum(tree.cut==cluster)
+    if (cluster %in% selected.clusters) { # A cluster is in selected.clusters if it contains more than min.frac mutations
+      print(i)
+      print(cluster)
+      print(subclonal.fraction[tree.cut==cluster,])
+      print(sum(tree.cut==cluster))
+
+      # TODO: Perhaps replace this by a draw from a gamma distribution?
+      thetas[[i]] = colSums(subclonal.fraction[tree.cut==cluster,])/sum(tree.cut==cluster)
+    }
   }
   
   ###################### Find first node ##########################
@@ -344,6 +360,7 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
     best.cluster = NULL
     print("Searching for next cluster")
     for (nodeid in curr.tree$clusterid) { # iterate over all nodes in the tree
+      print(paste("Looking at node ",nodeid))
       next.cluster = get.next.cluster(tree.cut, nodeid, clusters, sibs, anc)
       if (next.cluster$strength > best.strength) { # if this cluster is better than best, keep it
         best.strength = next.cluster$strength
@@ -379,24 +396,24 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
 }
 
 
-###################### Load the data ##########################
-dataset = load.data(datpath,
-                    "",
-                    datafiles, 
-                    cellularity=cellularity, 
-                    Chromosome="chr", 
-                    WT.count="WT.count", 
-                    mut.count="mut.count", 
-                    subclonal.CN="subclonal.CN", 
-                    no.chrs.bearing.mut="no.chrs.bearing.mut", 
-                    mutation.copy.number="mutation.copy.number", 
-                    subclonal.fraction="subclonal.fraction", 
-                    data_file_suffix="")
-
-ident = read.in.data(identfile)
-sibs = read.in.data(siblingfile)
-anc = read.in.data(ancestorfile)
-
-find.cons.start.pos(dataset$subclonal.fraction, ident, sibs, anc, 0.15)
-
-q(save="no")
+# ###################### Load the data ##########################
+# dataset = load.data(datpath,
+#                     "",
+#                     datafiles, 
+#                     cellularity=cellularity, 
+#                     Chromosome="chr", 
+#                     WT.count="WT.count", 
+#                     mut.count="mut.count", 
+#                     subclonal.CN="subclonal.CN", 
+#                     no.chrs.bearing.mut="no.chrs.bearing.mut", 
+#                     mutation.copy.number="mutation.copy.number", 
+#                     subclonal.fraction="subclonal.fraction", 
+#                     data_file_suffix="")
+# 
+# ident = read.in.data(identfile)
+# sibs = read.in.data(siblingfile)
+# anc = read.in.data(ancestorfile)
+# 
+# find.cons.start.pos(dataset$subclonal.fraction, ident, sibs, anc, 0.15)
+# 
+# q(save="no")
