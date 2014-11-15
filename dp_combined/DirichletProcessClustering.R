@@ -224,32 +224,37 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     ###################################
     cons_start_time = Sys.time()
     if(!is.na(bin.size)) { 
-      RunTreeBasedDPConsensus(trees=trees_interleaved, 
-                              node.assignments=binned.node.assignments_interleaved, 
-                              mutCount=binned.mutCount, 
-                              WTCount=binned.WTCount, 
-                              kappa=binned.kappa, 
-                              samplename=samplename, 
-                              subsamplenames=subsamplenames, 
-                              annotation=annotation, 
-                              no.iters=no.iters, 
-                              no.iters.burn.in=no.iters.burn.in, 
-                              resort.mutations=resort.mutations, 
-                              bin.indices=bin.indices)
+      consResults = RunTreeBasedDPConsensus(trees=trees_interleaved, 
+                                            node.assignments=binned.node.assignments_interleaved, 
+                                            mutCount=binned.mutCount, 
+                                            WTCount=binned.WTCount, 
+                                            kappa=binned.kappa, 
+                                            samplename=samplename, 
+                                            subsamplenames=subsamplenames, 
+                                            annotation=annotation, 
+                                            no.iters=no.iters, 
+                                            no.iters.burn.in=no.iters.burn.in, 
+                                            resort.mutations=resort.mutations, 
+                                            bin.indices=bin.indices)
     } else {
-      RunTreeBasedDPConsensus(trees=trees_interleaved, 
-                              node.assignments=node.assignments_interleaved, 
-                              mutCount=mutCount, 
-                              WTCount=WTCount, 
-                              kappa=kappa, 
-                              samplename=samplename, 
-                              subsamplenames=subsamplenames, 
-                              annotation=annotation, 
-                              no.iters=no.iters, 
-                              no.iters.burn.in=no.iters.burn.in, 
-                              resort.mutations=resort.mutations, 
-                              bin.indices=NULL)
+      consResults = RunTreeBasedDPConsensus(trees=trees_interleaved, 
+                                            node.assignments=node.assignments_interleaved, 
+                                            mutCount=mutCount, 
+                                            WTCount=WTCount, 
+                                            kappa=kappa, 
+                                            samplename=samplename, 
+                                            subsamplenames=subsamplenames, 
+                                            annotation=annotation, 
+                                            no.iters=no.iters, 
+                                            no.iters.burn.in=no.iters.burn.in, 
+                                            resort.mutations=resort.mutations, 
+                                            bin.indices=NULL)
     }
+    
+    #consResults$best.tree 
+    print(consResults$best.node.assignments)
+    #consResults$best.assignment.likelihoods
+    
     cons_end_time = Sys.time()
     print(paste("Finished RunTreeBasedDPConsensus in", as.numeric(cons_end_time-cons_start_time,units="secs"), "seconds"))
     write.table(data.frame(diff=c(difftime(cons_end_time, cons_start_time, units='sec')), unit=c('seconds')), file='runtime_cons.txt', quote=F, row.names=F)
@@ -261,6 +266,14 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     write.table(data.frame(diff=c(difftime(end_time, start_time, units='sec')), unit=c('seconds')), file='runtime.txt', quote=F, row.names=F)
     print(paste("Finished in", as.numeric(end_time-start_time,units="secs"), "seconds"))
   }
+
+  # Return the consensus assignments when available (not after running the tree phase only)
+  if (is.na(phase) | phase == 'tree_dp' | phase == 'cons') {
+    return(consResults)
+  } else {
+    return(list())
+  }
+
 }
 
 
@@ -279,7 +292,7 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   if(!file.exists(output_folder)){
     dir.create(output_folder)
   }
-  GS.data<-subclone.dirichlet.gibbs(mutCount=mutCount,
+  GS.data = subclone.dirichlet.gibbs(mutCount=mutCount,
                                     WTCount=WTCount,
                                     totalCopyNumber=totalCopyNumber, 
                                     copyNumberAdjustment=copyNumberAdjustment, 
@@ -317,13 +330,14 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     for(i in 1:(length(subsamplesrun)-1)){
       for(j in (i+1):length(subsamplesrun)){
         imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
-        Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
+        density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
                                    GS.data,
                                    imageFile, 
                                    post.burn.in.start = no.iters.burn.in, 
                                    post.burn.in.stop = no.iters, 
                                    samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
-                                   indices=c(i,j))  	
+                                   indices=c(i,j))  
+        save(file=paste(subsamplesrun[i], "_vs_",subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
       }
     }
     # 1D dataset, plot just the single density
@@ -340,8 +354,10 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                             no.chrs.bearing.mut=copyNumberAdjustment)
     subclonal.fraction = mutation.copy.number / copyNumberAdjustment
     subclonal.fraction[is.nan(subclonal.fraction)] = 0
-    oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+    consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
     setwd(wd)
+    
+    return(consClustering)
   }
   
 }
