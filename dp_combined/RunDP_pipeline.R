@@ -59,7 +59,7 @@ print("")
 
 
 if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
+  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin_", sep="")
   if (!is.na(bin.size)) {
     outdir = paste(outdir, "_",bin.size, "binsize")
   }
@@ -72,7 +72,7 @@ dataset = load.data(datpath,
                     datafiles, 
                     cellularity=cellularity, 
                     Chromosome="chr", 
-                    position="POS",
+                    position="end",
                     WT.count="WT.count", 
                     mut.count="mut.count", 
                     subclonal.CN="subclonal.CN", 
