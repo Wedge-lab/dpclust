@@ -1,12 +1,24 @@
 RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, kappa, samplename, subsamplenames, annotation, no.iters, no.iters.burn.in, resort.mutations, bin.indices=NULL) {
 
   no.subsamples = ncol(mutCount)
-  temp.list = GetConsensusTrees(trees, node.assignments, mutCount, WTCount, kappa = kappa, samplename = samplename, subsamplenames = subsamplenames, no.iters = no.iters, no.iters.burn.in = no.iters.burn.in, resort.mutations = resort.mutations)
+  temp.list = GetConsensusTrees(trees, 
+                                node.assignments, 
+                                mutCount, 
+                                WTCount, 
+                                kappa = kappa, 
+                                samplename = samplename, 
+                                subsamplenames = subsamplenames, 
+                                no.iters = no.iters, 
+                                no.iters.burn.in = no.iters.burn.in, 
+                                resort.mutations = resort.mutations,
+                                bin.indices = bin.indices)
+  
   all.consensus.trees = temp.list$all.consensus.trees
   save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
 
   print(names(temp.list))
   
+  # Undo binning, if required
   if(!is.null(bin.indices)) {
     all.consensus.assignments = temp.list$all.consensus.assignments
     all.disaggregated.consensus.assignments = temp.list$all.disaggregated.consensus.assignments
@@ -17,6 +29,7 @@ RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, 
     save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
   }
   
+  # Get various scores, plot and save them
   likelihoods = temp.list$likelihoods; BIC = temp.list$BIC; AIC = temp.list$AIC; DIC = temp.list$DIC
   
   plotScores("log_likelihood", samplename, no,iters, 0, likelihoods, "log-likelihood")
@@ -29,8 +42,16 @@ RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, 
   writeScoresTable(AIC, "AIC", samplename, no,iters)
   writeScoresTable(DIC, "DIC", samplename, no,iters)
   
+  # Obtain the best tree, plot and save it
   best.index = which.min(BIC)
   best.tree = all.consensus.trees[[best.index]]
+  
+  print("TEMP OUTPUT")
+  print(dim(temp.list$all.likelihoods))
+  print(head(temp.list$all.likelihoods))
+  print(best.index)
+  
+  best.assignment.likelihoods = temp.list$all.likelihoods[,best.index]
 
   if(!is.null(bin.indices)) {
     best.node.assignments = all.disaggregated.consensus.assignments[[best.index]]
@@ -50,6 +71,8 @@ RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, 
   if(no.subsamples>1){
     plotBestScatter(mutCount, WTCount, kappa, best.tree, samplename, no.iters, subsamplenames, best.node.assignments)
   }	
+  
+  return(list(best.tree=best.tree, best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods))
 }
 
 writeScoresTable <- function(scores, score_name, samplename, no,iters) {
