@@ -172,10 +172,11 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	all.likelihoods = matrix(NA,num.muts,iter)
 	all.thetas = list()
 	for (i in 1:num.samples) { all.thetas[[i]] = matrix(NA,num.muts,iter) }
+
   curr.likelihoods = log.f.of.y(y, n, kappa, trees.n[[1]][node.assignments[,1],paste("theta.S", 1:num.samples, sep="")])
-	all.likelihoods[,1] = curr.likelihoods
-  for (i in 1:num.samples) { all.thetas[[i]][,1] = trees.n[[1]][,paste("theta.S",i,sep='')] }
+  all.likelihoods[,1] = curr.likelihoods
   complete.likelihood[1] = sum(curr.likelihoods)
+  for (i in 1:num.samples) { all.thetas[[i]][,1] = trees.n[[1]][,paste("theta.S",i,sep='')] }
 
   AIC[1] = aic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]))
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
@@ -408,6 +409,15 @@ sample.assignment <- function(y, n, kappa, tree1, curr.assignment, lambda, alpha
 	 	if (curr.p == "NaN") {return(list("Success", old.tree, curr.assignment))}
 	 	if (curr.p > p.slice) { output <- list("Success", tree1, new.node)}
 	 	else {if (max.u - min.u < 10E-6) {
+#         print(old.tree)
+#         print(p.slice)
+#         print(max.u)
+#         print(min.u)
+#         print("new")
+#         print(tree1)
+#         print(new.node)
+#         print(thetas.new.asst)
+#         print(curr.p)
 	 			print("Slice sampler shrank down: keep current state")
 	 			output <- list("Success", old.tree, curr.assignment)
  		} else {
@@ -708,3 +718,24 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
 # 	a <- descend(curr.tree, 0, "M:", lambda, alpha, gamma,curr.assign)
 # 	return(list(a[[1]][,!grepl("depth",names(a[[1]]))], a[[2]]))
 # }
+
+# log.f.of.y1 <- function(y1, n1, kappa1, x) {
+#     #x=1 and kappa=1 causes problems
+#     x[x>0.999 & kappa1==1] = 0.999
+#   	#allow kappa = 0, for mutations on deleted chromosomes
+#     non.zero.inds = which(kappa1!=0)
+#   	if(length(non.zero.inds)>0){
+#     		return(sum(lchoose(n1[non.zero.inds], y1[non.zero.inds]) + y1[non.zero.inds] * log(kappa1[non.zero.inds]*x[non.zero.inds]) + (n1[non.zero.inds]-y1[non.zero.inds]) * log(1-kappa1[non.zero.inds]*x[non.zero.inds])) * length(y1)/length(non.zero.inds))
+#     }else{
+#     		print("WARNING. ALL KAPPAS ARE ZERO. MUTATION ABSENT FROM ALL SAMPLES")
+#     		print(y1)
+#     		print(n1)
+#     		print(kappa1)
+#     		print(x)
+#     		#return(NA)
+#     		return(NaN)
+#     }
+#   }
+
+
+
