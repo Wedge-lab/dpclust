@@ -5,6 +5,7 @@ plotTree<-function(tree,main="",font.size=0.75,plotAsPercentage=T){
 	depth <- c(0,t(sapply(1:nrow(tree),function(n,i){length(strsplit(n[i],":")[[1]])},n=rownames(tree))))
 	no.samples = length(theta.cols)
 	par(mfrow=c(1,no.samples),mar=c(2,4,2,4),cex.main=3)
+
 	cols = rainbow(no.samples)
 	for(t in 1:no.samples){
 		tc=theta.cols[t]

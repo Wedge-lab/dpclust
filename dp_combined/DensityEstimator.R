@@ -10,10 +10,11 @@ DensityEstimator <- function(clustered.thetas, thetas, density.smooth = 0.1, den
 	if(nrow(clustered.thetas)==1){
 		clustered.thetas = rbind(clustered.thetas,clustered.thetas)
 	}
+
 	xx <- density(rep(clustered.thetas[,1],2), adjust=density.smooth, from=density.from, to=x.max)$x
 
 	post.ints = sapply(1:no.iters,FUN=function(i,clustered.thetas1,adjust,from,to) { density(clustered.thetas[,i], adjust=adjust, from=from, to=to)$y },clustered.thetas1=clustered.thetas,adjust=density.smooth,from=density.from,to=x.max)
-  
+
 	polygon.data = c(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.975), rev(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.025)))
 	if(is.na(y.max)){
 		y.max=ceiling(max(polygon.data)/10)*10

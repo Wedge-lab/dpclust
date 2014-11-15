@@ -1,4 +1,5 @@
 library(LIM)
+library(Matrix)
 library(vegan)
 source("CullTree.R")
 source("RemoveBranch.R")
@@ -47,7 +48,7 @@ younger.direct.descendants <- function(curr.node, other.nodes) {
 	return(grepl(curr.node, other.nodes))
 }
 
-get.conflicts <- function(index, conflict.array, node.assignments, whole.tree, parallel=FALSE){
+get.conflicts <- function(index, conflict.array, node.assignments, whole.tree){
 	all.nodes = row.names(whole.tree)
 	penalties = vector(mode="numeric",length=length(all.nodes))	
 	penalties = rep(1,length(all.nodes))
@@ -81,7 +82,7 @@ get.conflicts <- function(index, conflict.array, node.assignments, whole.tree, p
 	return(penalties)
 }
 
-update.tree.after.removal <- function(curr.tree, removed.indices, mapping, num.muts, y, n, kappa) {
+update.tree.after.removal <- function(curr.tree, removed.indices, mapping, new.assignments, num.muts, y, n, kappa) {
   new.node.assignments = vector(length = num.muts, mode = "character")
   for(i in 1:nrow(mapping)){
     new.node.assignments[new.assignments==mapping$old[i]] = mapping$new[i]
@@ -109,7 +110,6 @@ update.tree.after.removal <- function(curr.tree, removed.indices, mapping, num.m
   }else{
     print("WARNING! No removed indices after remove.node.")
   }
-    
   return(new.assignments)
 }
 
@@ -130,7 +130,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	num.muts <- dim(y)[1]
 	num.samples <- dim(y)[2]
   
-  mant.every.iters = 10
+  mant.every.iters = 50
 	
 	# Set up data formats for recording iterations
 	trees.n <- vector("list", length=iter)  # The set of trees for each iteration
@@ -162,19 +162,21 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 	names(trees.n[[1]]) <- c(names(trees.n[[1]])[1:7], paste("theta.S", 1:num.samples, sep=""))
   
   # Calculate the first set mut agreements
- 	res = calculate.mut.agreements(node.assignments, num.muts, 1)
- 	ancestor.strengths[[1]] = res[[1]]
- 	sibling.strengths[[1]] = res[[2]]
- 	identity.strengths[[1]] = res[[3]]
+	# Commented out because Mantel test is not used anymore
+#  	res = calculate.mut.agreements(node.assignments, num.muts, 1)
+#  	ancestor.strengths[[1]] = res[[1]]
+#  	sibling.strengths[[1]] = res[[2]]
+#  	identity.strengths[[1]] = res[[3]]
   
 	# Keep track of all the likelihoods and all thetas for DIC calculation
 	all.likelihoods = matrix(NA,num.muts,iter)
 	all.thetas = list()
 	for (i in 1:num.samples) { all.thetas[[i]] = matrix(NA,num.muts,iter) }
+
   curr.likelihoods = log.f.of.y(y, n, kappa, trees.n[[1]][node.assignments[,1],paste("theta.S", 1:num.samples, sep="")])
-	all.likelihoods[,1] = curr.likelihoods
-  for (i in 1:num.samples) { all.thetas[[i]][,1] = trees.n[[1]][,paste("theta.S",i,sep='')] }
+  all.likelihoods[,1] = curr.likelihoods
   complete.likelihood[1] = sum(curr.likelihoods)
+  for (i in 1:num.samples) { all.thetas[[i]][,1] = trees.n[[1]][,paste("theta.S",i,sep='')] }
 
   AIC[1] = aic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]))
   BIC[1] = bic(complete.likelihood[1], num.samples, nrow(trees.n[[1]]), log(num.muts))
@@ -189,43 +191,50 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		
 	for (m in 2:iter) {
 		print(paste("iter",m,sep=" "))
-#     save(file=paste('~/dp/iter_saves/oes_4_', m, '.RData', sep=''), y, n, kappa, trees.n, node.assignments, lambda, alpha0, gamma, complete.likelihood, BIC, AIC, DIC, m, conflict.array)
-		curr.tree <- trees.n[[m-1]]
+
+    curr.tree <- trees.n[[m-1]]
 
 		new.assignments = node.assignments[,m-1]
 		#remove node randomly, to cover more search space
     do_update = FALSE
-		if(!is.na(remove.branch.frequency)){
+		if(!is.na(remove.branch.frequency) && nrow(curr.tree)>1){ # && nrow(curr.tree) > 1 (do not remove the root node)
 			if(m %% remove.branch.frequency ==0){
+        print("opt1")
 				temp.list = remove.branch(curr.tree,new.assignments, y, n, kappa)
         do_update = TRUE
 				
-			}else if(!is.na(remove.node.frequency)){
+			}else if(!is.na(remove.node.frequency) && nrow(curr.tree) > 1){ # Is this block strictly required? Removing the else from the else if below would make this obsolete
 				if(m %% remove.node.frequency ==0){
+				  print("opt2")
 					temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
 					do_update = TRUE
 				}
 			}
-		}else if(!is.na(remove.node.frequency)){
+		}else if(!is.na(remove.node.frequency) && nrow(curr.tree) > 1){ # && nrow(curr.tree) > 1 (do not remove the root node)
 			if(m %% remove.node.frequency ==0){
+			  print("opt3")
 				temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
 				do_update = TRUE
 			}
 		}
     
     if (do_update) {
-      new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], num.muts, y, n, kappa)
+      curr.tree = temp.list$tree
+      new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], new.assignments, num.muts, y, n, kappa)
     }
-			
+
+		print("# Sampling mutation assignments")
 		#randomise the order of muts
 		rand.inds = sample(num.muts)
 		node.assignments[,m] = new.assignments
  		for (i in 1:num.muts) {
-			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree, parallel=parallel)
+			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
 			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
-			curr.tree <- temp.assignments[[2]]
+      curr.tree <- temp.assignments[[2]]
 			node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
 		}
+    
+    gc()
 		
 		#cull tree (remove empty nodes)
 		temp.list <- cull.tree(curr.tree, node.assignments[,m])
@@ -238,16 +247,24 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		node.assignments[,m] = new.node.assignments
 		
 		print("# Resample theta.S variables")
-    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
-      curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
+		for (k in grep("theta", names(curr.tree))) {
+        curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
+    print("AFTER SAMPLING")
+    print(curr.tree)
+
+#    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
+#      curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
+#    }
+    
+    gc()
 		
 		print("# Resample hyperparameters")
-		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree, parallel=parallel, cluster=cluster)
+		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
 		alpha0[m] <- temp.hypers[1]
 		lambda[m] <- temp.hypers[2]
 		gamma[m] <- temp.hypers[3]
-		
+    
 		print("# Resample stick lengths")
 		curr.tree <- sample.sticks(curr.tree, node.assignments[,m], alpha0[m], lambda[m], gamma[m])
     
@@ -257,6 +274,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     all.likelihoods[,m] = curr.likelihoods
     for (i in 1:num.samples) { all.thetas[[i]][,m] = curr.tree[node.assignments[,m],paste("theta.S",i,sep='')] }
     complete.likelihood[m] = sum(curr.likelihoods)
+    
+    gc()
 
     AIC[m] = aic(complete.likelihood[m], num.samples, nrow(curr.tree))
     BIC[m] = bic(complete.likelihood[m], num.samples, nrow(curr.tree), log(num.muts))
@@ -274,19 +293,20 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
         curr = floor(iter/mant.every.iters) + 2
       }
        print("# Calculating agreements")
+       # Commented out because Mantel test is not used anymore
        # Perhaps calculate agreements for only the iterations since the last calculation?
-       res = calculate.mut.agreements(node.assignments[,1:m], num.muts, m)
-       ancestor.strengths[[curr]] = res[[1]]
-       sibling.strengths[[curr]] = res[[2]]
-       identity.strengths[[curr]] = res[[3]]
+       #res = calculate.mut.agreements(node.assignments[,1:m], num.muts, m)
+       #ancestor.strengths[[curr]] = res[[1]]
+       #sibling.strengths[[curr]] = res[[2]]
+       #identity.strengths[[curr]] = res[[3]]
        
- 		  mant.anc[curr] = mantel(ancestor.strengths[[curr-1]],ancestor.strengths[[curr]])$statistic
- 		  mant.sib[curr] = mantel(sibling.strengths[[curr-1]],sibling.strengths[[curr]])$statistic
- 		  mant.ide[curr] = mantel(identity.strengths[[curr-1]],identity.strengths[[curr]])$statistic
+ 	#	  mant.anc[curr] = mantel(ancestor.strengths[[curr-1]],ancestor.strengths[[curr]])$statistic
+ 	#	  mant.sib[curr] = mantel(sibling.strengths[[curr-1]],sibling.strengths[[curr]])$statistic
+ 	#	  mant.ide[curr] = mantel(identity.strengths[[curr-1]],identity.strengths[[curr]])$statistic
       
-      #mant.anc[curr] = 0
-      #mant.sib[curr] = 0
-      #mant.ide[curr] = 0
+      mant.anc[curr] = 0
+      mant.sib[curr] = 0
+      mant.ide[curr] = 0
       
       print(paste("Mantel anc=",mant.anc[curr]," sib=",mant.sib[curr]," ide=",mant.ide[curr],sep=""))
     }
@@ -387,11 +407,21 @@ sample.assignment <- function(y, n, kappa, tree1, curr.assignment, lambda, alpha
 	 	thetas.new.asst <- unlist(tree1[new.node, grepl("theta", names(tree1))])
 	 	curr.p <- log.f.of.y(y,n,kappa,thetas.new.asst)
 	 	if (curr.p == "NaN") {return(list("Success", old.tree, curr.assignment))}
-	 	if (curr.p > p.slice) {output <- list("Success", tree1, new.node)}
+	 	if (curr.p > p.slice) { output <- list("Success", tree1, new.node)}
 	 	else {if (max.u - min.u < 10E-6) {
-	 			#print("Slice sampler shrank down: keep current state")
+#         print(old.tree)
+#         print(p.slice)
+#         print(max.u)
+#         print(min.u)
+#         print("new")
+#         print(tree1)
+#         print(new.node)
+#         print(thetas.new.asst)
+#         print(curr.p)
+	 			print("Slice sampler shrank down: keep current state")
 	 			output <- list("Success", old.tree, curr.assignment)
  		} else {
+#  		    print(paste("NEW NODE DOESNT IMPROVE P, DISCARDING IT", curr.p, p.slice));
 	 			if (new.node < curr.assignment) {
 	 				min.u <- curr.u
 	 				output <- list("Fail")
@@ -444,7 +474,13 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	# y is a vector of y values for data points; n and kappa similar
 	# curr.assignments is a vector of assignments for each data point
 	# curr.thetas is a vector with the current theta values
-	
+  
+  if (nrow(curr.tree) == 1) {
+    # If curr.tree has only a single node the thetas cannot be anything else than 1
+    return(as.numeric(1))
+  }
+  
+  
 	names(curr.thetas) <- row.names(curr.tree)
 	x.by.assignment <- curr.thetas[curr.assignments]
 	num.nodes <- length(curr.thetas)
@@ -455,7 +491,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	}	
 	
 	p.slice <- log(runif(n=1)) + log.f.of.y(y, n, kappa, x.by.assignment)
-	
 	# Initialise constraints matrix
 	constraints <- data.frame(matrix(0, nrow=num.nodes, ncol=length(ancs)), row.names=row.names(curr.tree))
 	names(constraints) <- ancs
@@ -470,7 +505,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	
 	exact.equality.for.M <- rep(0,num.nodes)
 	exact.equality.for.M[row.names(curr.tree) == "M:"] <- 1
-	
 	# Run the slice sampler
 	# max.repeats introduced, to prevent infinite looping
 	#max.repeats = 10000
@@ -480,7 +514,11 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	#save(exact.equality.for.M,constraints.matrix,ancs,curr.thetas,file=paste("beforeRepeat_",format(Sys.time(), "%X"),"RData",sep=""))
 	#print("whole.tree.slice.sampler before repeat")
 	repeat {
+#     print(paste("REPEAT count",repeat.count, sep=" "))
+#     print(exact.equality.for.M)
 		possible.theta <- xsample(E=exact.equality.for.M, F=1, G=constraints.matrix, H=c(rep(0, length(ancs)), min.u, max.u), iter=500, x0=curr.thetas)$X[500,]
+#     print("POSSS")
+#     print(possible.theta)
 		#xsample fails if x0 is not a valid solution, but re-calling xsample doesn't help!
 		#possible.theta = try(xsample(E=exact.equality.for.M, F=1, G=constraints.matrix, H=c(rep(0, length(ancs)), min.u, max.u), iter=500, x0=curr.thetas)$X[500,],T)
 		#count=0
@@ -491,7 +529,6 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 		#		print(paste("xsample iters=",count,sep=""))
 		#	}
 		#}
-		
 		if (max(-max.u - min.u) < 1E-6) {
 	 		print("Slice sampler shrank down: keep current state")
 	 		return(curr.thetas)
@@ -509,6 +546,7 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	 			curr.gradients <- sapply(1:num.nodes, function(curr.ass,node.names,y1,n1,kappa1,thetas,i) {gradient.log.f.of.xi(y1[curr.ass == node.names[i]], 
 	 				n1[curr.ass == node.names[i]], kappa1[curr.ass == node.names[i]], thetas[i])}, curr.ass=curr.assignments, node.names=row.names(curr.tree), y1=y, n1=n, 
 	 				kappa1=kappa,thetas=possible.theta)
+         
 	 			curr.gradients[row.names(curr.tree) == "M:"] <- 0
 	 			shrinkage.axis <- (abs(curr.gradients) * (-max.u-min.u) > shrinkage.threshold)
 	 			shrinkage.axis[which.max(abs(curr.gradients) * (-max.u-min.u))] <- TRUE
@@ -523,12 +561,8 @@ whole.tree.slice.sampler <- function(curr.tree, curr.thetas, y, n, kappa, curr.a
 	}
 }
 
-sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.ranges, curr.tree, parallel=FALSE, cluster=NA) {
-  if (parallel) {
-	  curr.tree$depth <- parSapply(cl=cluster, curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}, simplify=TRUE, USE.NAMES=TRUE) - 1
-  } else {
-    curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
-  }
+sample.hyperparameters <- function(curr.alpha, curr.lambda, curr.gamma, allowed.ranges, curr.tree) {
+  curr.tree$depth <- sapply(curr.tree$label, FUN = function(x) {sum(gregexpr(":",x)[[1]]>0)}) - 1
 	log.alpha.fn <- function(x, tree, lambda) {sum(dbeta(tree$nu, 1, x*(lambda^tree$depth), log=TRUE))}
 	log.lambda.fn <- function(x, tree, alpha) {sum(dbeta(tree$nu, 1, alpha * (x^tree$depth), log=TRUE))}
 	log.gamma.fn <- function(x, tree) {sum(dbeta(tree$nu, 1, x, log=TRUE))}
@@ -563,27 +597,31 @@ sample.sticks <- function(curr.tree, curr.assignments, alpha, lambda, gamma) {
   foreach(i=1:dim(curr.tree)[1], .export=c("sample.sticks.inner","younger.descendants","older.siblings")) %dorng% { 
 	  sample.sticks.inner(i, curr.tree, alpha, lambda, gamma)
 	}
+#   for(i in 1:dim(curr.tree)[1]) {
+#     sample.sticks.inner(i, curr.tree, alpha, lambda, gamma)
+#   }
 	curr.tree$edge.length[curr.tree$label == "M:"] <- curr.tree$nu[curr.tree$label == "M:"]
 	return(curr.tree[,!is.element(names(curr.tree), c("depth", "num.assignments"))])
 }
 
-calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
-  ancestor.strengths.m = array(0,c(no.muts,no.muts))
-  sibling.strengths.m = array(0,c(no.muts,no.muts))
-  identity.strengths.m = array(0,c(no.muts,no.muts))
-  
-  for(i in 1:iter){
-    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-    
-    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths.m, node.assignments, i, identity.strengths.m)
-    ancestor.strengths.m = do.call(rbind,res[1,])
-    ancestor.or.identity.relationship = do.call(rbind,res[2,])
-    identity.strengths.m = do.call(rbind,res[3,])
-    
-    sibling.strengths.m = sibling.strengths.m + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
-  }
-  return(list(ancestor.strengths.m, ancestor.strengths.m, identity.strengths.m))
-}
+# Commented out because Mantel test is not used anymore
+# calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
+#   ancestor.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+#   sibling.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+#   identity.strengths.m = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(0,c(no.muts,no.muts))
+#   
+#   for(i in 1:iter){
+#     ancestor.or.identity.relationship = Matrix(0,ncol=no.muts, nrow=no.muts, sparse=T) #array(NA,c(no.muts,no.muts))
+#     
+#     res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths.m, node.assignments, i, identity.strengths.m)
+#     ancestor.strengths.m = do.call(rbind,res[1,])
+#     ancestor.or.identity.relationship = do.call(rbind,res[2,])
+#     identity.strengths.m = do.call(rbind,res[3,])
+#     
+#     sibling.strengths.m = sibling.strengths.m + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+#   }
+#   return(list(ancestor.strengths.m, ancestor.strengths.m, identity.strengths.m))
+# }
 
 
 # Not used - sd11
@@ -680,3 +718,24 @@ calculate.mut.agreements <- function(node.assignments, no.muts, iter) {
 # 	a <- descend(curr.tree, 0, "M:", lambda, alpha, gamma,curr.assign)
 # 	return(list(a[[1]][,!grepl("depth",names(a[[1]]))], a[[2]]))
 # }
+
+# log.f.of.y1 <- function(y1, n1, kappa1, x) {
+#     #x=1 and kappa=1 causes problems
+#     x[x>0.999 & kappa1==1] = 0.999
+#   	#allow kappa = 0, for mutations on deleted chromosomes
+#     non.zero.inds = which(kappa1!=0)
+#   	if(length(non.zero.inds)>0){
+#     		return(sum(lchoose(n1[non.zero.inds], y1[non.zero.inds]) + y1[non.zero.inds] * log(kappa1[non.zero.inds]*x[non.zero.inds]) + (n1[non.zero.inds]-y1[non.zero.inds]) * log(1-kappa1[non.zero.inds]*x[non.zero.inds])) * length(y1)/length(non.zero.inds))
+#     }else{
+#     		print("WARNING. ALL KAPPAS ARE ZERO. MUTATION ABSENT FROM ALL SAMPLES")
+#     		print(y1)
+#     		print(n1)
+#     		print(kappa1)
+#     		print(x)
+#     		#return(NA)
+#     		return(NaN)
+#     }
+#   }
+
+
+
