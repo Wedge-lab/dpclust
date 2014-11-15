@@ -1,0 +1,12 @@
+DATASET=$1
+ITERS=$2
+BURNIN=$3
+DATPATH=$4
+PURITYFILE=$5
+ANALYSIS=$6
+PARALLEL=$7
+THREADS=$8
+BINSIZE=$9
+NBLOCKS=${10}
+CMD="Rscript /nfs/users/nfs_s/sd11/repo/dirichlet/dp_combined/RunDP_pipeline.R"
+${CMD} ${DATASET} ${ITERS} ${BURNIN} ${DATPATH} ${PURITYFILE} "cons" ${PARALLEL} ${THREADS} ${BINSIZE} "1" ${NBLOCKS}

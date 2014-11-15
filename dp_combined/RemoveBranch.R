@@ -1,4 +1,4 @@
-remove.node <- function(tree1, curr.assignments, y, n) {
+remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 	saved.tree = tree1
 	#remove a node that has a low likelihood
 	log.probs = vector(mode="numeric",length=nrow(tree1))
@@ -98,7 +98,7 @@ remove.node <- function(tree1, curr.assignments, y, n) {
 	row.names(tree1) = tree1$label
 	
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)	
-	return(list(tree1,node.assignments,df))
+	return(list(tree=tree1,node.assignments=node.assignments,df=df))
 }
 
 remove.specific.node <- function(tree1, remove.node) {
@@ -177,7 +177,7 @@ remove.specific.node <- function(tree1, remove.node) {
 	row.names(tree1) = tree1$label
 	
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
-	return(list(tree1,df))
+	return(list(tree=tree1,df=df))
 }
 
 remove.branch <- function(tree1, curr.assignments, y, n, kappas) {
@@ -204,7 +204,6 @@ remove.branch <- function(tree1, curr.assignments, y, n, kappas) {
 	probs[1]=0
 	cum.probs = cumsum(probs)
 	remove.index = sum(runif(1,0,max(cum.probs))>cum.probs)+1
-	
 	
 	remove.node <- tree1$label[remove.index]
 	spl = unlist(strsplit(remove.node,":"))
@@ -246,5 +245,5 @@ remove.branch <- function(tree1, curr.assignments, y, n, kappas) {
 	row.names(tree1) = tree1$label
 	
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)	
-	return(list(tree1,node.assignments,df))
+	return(list(tree=tree1,node.assignments=node.assignments,df=df))
 }

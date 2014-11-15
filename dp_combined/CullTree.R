@@ -120,6 +120,12 @@ cull.tree <- function(tree1, curr.assignments) {
 	#get mapping between old and new labels
 	old.labels = saved.tree$label[match(tree1$node,saved.tree$node)]
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
+  
+  # Order the nodes in the tree by length of their name. Make sure that the plotter will insert the nodes in the right order.
+	node.name.lengths = unlist(lapply(as.list(rownames(tree1)), nchar))
+	tree1 = tree1[rownames(tree1)[order(node.name.lengths, rownames(tree1))],] # Sort by name length first, then by rowname to make sure M:2:, M:1: is sorted correctly
+  print("Sorted culled tree:")
+  print(tree1)
 	return(list(culled.tree=tree1,mapping=df))
 }
 
@@ -133,7 +139,14 @@ createInventory <- function(tree1, curr.assignments) {
   nodes.in.tree$keep.node[1] <- TRUE
   # Now create inventory of which nodes are to be replaced
   res = sapply(2:dim(nodes.in.tree)[1], FUN=createInventoryInner, nodes.in.tree, nodes.with.data)
-  res = rbind(c(F,F), as.data.frame(t(res)))
+  
+  # A single node in the tree should not be removed at all times
+  if (nrow(tree1) == 1) { 
+    res = data.frame(c(F),c(F))
+    colnames(res) = c("replace.with.descendants", "replace.with.siblings")
+  } else {
+    res = rbind(c(F,F), as.data.frame(t(res)))
+  }
   nodes.in.tree$replace.with.siblings = unlist(res$replace.with.siblings)
   nodes.in.tree$replace.with.descendants = unlist(res$replace.with.descendants)
   return(nodes.in.tree)

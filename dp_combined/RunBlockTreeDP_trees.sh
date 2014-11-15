@@ -1,0 +1,12 @@
+#$LSB_JOBINDEX
+DATASET=$1
+ITERS=$2
+BURNIN=$3
+DATPATH=$4
+PURITYFILE=$5
+ANALYSIS=$6
+PARALLEL=$7
+THREADS=$8
+BINSIZE=$9
+CMD="Rscript /nfs/users/nfs_s/sd11/repo/dirichlet/dp_combined/RunDP_pipeline.R"
+${CMD} ${DATASET} ${ITERS} ${BURNIN} ${DATPATH} ${PURITYFILE} "tree" ${PARALLEL} ${THREADS} ${BINSIZE} $LSB_JOBINDEX
