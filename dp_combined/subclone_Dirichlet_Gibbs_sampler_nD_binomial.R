@@ -430,7 +430,9 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   #write.csv(xx[2,],gsub(".png","_yvals.csv",pngFile))
   write.csv(xvals,gsub(".png","_xvals.csv",pngFile))
   write.csv(yvals,gsub(".png","_yvals.csv",pngFile))	
-  write.csv(median.density,gsub(".png","_zvals.csv",pngFile))	
+  write.csv(median.density,gsub(".png","_zvals.csv",pngFile))
+  
+  return(list(fraction.of.tumour.cells=burden, median.density=median.density, xvals=xvals, yvals=yvals))
 }
 
 Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
