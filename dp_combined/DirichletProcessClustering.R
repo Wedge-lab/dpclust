@@ -199,6 +199,13 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
       binned.node.assignments_interleaved = do.call(cbind.data.frame,binned.node.assignments_appended[idx])
     }
 
+    # Save the interleaved evidence
+    save(file=paste("interleaved_trees_", samplename, "_",no.iters,"iters.RData", sep=""), trees_interleaved)
+    save(file=paste("interleaved_node_assignments_", samplename, "_",no.iters,"iters.RData", sep=""), node.assignments_appended)
+    if(!is.na(bin.size)) {
+      save(file=paste("interleaved_binned_node_assignments_", samplename, "_",no.iters,"iters.RData", sep=""), binned.node.assignments_interleaved)
+    }
+
     # Adjust the no.iters and no.iters.burn.in to take into account the combined data
     no.iters.burn.in = no.iters.burn.in*no.of.blocks
     no.iters = no.iters*no.of.blocks
