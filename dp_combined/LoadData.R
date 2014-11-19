@@ -73,6 +73,9 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   mutationCopyNumber = as.matrix(mutationCopyNumber[select,])
   subclonalFraction = as.matrix(subclonalFraction[select,])
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
+  
+  # Keep indices of removed mutations to 'spike in' lateron when constructing the output
+  removed_indices = which(!select)
 
-  return(list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount, totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber, subclonal.fraction=subclonalFraction))
+  return(list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount, totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber, subclonal.fraction=subclonalFraction, removed_indices=removed_indices))
 }
