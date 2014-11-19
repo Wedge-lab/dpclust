@@ -1,4 +1,4 @@
-RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, samplename, no.iters, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL, remove.node.frequency=NA, remove.branch.frequency=NA) {
+RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, samplename, no.iters, no.iters.burn.in, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL, remove.node.frequency=NA, remove.branch.frequency=NA) {
 
 #   if(is.na(bin.size)){
   temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency=remove.node.frequency, remove.branch.frequency=remove.branch.frequency, parallel=parallel, cluster=clp)
@@ -14,6 +14,16 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
   if(is.null(bin.indices)) {
     node.assignments = temp.list$assignments #[[2]]
     binned.node.assignments = NA
+    
+    print("Calculating mutation strengths")
+    strengths = get.mut.ass.strengths(nrow(node.assignments), no.iters, no.iters-no.iters.burn.in, node.assignments)
+    ancestor.strengths = strengths$ancestor.strengths
+    sibling.strengths = strengths$sibling.strengths
+    identity.strengths = strengths$identity.strengths
+    parent.child.strengths = strengths$parent.child.strengths
+    child.parent.strengths = strengths$child.parent.strengths
+    
+    
   }else{
     binned.node.assignments = temp.list$assignments #[[2]]
     node.assignments = array(NA,c(no.muts.input,ncol(binned.node.assignments)))
@@ -26,12 +36,27 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
 #       print(binned.node.assignments[i,])
       node.assignments[bin.indices[[i]],] = binned.node.assignments[i,]
       
+      print("Calculating mutation strengths")
+      strengths = get.mut.ass.strengths(nrow(binned.node.assignments), no.iters, no.iters-no.iters.burn.in, binned.node.assignments)
+      ancestor.strengths = strengths$ancestor.strengths
+      sibling.strengths = strengths$sibling.strengths
+      identity.strengths = strengths$identity.strengths
+      parent.child.strengths = strengths$parent.child.strengths
+      child.parent.strengths = strengths$child.parent.strengths      
       
 #       Error in print(node.assignments[bin.indices[[i]], ]) : 
 #         error in evaluating the argument 'x' in selecting a method for function 'print': Error in node.assignments[bin.indices[[i]], ] : subscript out of bounds
     }
     write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
   }
+
+  # Save the strengths to disk
+  write.table(ancestor.strengths, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+  write.table(sibling.strengths, paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+  write.table(identity.strengths, paste("identity.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+  write.table(parent.child.strengths, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+  write.table(child.parent.strengths, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+
   alphas = temp.list$alpha
   lambdas = temp.list$lambda
   gammas = temp.list$gamma
@@ -106,7 +131,7 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
   write.table(likelihoods,paste("likelihoods_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
   #write.table(best.tree,paste("best_tree_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
   save(trees,file=paste("",samplename,"_trees_iters",no.iters,"_block",blockid,".Rdata",sep=""))
-  return(list(trees=trees,node.assignments=node.assignments,alphas=alphas,lambdas=lambdas,gammas=gammas,likelihoods=likelihoods,binned.node.assignments=binned.node.assignments))
+  return(list(trees=trees,node.assignments=node.assignments,alphas=alphas,lambdas=lambdas,gammas=gammas,likelihoods=likelihoods,binned.node.assignments=binned.node.assignments,strengths=strengths))
 }
 
 plotScores <- function(file_prefix, samplename, no,iters, blockid, scores, ylab, xlab="posterior tree index",consensus=TRUE) {
@@ -120,4 +145,58 @@ plotScores <- function(file_prefix, samplename, no,iters, blockid, scores, ylab,
   par(cex.lab=3,cex.axis=3,lwd=3,mar=c(7,7,5,2))
   plot(1:length(scores),scores,type="l",col="red",xlab=xlab, ylab=ylab,main=samplename)
   dev.off()
+}
+
+
+get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.assignments) {
+  #
+  # Calculates for each pair of mutations how often the pair is assigned to:
+  #   - The same node (identity)
+  #   - Nodes in parent-offspring relation (ancestor)
+  #   - Nodes that are siblings (sibling)
+  #
+  calc.ancestor.strengths <- function(m,ancestor.strengths, node.assignments, no.iters.since.burnin, identity.strengths, parent.child.strengths, child.parent.strengths) {
+    #
+    # Calculates the strengths for iteration m of the MCMC algorithm
+    #
+    node.assignments.all = node.assignments[,no.iters.since.burnin]
+    node.assignments.m = node.assignments[m,no.iters.since.burnin]
+    #node.assignments.m = node.assignments.all[m]
+    
+    temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
+    temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
+    temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
+    temp.parent.child.strengths = parent.child.strengths[m,] + ancestors(node.assignments.m,node.assignments.all)
+    temp.child.parent.strengths = child.parent.strengths[m,] + younger.descendants(node.assignments.m,node.assignments.all)
+    
+    return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths, temp.parent.child.strengths, temp.child.parent.strengths))
+  }
+  
+  ancestor.strengths = array(0,c(no.muts,no.muts))
+  sibling.strengths = array(0,c(no.muts,no.muts))
+  identity.strengths = array(0,c(no.muts,no.muts))
+  parent.child.strengths = array(0,c(no.muts,no.muts))
+  child.parent.strengths = array(0,c(no.muts,no.muts))
+  
+  for(i in 1:no.iters.post.burn.in){ # for each iteration past burnin
+    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
+    
+    # i+no.iters-no.iters.post.burn.in = no.iters-no.iters.post.burn.in is where the burn.in stops, i represents the iterations after that point
+    #res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
+    #
+    # system.time(sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments[,i+no.iters-no.iters.post.burn.in], identity.strengths, parent.child.strengths, child.parent.strengths))
+    # user  system elapsed 
+    # 30.330   0.580  30.975 
+    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths,  parent.child.strengths, child.parent.strengths)
+    # res contains three lists of vectors. Below we take a list and rbind all vectors in it together into a matrix
+    ancestor.strengths = do.call(rbind,res[1,])
+    ancestor.or.identity.relationship = do.call(rbind,res[2,])
+    identity.strengths = do.call(rbind,res[3,])
+    parent.child.strengths = do.call(rbind,res[4,])
+    child.parent.strengths = do.call(rbind,res[5,])
+    
+    sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+  }
+  
+  return(list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths, parent.child.strengths=parent.child.strengths, child.parent.strengths=child.parent.strengths))
 }

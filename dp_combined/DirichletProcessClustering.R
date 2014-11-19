@@ -107,6 +107,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                          annotation=annotation,
                          samplename=samplename,
                          no.iters=no.iters, 
+                         no.iters.burn.in=no.iters.burn.in,
                          shrinkage.threshold=shrinkage.threshold, 
                          init.alpha=init.alpha, 
                          outdir=outdir, 
@@ -124,6 +125,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                          annotation=annotation, 
                          samplename=samplename,
                          no.iters=no.iters, 
+                         no.iters.burn.in=no.iters.burn.in,
                          shrinkage.threshold=shrinkage.threshold, 
                          init.alpha=init.alpha, 
                          outdir=outdir, 
@@ -139,6 +141,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     trees_interleaved = mcmcResults$trees
     node.assignments_interleaved = mcmcResults$node.assignments
     binned.node.assignments_interleaved = mcmcResults$binned.node.assignments
+    strengths = mcmcResults$strengths
     
     trees_end_time = Sys.time()
     print(paste("Finished tree.struct.dirichlet in", as.numeric(trees_end_time-trees_start_time,units="secs"), "seconds"))
@@ -155,9 +158,12 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     
     trees_all = vector("list", length=no.of.blocks)
     node.assignments_all = vector("list", length=no.of.blocks)
-#     node.assignments <- matrix(NA, nrow=nrow(mutCount), ncol=0)
+    ancestor.strengths_all = vector("list", length=no.of.blocks)
+    sibling.strengths_all = vector("list", length=no.of.blocks)
+    identity.strengths_all = vector("list", length=no.of.blocks)
+    parent.child.strengths_all = vector("list", length=no.of.blocks)
+    child.parent.strengths_all = vector("list", length=no.of.blocks)
     if(!is.na(bin.size)) {
-#       binned.node.assignments = matrix(NA, nrow=nrow(binned.mutCount), ncol=0)
       binned.node.assignments_all = vector("list", length=no.of.blocks)
     }
     
@@ -166,8 +172,12 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
       ## list, dataframe per iter
       trees_all[[i]] = trees
       ## Col per iter
-      node.assignments_all[[i]] = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-      
+      node.assignments_all[[i]] = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T, stringsAsFactors=F)
+      ancestor.strengths_all[[i]] = read.table(paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
+      sibling.strengths_all[[i]] = read.table(paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
+      identity.strengths_all[[i]] = read.table(paste("identity.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
+      parent.child.strengths_all[[i]] = read.table(paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
+      child.parent.strengths_all[[i]] = read.table(paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
       if(!is.na(bin.size)) {
         ## Col per iter
         binned.node.assignments_all[[i]] = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
@@ -192,19 +202,30 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     # Determine the order in which items should be
     idx <- order(c(unlist(lapply(trees_all,seq_along))))
 
-    # Select the items in the right order
+    # Select the items in the right order and make sure the data remain strings
     trees_interleaved = trees_appended[idx]
     node.assignments_interleaved = do.call(cbind.data.frame,node.assignments_appended[idx])
+    node.assignments_interleaved = data.frame(lapply(node.assignments_interleaved, as.character), stringsAsFactors=FALSE)
+    
     if(!is.na(bin.size)) {
       binned.node.assignments_interleaved = do.call(cbind.data.frame,binned.node.assignments_appended[idx])
+      binned.node.assignments_interleaved = data.frame(lapply(binned.node.assignments_interleaved, as.character), stringsAsFactors=FALSE)
     }
 
-    # Save the interleaved evidence
-    save(file=paste("interleaved_trees_", samplename, "_",no.iters,"iters.RData", sep=""), trees_interleaved)
-    save(file=paste("interleaved_node_assignments_", samplename, "_",no.iters,"iters.RData", sep=""), node.assignments_appended)
-    if(!is.na(bin.size)) {
-      save(file=paste("interleaved_binned_node_assignments_", samplename, "_",no.iters,"iters.RData", sep=""), binned.node.assignments_interleaved)
-    }
+    # Sum the strengths for the different categories
+    ancestor.strengths = as.matrix(Reduce('+', ancestor.strengths_all))
+    sibling.strengths = as.matrix(Reduce('+', sibling.strengths_all))
+    identity.strengths = as.matrix(Reduce('+', identity.strengths_all))
+    parent.child.strengths = as.matrix(Reduce('+', parent.child.strengths_all))
+    child.parent.strengths = as.matrix(Reduce('+', child.parent.strengths_all))
+    strengths = list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths)
+
+    # Save these for future reference
+    write.table(ancestor.strengths, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
+    write.table(sibling.strengths, paste("sibling.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
+    write.table(identity.strengths, paste("identity.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
+    write.table(parent.child.strengths, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
+    write.table(child.parent.strengths, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
 
     # Adjust the no.iters and no.iters.burn.in to take into account the combined data
     no.iters.burn.in = no.iters.burn.in*no.of.blocks
@@ -220,6 +241,11 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
       plotTree(tree,title)
     }
     dev.off()
+    
+    # Clean up unused variables
+    rm(trees_appended, node.assignments_appended, trees_all, node.assignments_all)
+    rm(ancestor.strengths_all, sibling.strengths_all, identity.strengths_all, parent.child.strengths_all, child.parent.strengths_all)
+    gc()
   }
   
   ###################################
@@ -242,7 +268,8 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                                             no.iters=no.iters, 
                                             no.iters.burn.in=no.iters.burn.in, 
                                             resort.mutations=resort.mutations, 
-                                            bin.indices=bin.indices)
+                                            bin.indices=bin.indices,
+                                            strengths=strengths)
     } else {
       consResults = RunTreeBasedDPConsensus(trees=trees_interleaved, 
                                             node.assignments=node.assignments_interleaved, 
@@ -255,12 +282,9 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                                             no.iters=no.iters, 
                                             no.iters.burn.in=no.iters.burn.in, 
                                             resort.mutations=resort.mutations, 
-                                            bin.indices=NULL)
+                                            bin.indices=NULL,
+                                            strengths=strengths)
     }
-    
-    #consResults$best.tree 
-    print(consResults$best.node.assignments)
-    #consResults$best.assignment.likelihoods
     
     cons_end_time = Sys.time()
     print(paste("Finished RunTreeBasedDPConsensus in", as.numeric(cons_end_time-cons_start_time,units="secs"), "seconds"))

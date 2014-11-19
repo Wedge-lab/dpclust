@@ -4,7 +4,7 @@ source("CullTree.R")
 source("PlotConsensusTree.R")
 source("GetConsensusStartPosition.R")
 
-GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), no.iters=1250, no.iters.burn.in=250, resort.mutations=T, shrinkage.threshold=0.1, init.alpha=0.01, outdir=getwd(), bin.indices=NULL){
+GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), no.iters=1250, no.iters.burn.in=250, resort.mutations=T, shrinkage.threshold=0.1, init.alpha=0.01, outdir=getwd(), bin.indices=NULL, strengths=NULL){
   start = Sys.time()
   
   setwd(outdir)
@@ -14,18 +14,9 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=ar
   no.iters.post.burn.in = no.iters-no.iters.burn.in
 
 	# Assemble the current strengths for each pair of mutations
-  print("Calculating mutation strengths")
-  strengths = get.mut.ass.strengths(no.muts, no.iters, no.iters.post.burn.in, node.assignments)
   ancestor.strengths = strengths$ancestor.strengths
   sibling.strengths = strengths$sibling.strengths
   identity.strengths = strengths$identity.strengths
-
-  # Save the strengths as output
-  write.table(ancestor.strengths, file='ancestor.strengths.csv', row.names=F, sep=",")
-  write.table(sibling.strengths, file='sibling.strengths.csv', row.names=F, sep=",")
-  write.table(identity.strengths, file='identity.strengths.csv', row.names=F, sep=",")
-  
-  print(Sys.time()-start)
 
   # Create devices to push plots towards lateron
   plot.devs = create.plotting.devices(samplename, no.iters, no.iters.burn.in, no.subsamples)
@@ -103,56 +94,11 @@ GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=ar
 
   print(paste("Finished GenerateConsensus in", as.numeric(Sys.time()-start,units="secs"), "seconds"))
 	
-	#save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))
 	if(!is.null(bin.indices)){
 		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.disaggregated.consensus.assignments = all.disaggregated.consensus.assignments, all.likelihoods=all.likelihoods, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
-		#save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allBinnedConsensusAssignments.RData",sep=""))
-		#save(all.disaggregated.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))		
 	}else{
-		#save(all.consensus.assignments,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusAssignments.RData",sep=""))
 		return(list(all.consensus.trees = all.consensus.trees, all.consensus.assignments = all.consensus.assignments, all.likelihoods=all.likelihoods, likelihoods = likelihoods, BIC = BIC, AIC=AIC, DIC=DIC))
-
 	}	
-}
-
-get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.assignments) {
-  #
-  # Calculates for each pair of mutations how often the pair is assigned to:
-  #   - The same node (identity)
-  #   - Nodes in parent-offspring relation (ancestor)
-  #   - Nodes that are siblings (sibling)
-  #
-  calc.ancestor.strengths <- function(m,ancestor.strengths, node.assignments, no.iters.since.burnin, identity.strengths) {
-    #
-    # Calculates the strengths for iteration m of the MCMC algorithm
-    #
-    node.assignments.all = node.assignments[,no.iters.since.burnin]
-    node.assignments.m = node.assignments[m,no.iters.since.burnin]
-    
-    temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
-    temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
-    temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
-    
-    return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths))
-  }
-  
-  ancestor.strengths = array(0,c(no.muts,no.muts))
-  sibling.strengths = array(0,c(no.muts,no.muts))
-  identity.strengths = array(0,c(no.muts,no.muts))
-  
-  for(i in 1:no.iters.post.burn.in){ # for each iteration past burnin
-    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-    
-    # i+no.iters-no.iters.post.burn.in = no.iters-no.iters.post.burn.in is where the burn.in stops, i represents the iterations after that point
-    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
-    ancestor.strengths = do.call(rbind,res[1,])
-    ancestor.or.identity.relationship = do.call(rbind,res[2,])
-    identity.strengths = do.call(rbind,res[3,])
-    
-    sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
-  }
-  
-  return(list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths))
 }
 
 do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, identity.strengths, bin.indices, consensus.assignments, current.agreement, mutCount, WTCount, kappa, no.iters.post.burn.in, no.iters, no.iters.burn.in, subsamplenames, resort.mutations, plot.devs) {

@@ -199,20 +199,17 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
     do_update = FALSE
 		if(!is.na(remove.branch.frequency) && nrow(curr.tree)>1){ # && nrow(curr.tree) > 1 (do not remove the root node)
 			if(m %% remove.branch.frequency ==0){
-        print("opt1")
 				temp.list = remove.branch(curr.tree,new.assignments, y, n, kappa)
         do_update = TRUE
 				
 			}else if(!is.na(remove.node.frequency) && nrow(curr.tree) > 1){ # Is this block strictly required? Removing the else from the else if below would make this obsolete
 				if(m %% remove.node.frequency ==0){
-				  print("opt2")
 					temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
 					do_update = TRUE
 				}
 			}
 		}else if(!is.na(remove.node.frequency) && nrow(curr.tree) > 1){ # && nrow(curr.tree) > 1 (do not remove the root node)
 			if(m %% remove.node.frequency ==0){
-			  print("opt3")
 				temp.list = remove.node(curr.tree,new.assignments, y, n, kappa)
 				do_update = TRUE
 			}
@@ -250,8 +247,6 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		for (k in grep("theta", names(curr.tree))) {
         curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
-    print("AFTER SAMPLING")
-    print(curr.tree)
 
 #    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
 #      curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
