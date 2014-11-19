@@ -62,6 +62,13 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
 
   select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna)
+  
+  # Keep indices of removed mutations to 'spike in' lateron when constructing the output
+  removed_indices = which(!select)
+  chromosome.not.filtered = chromosome
+  mut.position.not.filtered = mut.position
+  
+  # Remove mutations that have been flagged for various reasons
   chromosome = as.matrix(chromosome[select,])
   mut.position = as.matrix(mut.position[select,])
   WTCount = as.matrix(WTCount[select,])
@@ -74,8 +81,9 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   subclonalFraction = as.matrix(subclonalFraction[select,])
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
   
-  # Keep indices of removed mutations to 'spike in' lateron when constructing the output
-  removed_indices = which(!select)
-
-  return(list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount, totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber, subclonal.fraction=subclonalFraction, removed_indices=removed_indices))
+  return(list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount, 
+              totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, 
+              non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber, 
+              subclonal.fraction=subclonalFraction, removed_indices=removed_indices,
+              chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered))
 }

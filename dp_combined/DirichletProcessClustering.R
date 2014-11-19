@@ -220,12 +220,12 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     child.parent.strengths = as.matrix(Reduce('+', child.parent.strengths_all))
     strengths = list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths)
 
-    # Save these for future reference
-    write.table(ancestor.strengths, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
-    write.table(sibling.strengths, paste("sibling.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
-    write.table(identity.strengths, paste("identity.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
-    write.table(parent.child.strengths, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
-    write.table(child.parent.strengths, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""),sep="\t",row.names=F,quote=F)
+    # Add the previously removed mutations back into these matrices and save them to disk
+    write.strengths.table(ancestor.strengths, removed_indices, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(sibling.strengths, removed_indices, paste("sibling.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(identity.strengths, removed_indices, paste("identity.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(parent.child.strengths, removed_indices, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(child.parent.strengths, removed_indices, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
 
     # Adjust the no.iters and no.iters.burn.in to take into account the combined data
     no.iters.burn.in = no.iters.burn.in*no.of.blocks
@@ -392,3 +392,27 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   }
   
 }
+
+write.strengths.table = function(dat, removed_indices, filename) {
+  #
+  # Adds in an empty column/row for each of the removed_indices and writes
+  # the subsequent matrix to disk
+  #
+  write.table(add.muts.back.in(dat, removed_indices),filename,sep="\t",row.names=F,quote=F)
+}
+
+add.muts.back.in = function(dat, removed_indices, def.value=0) {
+  #
+  # Adds in empty columns and rows for mutations that were removed.
+  # Mutations are added sequentially, so this method expects indices
+  # of removed mutations in the original (full) matrix. The empty
+  # mutations will be added in the place where they were removed,
+  # keeping the order in tact.
+  #
+  for (i in removed_indices) { 
+    dat = cbind(dat[,1:(i-1)], rep(def.value, nrow(dat)), dat[,i:ncol(dat)]); 
+    dat = rbind(dat[1:(i-1),], rep(def.value, ncol(dat)), dat[i:nrow(dat),])
+  }
+  return(dat)
+}
+

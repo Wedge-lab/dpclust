@@ -50,13 +50,25 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 
   if (analysis_type != 'tree') {
     # Write final output
+    outfiles.prefix = paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
-    save(file=paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
+    
+    # Add the removed mutations back in
+    for (i in dataset$removed_indices) {
+      output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+    }
+    
+    # Save the indices of the mutations that were not used during the analysis
+    write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"removedMutationsIndex.txt", sep=""))
+
+    # Save the consensus mutation assignments
+    save(file=paste(outfiles.prefix, "burnin_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
     colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
-    write.table(output, file=paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
+    write.table(output, file=paste(outfiles.prefix, "burnin_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
+
     # If tree based analysis, also save the tree
     if (analysis_type != 'nd_dp') {
-      write.table(clustering$best.tree, file=paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
+      write.table(clustering$best.tree, file=paste(outfiles.prefix, "burnin_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
     }
   }
 }
