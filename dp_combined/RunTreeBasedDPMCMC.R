@@ -51,11 +51,11 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
   }
 
   # Save the strengths to disk
-  write.table(ancestor.strengths, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
-  write.table(sibling.strengths, paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
-  write.table(identity.strengths, paste("identity.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
-  write.table(parent.child.strengths, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
-  write.table(child.parent.strengths, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+  write.table(ancestor.strengths, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F,col.names=F)
+  write.table(sibling.strengths, paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F,col.names=F)
+  write.table(identity.strengths, paste("identity.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F,col.names=F)
+  write.table(parent.child.strengths, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F,col.names=F)
+  write.table(child.parent.strengths, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F,col.names=F)
 
   alphas = temp.list$alpha
   lambdas = temp.list$lambda
@@ -166,8 +166,8 @@ get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.
     temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
     temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
     temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
-    temp.parent.child.strengths = parent.child.strengths[m,] + ancestors(node.assignments.m,node.assignments.all)
-    temp.child.parent.strengths = child.parent.strengths[m,] + younger.descendants(node.assignments.m,node.assignments.all)
+    temp.parent.child.strengths = parent.child.strengths[m,] + ancestors.only(node.assignments.m,node.assignments.all)
+    temp.child.parent.strengths = child.parent.strengths[m,] + younger.descendants.only(node.assignments.m,node.assignments.all)
     
     return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths, temp.parent.child.strengths, temp.child.parent.strengths))
   }

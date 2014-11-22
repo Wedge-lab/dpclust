@@ -24,7 +24,7 @@ older.siblings <- function(curr.node, other.nodes) {
 
 ancestors <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are ancestors of curr.node
-	# Note: curr.node is counted as an ancestor of itself
+	# Note: curr.node IS counted as an ancestor of itself
 	# Returns vector of logical values
 	no.nodes = length(other.nodes)
 	is.ancestor = vector(mode="logical",length=no.nodes)
@@ -32,13 +32,41 @@ ancestors <- function(curr.node, other.nodes) {
 	return(is.ancestor)
 }
 
+ancestors.only <- function(curr.node, other.nodes) {
+  # Function to test whether other.nodes are ancestors of curr.node
+  # Note: curr.node is NOT counted as an ancestor of itself
+  # Returns vector of logical values
+  no.nodes = length(other.nodes)
+  is.ancestor = vector(mode="logical",length=no.nodes)
+  is.ancestor = sapply(1:no.nodes, FUN=function(i){ (grepl(other.nodes[i],curr.node)) && (other.nodes[i]!=curr.node)})
+  return(is.ancestor)
+}
+
 younger.descendants <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are younger siblings, direct descendants or descendants of younger siblings of curr.node
-	# Returns vector of logical values, including TRUE for where curr.node == other.nodes[i]
+  # Note: returns TRUE for where curr.node == other.nodes[i]
+	# Returns vector of logical values
 	split.curr.node <- unlist(strsplit(curr.node, ":"))
   parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
   family.position.curr.depth <- sapply(other.nodes, FUN=function(x,y) {if (x == "M:") {0} else {a <- unlist(strsplit(x, ":")); max(0,as.double(a[y]),na.rm=TRUE) }}, y=length(split.curr.node))
 	return(grepl(parent, other.nodes) & family.position.curr.depth >= as.double(split.curr.node[length(split.curr.node)]))
+}
+
+younger.descendants.only <- function(curr.node, other.nodes, save=F) {
+  # Function to test whether other.nodes are younger siblings, direct descendants or descendants of younger siblings of curr.node
+  # Note: returns FALSE for where curr.node == other.nodes[i]
+  # Returns vector of logical values
+  if (save) {
+    save(file=paste("~/dp/mye2/younger.descendants_", format(Sys.time(), "%X"), ".RData", sep=""), curr.node, other.nodes)
+  }
+  
+  split.curr.node <- unlist(strsplit(curr.node, ":"))
+  parent <- paste(paste(split.curr.node[1:(length(split.curr.node)-1)], collapse=":"), ":", sep="")
+  family.position.curr.depth <- sapply(other.nodes, FUN=function(x,y) {if (x == "M:") {0} else {a <- unlist(strsplit(x, ":")); a[a=="M"] = 0; max(0,as.double(a[y]),na.rm=TRUE) }}, y=length(split.curr.node))
+  # Save the levels and set the level of the root node to 0. This case doesn't appear in the younger.descendant (above) call scenarios.  
+  split.curr.node.levels = split.curr.node[length(split.curr.node)]
+  split.curr.node.levels[split.curr.node.levels=="M"] = 0
+  return(grepl(parent, other.nodes) & family.position.curr.depth > as.double(split.curr.node.levels))
 }
 
 #this treats older and younger siblings symetrically by excluding younger siblings and descendants of younger siblings

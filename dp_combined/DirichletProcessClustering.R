@@ -26,7 +26,7 @@ library(doRNG)
 # library(snowfall)
 library(snow)
 
-TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
+TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
   #
   # Tree based method that will yield a tree that contains the estimated clone/subclone structure for 
   # the samples given as input.
@@ -173,11 +173,11 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
       trees_all[[i]] = trees
       ## Col per iter
       node.assignments_all[[i]] = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T, stringsAsFactors=F)
-      ancestor.strengths_all[[i]] = read.table(paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-      sibling.strengths_all[[i]] = read.table(paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-      identity.strengths_all[[i]] = read.table(paste("identity.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-      parent.child.strengths_all[[i]] = read.table(paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-      child.parent.strengths_all[[i]] = read.table(paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
+      ancestor.strengths_all[[i]] = read.table(paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      sibling.strengths_all[[i]] = read.table(paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      identity.strengths_all[[i]] = read.table(paste("identity.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      parent.child.strengths_all[[i]] = read.table(paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      child.parent.strengths_all[[i]] = read.table(paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
       if(!is.na(bin.size)) {
         ## Col per iter
         binned.node.assignments_all[[i]] = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
@@ -398,7 +398,7 @@ write.strengths.table = function(dat, removed_indices, filename) {
   # Adds in an empty column/row for each of the removed_indices and writes
   # the subsequent matrix to disk
   #
-  write.table(add.muts.back.in(dat, removed_indices),filename,sep="\t",row.names=F,quote=F)
+  write.table(add.muts.back.in(dat, removed_indices),filename,sep="\t",row.names=F,quote=F,col.names=F)
 }
 
 add.muts.back.in = function(dat, removed_indices, def.value=0) {

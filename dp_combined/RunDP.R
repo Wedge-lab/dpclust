@@ -25,6 +25,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     }
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
+                             removed_indices=dataset$removed_indices,
                              kappa=dataset$kappa, 
                              samplename=samplename, 
                              subsamplenames=subsamples,
@@ -50,7 +51,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 
   if (analysis_type != 'tree') {
     # Write final output
-    outfiles.prefix = paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, sep="")
+    outfiles.prefix = paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
     
     # Add the removed mutations back in
@@ -59,16 +60,16 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     }
     
     # Save the indices of the mutations that were not used during the analysis
-    write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"removedMutationsIndex.txt", sep=""))
+    write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""))
 
     # Save the consensus mutation assignments
-    save(file=paste(outfiles.prefix, "burnin_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
+    save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
     colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
-    write.table(output, file=paste(outfiles.prefix, "burnin_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
+    write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
 
     # If tree based analysis, also save the tree
     if (analysis_type != 'nd_dp') {
-      write.table(clustering$best.tree, file=paste(outfiles.prefix, "burnin_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
+      write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
     }
   }
 }
