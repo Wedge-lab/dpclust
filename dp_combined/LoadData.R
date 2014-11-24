@@ -8,7 +8,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   data=list()
   for(s in 1:length(list_of_data_files)){
     data[[s]] = read.table(paste(datpath,samplename,list_of_data_files[s],data_file_suffix,sep=""),header=T,sep="\t",stringsAsFactors=F)
-    data[[s]] = data[[s]][data[[s]][,Chromosome] %in% 1:22,]
+    #data[[s]] = data[[s]][data[[s]][,Chromosome] %in% 1:22,]
   }
 
   no.subsamples = length(list_of_data_files)
@@ -24,7 +24,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   mutationCopyNumber = matrix(NA,no.muts,no.subsamples)
   subclonalFraction = matrix(NA,no.muts,no.subsamples)
   for(s in 1:length(list_of_data_files)){
-    chromosome[,s] = as.numeric(data[[s]][,Chromosome])
+    chromosome[,s] = data[[s]][,Chromosome]
     mut.position[,s] = as.numeric(data[[s]][,position])
     WTCount[,s] = as.numeric(data[[s]][,WT.count])
     mutCount[,s] = as.numeric(data[[s]][,mut.count])
@@ -51,6 +51,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0) })
   #not.mut = apply(mutCount, 1, function(x) { any(x<5) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
+  not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
   
   print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
   print(paste("Removed", sum(not.there.mut),"with missing mutCount", sep=" "))
@@ -60,8 +61,9 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
   #print(paste("Removed", sum(not.mut),"with not enough quality coverage of mut", sep=" "))
   print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
+  print(paste("Removed", sum(not.on.supported.chrom), "on not supported genomic regions", sep=" "))
 
-  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna)
+  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom)
   
   # Keep indices of removed mutations to 'spike in' lateron when constructing the output
   removed_indices = which(!select)

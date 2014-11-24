@@ -60,7 +60,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     }
     
     # Save the indices of the mutations that were not used during the analysis
-    write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""))
+    write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
 
     # Save the consensus mutation assignments
     save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
