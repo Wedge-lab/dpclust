@@ -56,7 +56,11 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     
     # Add the removed mutations back in
     for (i in dataset$removed_indices) {
-      output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+      if (i >= nrow(output)) {
+        output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
+      } else {
+        output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+      }
     }
     
     # Save the indices of the mutations that were not used during the analysis
