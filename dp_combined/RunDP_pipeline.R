@@ -37,7 +37,7 @@ if (!(analysis_type == 'nd_dp' | analysis_type == "tree_dp" | analysis_type == '
 }
 
 # Source the required files
-setwd("~/repo/dirichlet/dp_combined")
+setwd("~/repo/dirichlet_icgc_wg_comparison_edits/dp_combined")
 source("RunDP.R")
 source("LoadData.R")
 setwd(outdir)

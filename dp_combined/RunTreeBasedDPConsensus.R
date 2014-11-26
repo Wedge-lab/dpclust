@@ -1,4 +1,4 @@
-RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, kappa, samplename, subsamplenames, annotation, no.iters, no.iters.burn.in, resort.mutations, bin.indices=NULL) {
+RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, kappa, samplename, subsamplenames, annotation, no.iters, no.iters.burn.in, resort.mutations, strengths, bin.indices=NULL) {
 
   no.subsamples = ncol(mutCount)
   temp.list = GetConsensusTrees(trees, 
@@ -11,7 +11,8 @@ RunTreeBasedDPConsensus <- function(trees, node.assignments, mutCount, WTCount, 
                                 no.iters = no.iters, 
                                 no.iters.burn.in = no.iters.burn.in, 
                                 resort.mutations = resort.mutations,
-                                bin.indices = bin.indices)
+                                bin.indices = bin.indices,
+                                strengths=strengths)
   
   all.consensus.trees = temp.list$all.consensus.trees
   save(all.consensus.trees,file=paste(samplename,"_",no.iters,"iters_",no.iters.burn.in,"_allConsensusTrees.RData",sep=""))

@@ -124,8 +124,6 @@ cull.tree <- function(tree1, curr.assignments) {
   # Order the nodes in the tree by length of their name. Make sure that the plotter will insert the nodes in the right order.
 	node.name.lengths = unlist(lapply(as.list(rownames(tree1)), nchar))
 	tree1 = tree1[rownames(tree1)[order(node.name.lengths, rownames(tree1))],] # Sort by name length first, then by rowname to make sure M:2:, M:1: is sorted correctly
-  print("Sorted culled tree:")
-  print(tree1)
 	return(list(culled.tree=tree1,mapping=df))
 }
 
