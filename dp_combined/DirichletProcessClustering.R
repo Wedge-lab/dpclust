@@ -26,7 +26,7 @@ library(doRNG)
 # library(snowfall)
 library(snow)
 
-TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), kappa = array(0.5,dim(mutCount)), samplename = "sample", subsamplenames = 1:ncol(mutCount), annotation = vector(mode="character",length=nrow(mutCount)), no.iters = 1250, no.iters.burn.in = 250, bin.size = NA, resort.mutations = T, outdir = paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha = 0.01, shrinkage.threshold = 0.1, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
+TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
   #
   # Tree based method that will yield a tree that contains the estimated clone/subclone structure for 
   # the samples given as input.
@@ -107,6 +107,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                          annotation=annotation,
                          samplename=samplename,
                          no.iters=no.iters, 
+                         no.iters.burn.in=no.iters.burn.in,
                          shrinkage.threshold=shrinkage.threshold, 
                          init.alpha=init.alpha, 
                          outdir=outdir, 
@@ -124,6 +125,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                          annotation=annotation, 
                          samplename=samplename,
                          no.iters=no.iters, 
+                         no.iters.burn.in=no.iters.burn.in,
                          shrinkage.threshold=shrinkage.threshold, 
                          init.alpha=init.alpha, 
                          outdir=outdir, 
@@ -139,6 +141,7 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     trees_interleaved = mcmcResults$trees
     node.assignments_interleaved = mcmcResults$node.assignments
     binned.node.assignments_interleaved = mcmcResults$binned.node.assignments
+    strengths = mcmcResults$strengths
     
     trees_end_time = Sys.time()
     print(paste("Finished tree.struct.dirichlet in", as.numeric(trees_end_time-trees_start_time,units="secs"), "seconds"))
@@ -155,9 +158,12 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     
     trees_all = vector("list", length=no.of.blocks)
     node.assignments_all = vector("list", length=no.of.blocks)
-#     node.assignments <- matrix(NA, nrow=nrow(mutCount), ncol=0)
+    ancestor.strengths_all = vector("list", length=no.of.blocks)
+    sibling.strengths_all = vector("list", length=no.of.blocks)
+    identity.strengths_all = vector("list", length=no.of.blocks)
+    parent.child.strengths_all = vector("list", length=no.of.blocks)
+    child.parent.strengths_all = vector("list", length=no.of.blocks)
     if(!is.na(bin.size)) {
-#       binned.node.assignments = matrix(NA, nrow=nrow(binned.mutCount), ncol=0)
       binned.node.assignments_all = vector("list", length=no.of.blocks)
     }
     
@@ -166,8 +172,12 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
       ## list, dataframe per iter
       trees_all[[i]] = trees
       ## Col per iter
-      node.assignments_all[[i]] = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
-      
+      node.assignments_all[[i]] = read.table(paste("node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T, stringsAsFactors=F)
+      ancestor.strengths_all[[i]] = read.table(paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      sibling.strengths_all[[i]] = read.table(paste("sibling.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      identity.strengths_all[[i]] = read.table(paste("identity.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      parent.child.strengths_all[[i]] = read.table(paste("parent.child.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
+      child.parent.strengths_all[[i]] = read.table(paste("child.parent.strengths_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=F)
       if(!is.na(bin.size)) {
         ## Col per iter
         binned.node.assignments_all[[i]] = read.table(paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",i,".txt",sep=""),sep="\t",header=T)
@@ -192,12 +202,30 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
     # Determine the order in which items should be
     idx <- order(c(unlist(lapply(trees_all,seq_along))))
 
-    # Select the items in the right order
+    # Select the items in the right order and make sure the data remain strings
     trees_interleaved = trees_appended[idx]
     node.assignments_interleaved = do.call(cbind.data.frame,node.assignments_appended[idx])
+    node.assignments_interleaved = data.frame(lapply(node.assignments_interleaved, as.character), stringsAsFactors=FALSE)
+    
     if(!is.na(bin.size)) {
       binned.node.assignments_interleaved = do.call(cbind.data.frame,binned.node.assignments_appended[idx])
+      binned.node.assignments_interleaved = data.frame(lapply(binned.node.assignments_interleaved, as.character), stringsAsFactors=FALSE)
     }
+
+    # Sum the strengths for the different categories
+    ancestor.strengths = as.matrix(Reduce('+', ancestor.strengths_all))
+    sibling.strengths = as.matrix(Reduce('+', sibling.strengths_all))
+    identity.strengths = as.matrix(Reduce('+', identity.strengths_all))
+    parent.child.strengths = as.matrix(Reduce('+', parent.child.strengths_all))
+    child.parent.strengths = as.matrix(Reduce('+', child.parent.strengths_all))
+    strengths = list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths)
+
+    # Add the previously removed mutations back into these matrices and save them to disk
+    write.strengths.table(ancestor.strengths, removed_indices, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(sibling.strengths, removed_indices, paste("sibling.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(identity.strengths, removed_indices, paste("identity.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(parent.child.strengths, removed_indices, paste("parent.child.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
+    write.strengths.table(child.parent.strengths, removed_indices, paste("child.parent.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
 
     # Adjust the no.iters and no.iters.burn.in to take into account the combined data
     no.iters.burn.in = no.iters.burn.in*no.of.blocks
@@ -213,6 +241,11 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
       plotTree(tree,title)
     }
     dev.off()
+    
+    # Clean up unused variables
+    rm(trees_appended, node.assignments_appended, trees_all, node.assignments_all)
+    rm(ancestor.strengths_all, sibling.strengths_all, identity.strengths_all, parent.child.strengths_all, child.parent.strengths_all)
+    gc()
   }
   
   ###################################
@@ -235,7 +268,8 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                                             no.iters=no.iters, 
                                             no.iters.burn.in=no.iters.burn.in, 
                                             resort.mutations=resort.mutations, 
-                                            bin.indices=bin.indices)
+                                            bin.indices=bin.indices,
+                                            strengths=strengths)
     } else {
       consResults = RunTreeBasedDPConsensus(trees=trees_interleaved, 
                                             node.assignments=node.assignments_interleaved, 
@@ -248,12 +282,9 @@ TreeBasedDP<-function(mutCount, WTCount, cellularity = rep(1,ncol(mutCount)), ka
                                             no.iters=no.iters, 
                                             no.iters.burn.in=no.iters.burn.in, 
                                             resort.mutations=resort.mutations, 
-                                            bin.indices=NULL)
+                                            bin.indices=NULL,
+                                            strengths=strengths)
     }
-    
-    #consResults$best.tree 
-    print(consResults$best.node.assignments)
-    #consResults$best.assignment.likelihoods
     
     cons_end_time = Sys.time()
     print(paste("Finished RunTreeBasedDPConsensus in", as.numeric(cons_end_time-cons_start_time,units="secs"), "seconds"))
@@ -361,3 +392,32 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   }
   
 }
+
+write.strengths.table = function(dat, removed_indices, filename) {
+  #
+  # Adds in an empty column/row for each of the removed_indices and writes
+  # the subsequent matrix to disk
+  #
+  write.table(add.muts.back.in(dat, removed_indices),filename,sep="\t",row.names=F,quote=F,col.names=F)
+}
+
+add.muts.back.in = function(dat, removed_indices, def.value=0) {
+  #
+  # Adds in empty columns and rows for mutations that were removed.
+  # Mutations are added sequentially, so this method expects indices
+  # of removed mutations in the original (full) matrix. The empty
+  # mutations will be added in the place where they were removed,
+  # keeping the order in tact.
+  #
+  for (i in removed_indices) { 
+    if (i >= ncol(dat)) {
+	dat = cbind(dat, rep(def.value, nrow(dat)))
+	dat = rbind(dat, rep(def.value, ncol(dat)))
+    } else {
+        dat = cbind(dat[,1:(i-1)], rep(def.value, nrow(dat)), dat[,i:ncol(dat)])
+        dat = rbind(dat[1:(i-1),], rep(def.value, ncol(dat)), dat[i:nrow(dat),])
+    }
+  }
+  return(dat)
+}
+
