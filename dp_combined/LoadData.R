@@ -52,6 +52,7 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   #not.mut = apply(mutCount, 1, function(x) { any(x<5) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
   not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
+  too.high.coverage = apply(WTCount+mutCount, 1, function(x) { any(x > 1000)})
   
   print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
   print(paste("Removed", sum(not.there.mut),"with missing mutCount", sep=" "))
@@ -62,8 +63,9 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   #print(paste("Removed", sum(not.mut),"with not enough quality coverage of mut", sep=" "))
   print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.on.supported.chrom), "on not supported genomic regions", sep=" "))
+  print(paste("Removed", sum(too.high.coverage), "mutations with coverage over 1000", sep=" "))
 
-  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom)
+  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage)
   
   # Keep indices of removed mutations to 'spike in' lateron when constructing the output
   removed_indices = which(!select)
