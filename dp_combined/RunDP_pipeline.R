@@ -1,21 +1,22 @@
 outdir = getwd()
 args=commandArgs(TRUE)
-run = as.integer(args[1]) # The sample to be run. Integer that selects from a list of unique samplenames
-no.iters = as.integer(args[2]) # Number of iters
-no.iters.burn.in = as.double(args[3]) # Number of iters used for burnin
-datpath = toString(args[4]) # Where are input files stored
-purity_file = toString(args[5]) # A file containing samplenames and purity
-analysis_type = toString(args[6]) # String that represents the analysis that is to be run
-parallel = as.logical(args[7]) # Supply true or false whether to run parts of the method in parallel
-no.of.threads = as.integer(args[8]) # Integer that determines how many threads to use when running parts in parallel
+libdir = toString(args[1]) # Directory where the pipeline is installed
+run = as.integer(args[2]) # The sample to be run. Integer that selects from a list of unique samplenames
+no.iters = as.integer(args[3]) # Number of iters
+no.iters.burn.in = as.double(args[4]) # Number of iters used for burnin
+datpath = toString(args[5]) # Where are input files stored
+purity_file = toString(args[6]) # A file containing samplenames and purity
+analysis_type = toString(args[7]) # String that represents the analysis that is to be run
+parallel = as.logical(args[8]) # Supply true or false whether to run parts of the method in parallel
+no.of.threads = as.integer(args[9]) # Integer that determines how many threads to use when running parts in parallel
 
 # Optional arguments
-if (length(args) >= 9) {
-  bin.size = as.double(args[9])
-  if (length(args) >= 10) {
-    blockid = as.integer(args[10])
-    if (length(args) >= 11) {
-      no.of.blocks = as.integer(args[11])
+if (length(args) >= 10) {
+  bin.size = as.double(args[10])
+  if (length(args) >= 11) {
+    blockid = as.integer(args[11])
+    if (length(args) >= 12) {
+      no.of.blocks = as.integer(args[12])
     } else {
       no.of.blocks = 1
     }
@@ -37,7 +38,7 @@ if (!(analysis_type == 'nd_dp' | analysis_type == "tree_dp" | analysis_type == '
 }
 
 # Source the required files
-setwd("~/repo/dirichlet_icgc_wg_comparison_edits/dp_combined")
+setwd(libdir)
 source("RunDP.R")
 source("LoadData.R")
 setwd(outdir)
