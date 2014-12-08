@@ -17,38 +17,28 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
     
     print("Calculating mutation strengths")
     strengths = get.mut.ass.strengths(nrow(node.assignments), no.iters, no.iters-no.iters.burn.in, node.assignments)
-    ancestor.strengths = strengths$ancestor.strengths
-    sibling.strengths = strengths$sibling.strengths
-    identity.strengths = strengths$identity.strengths
-    parent.child.strengths = strengths$parent.child.strengths
-    child.parent.strengths = strengths$child.parent.strengths
-    
     
   }else{
+    # Unpack the bins
     binned.node.assignments = temp.list$assignments #[[2]]
     node.assignments = array(NA,c(no.muts.input,ncol(binned.node.assignments)))
-    for(i in 1:length(bin.indices)){
-#       print("new")
-#       print(i)
-#       print(bin.indices[[i]])
-#       print(dim(node.assignments))
-#       print(node.assignments[bin.indices[[i]],])
-#       print(binned.node.assignments[i,])
+    for(i in 1:length(bin.indices)) {
       node.assignments[bin.indices[[i]],] = binned.node.assignments[i,]
-      
-      print("Calculating mutation strengths")
-      strengths = get.mut.ass.strengths(nrow(binned.node.assignments), no.iters, no.iters-no.iters.burn.in, binned.node.assignments)
-      ancestor.strengths = strengths$ancestor.strengths
-      sibling.strengths = strengths$sibling.strengths
-      identity.strengths = strengths$identity.strengths
-      parent.child.strengths = strengths$parent.child.strengths
-      child.parent.strengths = strengths$child.parent.strengths      
+    }      
+    print("Calculating mutation strengths")
+    strengths = get.mut.ass.strengths(nrow(binned.node.assignments), no.iters, no.iters-no.iters.burn.in, binned.node.assignments)
       
 #       Error in print(node.assignments[bin.indices[[i]], ]) : 
 #         error in evaluating the argument 'x' in selecting a method for function 'print': Error in node.assignments[bin.indices[[i]], ] : subscript out of bounds
-    }
+    
     write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
   }
+
+  ancestor.strengths = strengths$ancestor.strengths
+  sibling.strengths = strengths$sibling.strengths
+  identity.strengths = strengths$identity.strengths
+  parent.child.strengths = strengths$parent.child.strengths
+  child.parent.strengths = strengths$child.parent.strengths
 
   # Save the strengths to disk
   write.table(ancestor.strengths, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F,col.names=F)
