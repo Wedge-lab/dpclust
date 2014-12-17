@@ -76,6 +76,11 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
         yvals = read.table(paste(filename_prefix,"_2D_binomial_yvals.csv",sep=""),header=T,sep=",",row.names=1)
         zvals = read.table(paste(filename_prefix,"_2D_binomial_zvals.csv",sep=""),header=T,sep=",",row.names=1)
         
+        #
+        # TODO
+        # subclonal.fraction directly is not right for replotting the Myeloma samples :: check!
+        #
+        
         plotnD(xvals=xvals, 
                yvals=yvals, 
                zvals=zvals, 

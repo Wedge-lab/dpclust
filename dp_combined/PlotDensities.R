@@ -61,10 +61,18 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   if (!is.na(pngFile)) { dev.off() }
 }
 
-plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_y, pngFile, samplename_x, samplename_y, max.plotted.value=1.2) {
+plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_y, pngFile, samplename_x, samplename_y, max.plotted.value=NA) {
   #  
-  #
-  #
+  # Create a 2D density plot for the nD clustering.
+  #   xvals:                Density coordinates of the x-axis
+  #   yvals:                Density coordinates of the y-axis
+  #   zvals:                The density itself
+  #   subclonal.fraction_x: Fraction of cells estimate for each mutation in sample on x-axis
+  #   subclonal.fraction_y: Fraction of cells estimate for each mutation in sample on y-axis
+  #   pngFile:              Filename to which the figure should be pushed
+  #   samplename_x:         Samplename to assign as x-axis label
+  #   samplename_y:         Samplename to assign as y-axis label
+  #   max.plotted.value:    The maximum value to plot on both x- and y-axis
   #
   colours=colorRampPalette(c("white","red"))
   
@@ -83,7 +91,9 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
 
   #plot.data = cbind(data[[i]]$subclonal.fraction,data[[j]]$subclonal.fraction)
   plot.data = cbind(subclonal.fraction_x, subclonal.fraction_y)
-  plot.data = plot.data[plot.data[,1]<=max.plotted.value & plot.data[,2]<=max.plotted.value,]
+  if(!is.na(max.plotted.value)) {
+    plot.data = plot.data[plot.data[,1]<=max.plotted.value & plot.data[,2]<=max.plotted.value,]
+  }
   
   # First plot without mutations
   png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)       
@@ -109,7 +119,7 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
                   panel.levelplot(...)
                   panel.abline(h = 0:floor(max(plot.data[,2])))
                   panel.abline(v = 0:floor(max(plot.data[,1])))                   
-                  lpoints(plot.data,pch=".",cex=4,col="black") 
+                  lpoints(plot.data,pch=".",cex=6,col="black") 
                   # Left over from previous code: differentiate between how well mutations are covered
                   #if(nrow(burden>=500)){
                   #  lpoints(burden,pch=".",cex=1,col="black")
@@ -124,6 +134,3 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
   dev.off()
       
 }
-#   }
-# }
-
