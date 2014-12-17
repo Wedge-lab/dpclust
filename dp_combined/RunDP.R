@@ -1,4 +1,5 @@
 source("DirichletProcessClustering.R")
+source("PlotDensities.R")
 
 RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA) {
   # Pick the analysis to run
@@ -44,12 +45,55 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              annotation=annotation,
                              init.alpha=init.alpha, 
                              shrinkage.threshold=shrinkage.threshold)
+    
+  } else if(analysis_type == "replot_1d") {
+    ##############################
+    # Replot 1D clustering
+    ##############################
+    density = read.table(paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplotdensity.txt", sep=""), header=T)
+    polygon.data = read.table(paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplotpolygonData.txt", sep=""), header=T)
+    pngFile = paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplot_replot.png", sep="")
+    
+    plot1D(density, 
+           polygon.data, 
+           pngFile=pngFile, 
+           density.from=0, 
+           #y.max=6, 
+           x.max=2, 
+           mutationCopyNumber=dataset$mutation.copy.number, 
+           no.chrs.bearing.mut=dataset$copyNumberAdjustment,
+           samplename=samplename)
+    
+  } else if(analysis_type == "replot_nd") {  
+    ##############################
+    # Replot nD clustering
+    ##############################
+    for(i in 1:(length(subsamples)-1)){
+      for(j in (i+1):length(subsamples)){
+        filename_prefix = paste(outdir,"/",samplename, "_DPoutput_25iters_2burnin/",samplename,subsamples[i],subsamples[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,sep="")
+        pngFile = paste(filename_prefix,"_2D_binomial_limitedRange_replot.png",sep="")
+        xvals = read.table(paste(filename_prefix,"_2D_binomial_xvals.csv",sep=""),header=T,sep=",",row.names=1)
+        yvals = read.table(paste(filename_prefix,"_2D_binomial_yvals.csv",sep=""),header=T,sep=",",row.names=1)
+        zvals = read.table(paste(filename_prefix,"_2D_binomial_zvals.csv",sep=""),header=T,sep=",",row.names=1)
+        
+        plotnD(xvals=xvals, 
+               yvals=yvals, 
+               zvals=zvals, 
+               subclonal.fraction_x=dataset$subclonal.fraction[,i], 
+               subclonal.fraction_y=dataset$subclonal.fraction[,j], 
+               pngFile=pngFile, 
+               samplename_x=paste(samplename,subsamples[i], sep=""), 
+               samplename_y=paste(samplename,subsamples[j], sep=""), 
+               max.plotted.value=1.4)
+      }
+    }
+    
   } else {
     print(paste("Unknown type of analysis",analysis_type))
     q(save="no", status=1)
   }
 
-  if (analysis_type != 'tree') {
+  if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
     # Write final output
     outfiles.prefix = paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
