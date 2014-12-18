@@ -100,7 +100,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 
   if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
     # Write final output
-    outfiles.prefix = paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
+    outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
     
     # Add the removed mutations back in
