@@ -358,62 +358,8 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   }else{
     median.density=apply(post.ints, MARGIN=1, FUN=median)
   }
-  
-  #	png(filename=pngFile,width=1500,height=1000)
-  #	#filled.contour(xx[1,],xx[2,],median.density,plot.axes={ axis(1); axis(2); points(burden,pch=".",cex=4)},xlab="mutation copy number sample 1",ylab="mutation copy number sample 2")
-  #	filled.contour(xvals,yvals,median.density,plot.axes={ axis(1); axis(2); points(burden,pch=".",cex=4)},xlab="mutation copy number sample 1",ylab="mutation copy number sample 2")	
-  #	dev.off()
-  
-#   colours=colorRampPalette(c("white","red"))
-#   #for plotting with axes scaled equally
-#   png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)
-#   #	fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-#   #		panel = function(...) { 
-#   #			panel.levelplot(...) 
-#   #        }
-#   #    )
-#   range=list(c(floor(min(burden[,1])*10)-1,ceiling(max(burden[,1])*10)+1)/10, c(floor(min(burden[,2])*10)-1,ceiling(max(burden[,2])*10)+1)/10)
-#   image.wid = 500 * (range[[1]][2] - range[[1]][1])
-#   image.ht = 500 * (range[[2]][2] - range[[2]][1])
-#   fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-#                 panel = function(...) { 
-#                   panel.levelplot(...)
-#                   panel.abline(h = 0:floor(max(burden[,2])))
-#                   panel.abline(v = 0:floor(max(burden[,1])))
-#                 }
-#   )    
-#   print(fig)
-#   dev.off()
-# 
-#   png(filename=gsub(".png","_withMutations.png",pngFile),width=1500,height=1000)
-#   #	fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-#   #		panel = function(...) { 
-#   #			panel.levelplot(...) 
-#   #			lpoints(burden,pch=".",cex=1,col="black") 
-#   #        }
-#   #    )
-#   range=list(c(floor(min(burden[,1])*10)-1,ceiling(max(burden[,1])*10)+1)/10, c(floor(min(burden[,2])*10)-1,ceiling(max(burden[,2])*10)+1)/10)
-#   image.wid = 500 * (range[[1]][2] - range[[1]][1])
-#   image.ht = 500 * (range[[2]][2] - range[[2]][1])
-#   fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-#                 panel = function(...) { 
-#                   panel.levelplot(...)
-#                   panel.abline(h = 0:floor(max(burden[,2])))
-#                   panel.abline(v = 0:floor(max(burden[,1])))
-#                   #070913
-#                   if(nrow(burden>=500)){
-#                     lpoints(burden,pch=".",cex=1,col="black")
-#                   }else if(nrow(burden>=100)){
-#                     lpoints(burden,pch=".",cex=2,col="black")
-#                   }else{
-#                     lpoints(burden,pch=".",cex=4,col="black")
-#                   }
-#                 }
-#   )
-#   
-#   print(fig)
-#   dev.off()
-  
+ 
+  # Create the plots both with and without mutations 
   plotnD(xvals=xvals, 
          yvals=yvals, 
          zvals=median.density, 
@@ -424,20 +370,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
          samplename_y=samplenames[2], 
          max.plotted.value=NA)
   
-  #par(mar=c(5,5,1,1))
-  #png(filename=gsub(".png","_trellis_largeLabels.png",pngFile),width=1500,height=1000)
-  #fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab="sample 1",ylab="sample 2",cex.axis=2,cex.lab=2,
-  #	panel = function(...) { 
-  #		panel.levelplot(...) 
-  #		lpoints(burden,pch=".",cex=4,col="black") 
-  #    }
-  #)
-  #print(fig)
-  #dev.off()
-
-  #levelplot sometimes fails, so save the values and plot afterwards	
-  #write.csv(xx[1,],gsub(".png","_xvals.csv",pngFile))
-  #write.csv(xx[2,],gsub(".png","_yvals.csv",pngFile))
+  # Save the data of the plot to replot lateron for figure fine tuning
   write.csv(xvals,gsub(".png","_xvals.csv",pngFile))
   write.csv(yvals,gsub(".png","_yvals.csv",pngFile))	
   write.csv(median.density,gsub(".png","_zvals.csv",pngFile))
@@ -452,20 +385,15 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
   # density.smooth is the smoothing factor used in R's density() function
   # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
   
-#   xlabel = "mutation copy number"
   if(is.null(mutationCopyNumber)){
     print("No mutationCopyNumber. Using mutation burden")
     y <- GS.data$y1
     N <- GS.data$N1
     mutationCopyNumber = y/N
-#     print("MutCopyNr")
-#     print(mutationCopyNumber)
-#     xlabel = "mutation burden"
   }
   
   if(!is.null(no.chrs.bearing.mut)){
     mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
-#     xlabel = "fraction of tumour cells"
   }
   
   V.h.cols <- GS.data$V.h # weights
@@ -482,7 +410,7 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
   }
   
   xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
-  
+ 
   for (i in post.burn.in.start : post.burn.in.stop) {
     post.ints[,i - post.burn.in.start + 1] <- density(c(pi.h.cols[i-1,]), weights=c(wts[i,]) / sum(c(wts[i,])), adjust=density.smooth, from=density.from, to=x.max)$y
   }
@@ -492,19 +420,7 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
     y.max=ceiling(max(polygon.data)/10)*10
   }
   
-#   par(mar = c(5,6,4,1)+0.1)
-#   hist(mutationCopyNumber, breaks=seq(-0.1, x.max, 0.025), col="lightgrey",freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
-#   polygon(c(xx, rev(xx)), polygon.data, border="plum4", col=cm.colors(1,alpha=0.3))
-  
   yy = apply(post.ints, MARGIN=1, FUN=quantile, probs=0.5)
-  
-#   lines(xx, yy, col="plum4", lwd=3)
-#  
-#   title(samplename, cex.main=3)
-#  
-#   dev.off()
-  
-  
   density = cbind(xx, yy)
   
   plot1D(density, 

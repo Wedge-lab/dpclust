@@ -99,7 +99,6 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
   png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)       
   image.wid = 500 * (range[[1]][2] - range[[1]][1])
   image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  #fig=levelplot(zvals,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=paste(samplename,subsamples[[run]][i],sep=""),cex=2),ylab=list(label=paste(samplename,subsamples[[run]][j],sep=""),cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
   fig=levelplot(zvals,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplename_x,cex=2),ylab=list(label=samplename_y,cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
                 panel = function(...) { 
                   panel.levelplot(...)
