@@ -54,6 +54,7 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
   createPng(p, paste(outpath, samplename, "_copyNumberAdjustment.png", sep=""), width=1500, height=500*length(subsamplenames))
   
   p = createHistFacetPlot(meltFacetPlotData(res$mutCount/(res$mutCount+res$WTCount), subsamplenames), paste(samplename, "alleleFrequency"), "Allele Frequency", "Count", binwidth=0.01)
+  p = p + xlim(0,1)
   createPng(p, paste(outpath, samplename, "_alleleFrequency.png", sep=""), width=1500, height=500*length(subsamplenames))
   
   p = createHistFacetPlot(meltFacetPlotData(res$kappa, subsamplenames), paste(samplename, "kappa"), "Kappa", "Count", binwidth=0.01)
@@ -82,10 +83,11 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
   # Manually melt the data
   d.m = data.frame()
   for (i in 1:length(subsamplenames)) {
-    d.loc = data.frame(subsample=subsamplenames[i],variable=factor(dataset$chromosome[,i]), value=dataset$subclonal.fraction[,i])
+    d.loc = data.frame(subsample=subsamplenames[i],variable=factor(dataset$chromosome[,i], levels=unique(dataset$chromosome)), value=dataset$subclonal.fraction[,i])
     d.m = rbind(d.m, d.loc)
   }
   p = createBoxFacetPlot(d.m, paste(samplename, "subclonal fraction per chrom"), "Chromosome", "Subclonal fraction")
+  p = p + ylim(0,3)
   createPng(p, paste(outpath, samplename, "_subclonalFractionPerChromosome.png", sep=""), width=1500, height=500*length(subsamplenames))
   
   # Manually melt the data
@@ -95,14 +97,50 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
   for (i in 1:ncol(d)) {
     d.loc = d[dataset$subclonal.fraction > 1.5,i]
     if(length(d.loc) > 0) { 
-      d.m = rbind(d.m, data.frame(variable=colnames(d)[i], value=factor(d.loc)))
+      d.m = rbind(d.m, data.frame(variable=colnames(d)[i], value=factor(d.loc, levels=unique(dataset$chromosome))))
     }
   }
   
   if (nrow(d.m) > 0) {
     p = createHistFacetPlot(d.m, paste(samplename, "subclonal fraction > 1.5"), "Chromosome", "Count", binwidth=1)
+    p = p + ylim(0,3)
     createPng(p, paste(outpath, samplename, "_large.subclonal.fraction.by.chrom.png", sep=""), width=1500, height=500*length(subsamplenames))
   }
+
+  
+  # Plot frac reads reporting mutation vs total depth
+  d.m = data.frame()
+  for (i in 1:ncol(dataset$mutCount)) {
+    d.m = rbind(d.m, data.frame(x=dataset$mutCount/(dataset$mutCount+dataset$WTCount), y=(dataset$mutCount+dataset$WTCount), samplename=rep(subsamplenames[i], nrow(dataset$mutCount))))
+  }  
+    
+  if (nrow(d.m) > 0) {
+    p = ggplot(d.m) + aes(x=x, y=y) + geom_point() + facet_grid(. ~ samplename)
+    p = p + theme_bw(base_size=35) + ggtitle(samplename) + ylab("Total reads") + xlab("Fraction of mutant reads")
+    createPng(p, paste(outpath, samplename, "_depth.vs.frac.mutCount.png", sep=""), width=1500, height=500*length(subsamplenames))
+  }
+
+  # Create summary of AF space
+  z = as.data.frame(dataset$mutCount/(dataset$mutCount+dataset$WTCount))
+  if (ncol(z) == 1) {
+    af.summary = data.frame("Min."=min(z[,1]), "1st Qu."=quantile(z[,1],0.25), "Median"=quantile(z[,1],0.5), "Mean"=mean(z[,1],0.5), "3rd Qu."=quantile(z[,1],0.75), "Max."=max(z[,1]))
+    colnames(af.summary) = c("Min.","1st.Qu.","Median","Mean","3rd.Qu.","Max.")
+  } else {
+    af.summary = as.data.frame(t(apply(z, 1, summary)))
+  }
+
+  af.summary$samplename = rep(samplename, ncol(dataset$mutCount))
+  af.summary$subsample = subsamplenames
+  write.table(af.summary, file=paste(samplename, "_af_summary.txt", sep=""), quote=F)
+
+  # Plot AF divided by the cellularity
+  dat = res$mutCount/(res$mutCount+res$WTCount)/cellularity
+  p = createHistFacetPlot(meltFacetPlotData(dat, subsamplenames), paste(samplename, "Cellularity Corr. AF"), "Cellularity Corrected Allele Frequency", "Count", binwidth=0.01)
+  createPng(p, paste(outpath, samplename, "_cellularityCorrectedAF.png", sep=""), width=1500, height=500*length(subsamplenames))
+
+
+  
+  
 #   
 #   
 #   
