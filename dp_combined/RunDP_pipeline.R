@@ -31,9 +31,10 @@ if (length(args) >= 10) {
 }
 
 # Check whether a supported analysis_type was supplied
-if (!(analysis_type == 'nd_dp' | analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons')) {
+supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd')
+if (!(analysis_type %in% supported_commands)) {
   print(paste("Type of analysis", analysis_type, "unknown."))
-  print("Specify either nd_dp, tree_dp, tree or cons")
+  print(paste(c("Specify either ", supported_commands)), sep=" ")
   q(save="no", status=1)
 }
 
