@@ -368,9 +368,15 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                    post.burn.in.stop = no.iters, 
                                    samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
                                    indices=c(i,j))  
-        save(file=paste(subsamplesrun[i], "_vs_",subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
+        save(file=paste(output_folder,"/",samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
       }
     }
+    
+    opts = list(no.iters=no.iters, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder, subsamplenames=subsamplesrun, samplename=samplename)
+    print("Assigning mutations to clusters")
+    consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
+    return(consClustering)
+    
     # 1D dataset, plot just the single density
   } else {
     wd = getwd()
