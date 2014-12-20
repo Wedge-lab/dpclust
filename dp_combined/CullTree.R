@@ -8,7 +8,13 @@ cull.tree <- function(tree1, curr.assignments) {
 	#use node numbers - they don't change
 	original.keep.nodes = tree1$node[tree1$label %in%nodes.in.tree$label[nodes.in.tree$keep.node]]
 
-  #040112 - not sure that psi and phi values are set correctly
+	# Some nodes are safe to remove straight away. When left in these nodes can be moved to
+	# a location where they can't be removed without breaking the chain of node names.
+	safe.to.remove = nodes.in.tree$label[!(nodes.in.tree$keep.node | nodes.in.tree$replace.with.descendants | nodes.in.tree$replace.with.siblings)]
+	safe.to.remove = tree1$node[tree1$label %in% safe.to.remove]
+	tree1 = tree1[!(tree1$node %in% safe.to.remove),]
+
+	#040112 - not sure that psi and phi values are set correctly
 	for(i in which(nodes.in.tree$replace.with.descendants)){
 		#name in nodes.in.tree
 		remove.node <- nodes.in.tree$label[i]
