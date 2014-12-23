@@ -145,7 +145,13 @@ get.next.cluster = function(tree.cut, curr.node, clusters, sibs, anc) {
   agreement.sibs = 0
   most.likely.sib = -1
   for (i in 1:length(clusters)) {
-    a = mean(rowSums(sibs[tree.cut==curr.node,tree.cut==clusters[i]]))
+    sibs.selection = sibs[tree.cut==curr.node,tree.cut==clusters[i]]
+
+    if(!is.matrix(sibs.selection)) {
+	    a = sum(sibs.selection)
+    } else {
+    	a = mean(rowSums(sibs.selection))
+    }
     if (a > agreement.sibs) {
       agreement.sibs = a
       most.likely.sib = clusters[i]
@@ -156,7 +162,13 @@ get.next.cluster = function(tree.cut, curr.node, clusters, sibs, anc) {
   agreement.anc = 0
   most.likely.anc = -1
   for (i in 1:length(clusters)) {
-    a = mean(rowSums(anc[tree.cut==curr.node,tree.cut==clusters[i]]))
+    anc.selection = anc[tree.cut==curr.node,tree.cut==clusters[i]]
+
+    if(!is.matrix(anc.selection)) {
+	    a = sum(anc.selection)
+    } else {
+    	a = mean(rowSums(anc.selection))
+    }
     if (a > agreement.anc) {
       agreement.anc = a
       most.likely.anc = clusters[i]
@@ -311,24 +323,29 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
   ###################### Obtain best cut ##########################
   print("Getting best cut")
   res = get.best.cut(rows, nrow(ident), min.frac=min.frac)
-  best.cut = res$best.cut
-  clusters = res$clusters
-  tree.cut = cutree(rows, k=best.cut)
+  tree.cut = cutree(rows, k=res$best.cut)
+  selected.clusters = res$clusters # These are the clusters larger than min.frac
+  clusters = unique(tree.cut) # All possible clusters at this cut
   
   ###################### Obtain theta estimates from subclonal.fractions ##########################
   #clusters = unique(tree.cut)
   thetas = list()
-  for (i in 1:length(clusters)) {
-    cluster = clusters[i]
-    if (cluster %in% selected.clusters) { # A cluster is in selected.clusters if it contains more than min.frac mutations
+  for (i in 1:length(selected.clusters)) { # Loop over all possible clusters, but use only those that are selected
+    cluster = selected.clusters[i]
+    #if (cluster %in% selected.clusters) { # A cluster is in selected.clusters if it contains more than min.frac mutations
       print(i)
       print(cluster)
-      print(subclonal.fraction[tree.cut==cluster,])
-      print(sum(tree.cut==cluster))
+      #print(subclonal.fraction[tree.cut==cluster,])
+      #print(sum(tree.cut==cluster))
 
       # TODO: Perhaps replace this by a draw from a gamma distribution?
-      thetas[[i]] = colSums(subclonal.fraction[tree.cut==cluster,])/sum(tree.cut==cluster)
-    }
+      subclonal.fraction.selected = subclonal.fraction[tree.cut==cluster,]
+      if (!is.matrix(subclonal.fraction.selected)) {
+          thetas[[length(thetas)+1]] = subclonal.fraction.selected/sum(tree.cut==cluster)
+      } else {
+          thetas[[length(thetas)+1]] = colSums(subclonal.fraction.selected)/sum(tree.cut==cluster)
+      }
+    #}
   }
   
   ###################### Find first node ##########################
@@ -345,7 +362,8 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
   print("Adding clusters as nodes")
   # Add the first node to the tree
 #   prev.node = first.node
-  clusters = clusters[clusters!=first.node]
+  temp.clusters = selected.clusters
+  temp.clusters = temp.clusters[temp.clusters!=temp.clusters[first.node]]
   
   # Iteratively grow the tree by finding the node with the strongest relation to any node
   # and add it to the tree. Once added the cluster is removed from the list. Stop once all 
@@ -354,39 +372,43 @@ find.cons.start.pos = function(subclonal.fraction, ident, sibs, anc, min.frac) {
   # We're using integers here to keep track of nodes and clusters. Clusters are assigned
   # an index (the order in which they appear in the clusters variable). We keep this index
   # when the cluster is added to the node. Therefore clusterid == nodeid.
-  while(length(clusters) > 0) {
+  while(length(temp.clusters) > 0) {
     best.strength = 0
     best.node = 0
     best.cluster = NULL
     print("Searching for next cluster")
     for (nodeid in curr.tree$clusterid) { # iterate over all nodes in the tree
-      print(paste("Looking at node ",nodeid))
-      next.cluster = get.next.cluster(tree.cut, nodeid, clusters, sibs, anc)
+      next.cluster = get.next.cluster(tree.cut, nodeid, temp.clusters, sibs, anc)
       if (next.cluster$strength > best.strength) { # if this cluster is better than best, keep it
         best.strength = next.cluster$strength
         best.cluster = next.cluster
         best.node = nodeid # save the id of the node that this cluster has the strongest strength with
-        
-        print("Next best cluster")
-        print(best.cluster)
-        print(best.node)
       }
     }
     
+    print(paste("Adding cluster:", best.cluster, "to node:", best.node, sep=" "))
+    
     # Add the cluster as node to the tree
+    index = which(selected.clusters==best.cluster$clusterid)
     if (next.cluster$relation == "anc") {
       # Direct ancestor, best.node is the ancestor
-      curr.tree = add.node(curr.tree, best.cluster$clusterid, thetas[[best.cluster$clusterid]], best.node)
+      curr.tree = add.node(curr.tree, index, thetas[[index]], best.node)
     } else {
       # Sibling, ancestor of best.node is the ancestor
-      curr.tree = add.node(curr.tree, best.cluster$clusterid, thetas[[best.cluster$clusterid]], as.numeric(curr.tree[curr.tree$clusterid==best.node,]$clusterid))
+      curr.tree = add.node(curr.tree, index, thetas[[index]], as.numeric(curr.tree[curr.tree$clusterid==best.node,]$clusterid))
     }
     # Remove the cluster from the list
-    clusters = clusters[clusters!=best.cluster$clusterid]
+    temp.clusters = temp.clusters[temp.clusters!=selected.clusters[index]]
 #     prev.node = best.cluster$clusterid
   }
+
+  # Make sure these are characters and not factors
+  curr.tree$label = as.character(curr.tree$label)
+  curr.tree$ancestor = as.character(curr.tree$ancestor)
+
   # Set mutation assignments
   assignments = curr.tree$label[tree.cut]
+  assignments[is.na(assignments)] = "M:"
   
   ###################### Save results ##########################
   print(curr.tree)
