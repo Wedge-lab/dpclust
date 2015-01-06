@@ -9,29 +9,25 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
   
   setwd(outdir)
   
-  trees = temp.list$trees #[[1]]
-#   if(is.na(bin.size)){
+  trees = temp.list$trees
   if(is.null(bin.indices)) {
-    node.assignments = temp.list$assignments #[[2]]
+    node.assignments = temp.list$assignments
     binned.node.assignments = NA
     
     print("Calculating mutation strengths")
     strengths = get.mut.ass.strengths(nrow(node.assignments), no.iters, no.iters-no.iters.burn.in, node.assignments)
-    
+
   }else{
     # Unpack the bins
     binned.node.assignments = temp.list$assignments #[[2]]
     node.assignments = array(NA,c(no.muts.input,ncol(binned.node.assignments)))
     for(i in 1:length(bin.indices)) {
       node.assignments[bin.indices[[i]],] = binned.node.assignments[i,]
-    }      
+    }
+    write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
+
     print("Calculating mutation strengths")
     strengths = get.mut.ass.strengths(nrow(binned.node.assignments), no.iters, no.iters-no.iters.burn.in, binned.node.assignments)
-      
-#       Error in print(node.assignments[bin.indices[[i]], ]) : 
-#         error in evaluating the argument 'x' in selecting a method for function 'print': Error in node.assignments[bin.indices[[i]], ] : subscript out of bounds
-    
-    write.table(binned.node.assignments,paste("aggregated_node_assignments_",samplename,"_",no.iters,"iters_block",blockid,".txt",sep=""),sep="\t",row.names=F,quote=F)
   }
 
   ancestor.strengths = strengths$ancestor.strengths
@@ -145,48 +141,56 @@ get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.
   #   - Nodes in parent-offspring relation (ancestor)
   #   - Nodes that are siblings (sibling)
   #
-  calc.ancestor.strengths <- function(m,ancestor.strengths, node.assignments, no.iters.since.burnin, identity.strengths, parent.child.strengths, child.parent.strengths) {
+  calc.ancestor.strengths <- function(m, node.assignments, no.iters.since.burnin) {
     #
     # Calculates the strengths for iteration m of the MCMC algorithm
     #
     node.assignments.all = node.assignments[,no.iters.since.burnin]
     node.assignments.m = node.assignments[m,no.iters.since.burnin]
-    #node.assignments.m = node.assignments.all[m]
     
     temp.ancestor.or.identity.relationship = younger.direct.descendants(node.assignments.m,node.assignments.all)
-    temp.ancestor.strengths = ancestor.strengths[m,] + (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
-    temp.identity.strengths = identity.strengths[m,] + (node.assignments.m == node.assignments.all)
-    temp.parent.child.strengths = parent.child.strengths[m,] + ancestors.only(node.assignments.m,node.assignments.all)
-    temp.child.parent.strengths = child.parent.strengths[m,] + younger.descendants.only(node.assignments.m,node.assignments.all)
+    temp.ancestor.strengths = (temp.ancestor.or.identity.relationship & (node.assignments.m != node.assignments.all))
+    temp.identity.strengths = (node.assignments.m == node.assignments.all)
+    temp.parent.child.strengths = ancestors.only(node.assignments.m,node.assignments.all)
+    temp.child.parent.strengths = younger.descendants.only(node.assignments.m,node.assignments.all)
     
     return(list(temp.ancestor.strengths, temp.ancestor.or.identity.relationship, temp.identity.strengths, temp.parent.child.strengths, temp.child.parent.strengths))
   }
   
-  ancestor.strengths = array(0,c(no.muts,no.muts))
-  sibling.strengths = array(0,c(no.muts,no.muts))
-  identity.strengths = array(0,c(no.muts,no.muts))
-  parent.child.strengths = array(0,c(no.muts,no.muts))
-  child.parent.strengths = array(0,c(no.muts,no.muts))
-  
-  for(i in 1:no.iters.post.burn.in){ # for each iteration past burnin
-    ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))
-    
-    # i+no.iters-no.iters.post.burn.in = no.iters-no.iters.post.burn.in is where the burn.in stops, i represents the iterations after that point
-    #res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths)
-    #
-    # system.time(sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments[,i+no.iters-no.iters.post.burn.in], identity.strengths, parent.child.strengths, child.parent.strengths))
-    # user  system elapsed 
-    # 30.330   0.580  30.975 
-    res = sapply(1:no.muts, FUN=calc.ancestor.strengths, ancestor.strengths, node.assignments, i+no.iters-no.iters.post.burn.in, identity.strengths,  parent.child.strengths, child.parent.strengths)
-    # res contains three lists of vectors. Below we take a list and rbind all vectors in it together into a matrix
-    ancestor.strengths = do.call(rbind,res[1,])
-    ancestor.or.identity.relationship = do.call(rbind,res[2,])
-    identity.strengths = do.call(rbind,res[3,])
-    parent.child.strengths = do.call(rbind,res[4,])
-    child.parent.strengths = do.call(rbind,res[5,])
-    
-    sibling.strengths = sibling.strengths + as.numeric(!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))
+  # Combine function that takes a list of lists and returns a new list of lists where the first list contains each first item, second each second item, etc
+  comb <- function(x, ...) {
+	    lapply(seq_along(x), function(i) c(x[[i]], lapply(list(...), function(y) y[[i]])))
   }
-  
+
+  chunkSize = ceiling(no.iters.post.burn.in/4)
+  r = foreach(i=1:4, .packages="doRNG", .export=c("comb", "calc.ancestor.strengths","younger.direct.descendants","ancestors.only","younger.descendants.only"), .combine='comb', .multicombine=T, .init=list(list(), list(), list(), list(), list())) %dorng% { 
+	# Set start and end points of this chunk
+  	s = ((i-1)*chunkSize)+1
+  	e = i*chunkSize
+	# Iterate over the items in the range. res will be a list of lists
+	ri = foreach(j=s:e, .combine='comb', .multicombine=T, .init=list(list(), list(), list(), list(), list())) %do% {	     
+		if (j <= no.iters.post.burn.in) {
+			# Calculate the 
+			res = sapply(1:no.muts, FUN=calc.ancestor.strengths, node.assignments, j+no.iters-no.iters.post.burn.in)
+			ancestor.or.identity.relationship = do.call(rbind,res[2,])*1
+			list(do.call(rbind,res[1,])*1, do.call(rbind,res[3,])*1, do.call(rbind,res[4,])*1, do.call(rbind,res[5,])*1, (!ancestor.or.identity.relationship & !t(ancestor.or.identity.relationship))*1)
+		} else {
+			# This case must be caught to ensure all chunks return a list of the equal size
+			temp = array(0,c(no.muts,no.muts))
+			list(temp, temp, temp, temp, temp)
+		}
+  	}
+	# Partially add the matrices for this chunk per category
+	lapply(ri, function(x) { Reduce('+', x) })
+  }
+
+  # Add the summed matrices per category, per chunk and prepare the output
+  res = lapply(r, function(x) { Reduce('+', x) })
+  ancestor.strengths = res[[1]]
+  identity.strengths = res[[2]]
+  parent.child.strengths = res[[3]]
+  child.parent.strengths = res[[4]]
+  sibling.strengths = res[[5]]
+
   return(list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths, parent.child.strengths=parent.child.strengths, child.parent.strengths=child.parent.strengths))
 }

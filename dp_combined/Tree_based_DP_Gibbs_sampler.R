@@ -255,9 +255,21 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
  		for (i in 1:num.muts) {
 			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
 			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
-      curr.tree <- temp.assignments[[2]]
+      			curr.tree <- temp.assignments[[2]]
 			node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
 		}
+
+		#chunkSize = ceiling(num.muts/4)
+		#out = foreach(i=1:4, .packages="doRNG", .export=c("get.conflicts", "sample.assignment", "ancestors", "find.node", "log.f.of.y")) %dorng% { 
+		#	foreach(j=(i*chunkSize):(((i+1)*chunkSize)-1)) %do% { 
+		#		if (! j>num.muts) {
+		#			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
+		#			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
+		#      			curr.tree <- temp.assignments[[2]]
+		#                	node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
+		#		}
+		#	} 
+		#}
     
     gc()
 		
@@ -272,14 +284,11 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		node.assignments[,m] = new.node.assignments
 		
 		print("# Resample theta.S variables")
+		# It is not safe to run this in parallel
 		for (k in grep("theta", names(curr.tree))) {
         curr.tree[, k] <- whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
     }
 
-#    out = foreach(k=grep("theta", names(curr.tree)), .export=c("whole.tree.slice.sampler","log.f.of.y","xsample")) %dorng% {
-#      curr.tree[, k] = whole.tree.slice.sampler(curr.tree, curr.tree[,k], y[,k-7], n[,k-7], kappa[,k-7], node.assignments[,m], shrinkage.threshold)
-#    }
-    
     gc()
 		
 		print("# Resample hyperparameters")
