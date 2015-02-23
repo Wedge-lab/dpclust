@@ -9,14 +9,15 @@ purity_file = toString(args[6]) # A file containing samplenames and purity
 analysis_type = toString(args[7]) # String that represents the analysis that is to be run
 parallel = as.logical(args[8]) # Supply true or false whether to run parts of the method in parallel
 no.of.threads = as.integer(args[9]) # Integer that determines how many threads to use when running parts in parallel
+mut.assignment.type = as.integer(args[10]) # Integer that determines which mutation assignment method is to be used in 1d/nd cases
 
 # Optional arguments
-if (length(args) >= 10) {
-  bin.size = as.double(args[10])
-  if (length(args) >= 11) {
-    blockid = as.integer(args[11])
-    if (length(args) >= 12) {
-      no.of.blocks = as.integer(args[12])
+if (length(args) >= 11) {
+  bin.size = as.double(args[11])
+  if (length(args) >= 12) {
+    blockid = as.integer(args[12])
+    if (length(args) >= 13) {
+      no.of.blocks = as.integer(args[13])
     } else {
       no.of.blocks = 1
     }
@@ -35,6 +36,13 @@ supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_
 if (!(analysis_type %in% supported_commands)) {
   print(paste("Type of analysis", analysis_type, "unknown."))
   print(paste(c("Specify either ", supported_commands)), sep=" ")
+  q(save="no", status=1)
+}
+# Check whether the mut.assignment.type is supported
+supported_mut.assignment.methods = c(1,2)
+if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
+  print(paste("Type of mutation assignment method", mut.assignment.type, "unknown."))
+  print(paste(c("Specify either ", supported_mut.assignment.methods)), sep=" ")
   q(save="no", status=1)
 }
 
@@ -98,6 +106,7 @@ RunDP(analysis_type=analysis_type,
       no.of.blocks=no.of.blocks, 
       remove.node.frequency=12, #12
       remove.branch.frequency=51, #51
+      mut.assignment.type=mut.assignment.type,
       annotation=vector(mode="character",length=nrow(dataset$mutCount)),
       init.alpha=0.01, 
       shrinkage.threshold=0.1,

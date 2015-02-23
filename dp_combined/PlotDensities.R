@@ -48,7 +48,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   # Plot the histogram, the density line and add the plot title
   par(mar = c(5,6,4,1)+0.1)
   hist(mutationCopyNumber[mutationCopyNumber<=x.max], breaks=seq(-0.1, x.max, 0.025), col="lightgrey",freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
-  polygon(c(xx, rev(xx)), polygon.data[,1], border="plum4", col=cm.colors(1,alpha=0.3))
+  polygon(c(xx, rev(xx)), polygon.data, border="plum4", col=cm.colors(1,alpha=0.3))
   lines(xx, yy, col="plum4", lwd=3)
   title(samplename, cex.main=3)
   

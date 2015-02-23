@@ -1,7 +1,7 @@
 source("DirichletProcessClustering.R")
 source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA) {
   # Pick the analysis to run
   if (analysis_type == 'nd_dp') {
     clustering = DirichletProcessClustering(mutCount=dataset$mutCount, 
@@ -16,7 +16,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                     			                  subsamplesrun=subsamples,
                                             output_folder=outdir, 
                                             conc_param=conc_param, 
-                                            cluster_conc=cluster_conc)
+                                            cluster_conc=cluster_conc,
+                    			                  mut.assignment.type=mut.assignment.type)
   } else if(analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
     if(is.na(bin.size)){
       outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
@@ -55,11 +56,11 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     pngFile = paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplot_replot.png", sep="")
     
     plot1D(density, 
-           polygon.data, 
+           polygon.data[,1], 
            pngFile=pngFile, 
            density.from=0, 
            #y.max=6, 
-           x.max=2, 
+           x.max=1.5, #2.7
            mutationCopyNumber=dataset$mutation.copy.number, 
            no.chrs.bearing.mut=dataset$copyNumberAdjustment,
            samplename=samplename)
