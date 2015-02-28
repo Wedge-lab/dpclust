@@ -51,9 +51,9 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     ##############################
     # Replot 1D clustering
     ##############################
-    density = read.table(paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplotdensity.txt", sep=""), header=T)
-    polygon.data = read.table(paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplotpolygonData.txt", sep=""), header=T)
-    pngFile = paste(outdir, "/", samplename, "_DPoutput_1250iters_250burnin", "/", samplename, "_DirichletProcessplot_replot.png", sep="")
+    density = read.table(paste(outdir, "/", samplename, "_DPoutput_", no.iters, "iters_", no.iters.burn.in, "burnin", "/", samplename, "_DirichletProcessplotdensity.txt", sep=""), header=T)
+    polygon.data = read.table(paste(outdir, "/", samplename, "_DPoutput_", no.iters, "iters_", no.iters.burn.in, "burnin", "/", samplename, "_DirichletProcessplotpolygonData.txt", sep=""), header=T)
+    pngFile = paste(outdir, "/", samplename, "_DPoutput_", no.iters, "iters_", no.iters.burn.in, "burnin", "/", samplename, "_DirichletProcessplot_replot.png", sep="")
     
     plot1D(density, 
            polygon.data[,1], 
@@ -71,7 +71,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     ##############################
     for(i in 1:(length(subsamples)-1)){
       for(j in (i+1):length(subsamples)){
-        filename_prefix = paste(outdir,"/",samplename, "_DPoutput_25iters_2burnin/",samplename,subsamples[i],subsamples[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,sep="")
+        filename_prefix = paste(outdir,"/",samplename, "_DPoutput_", no.iters, "iters_", no.iters.burn.in, "burnin/", samplename,subsamples[i],subsamples[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,sep="")
         pngFile = paste(filename_prefix,"_2D_binomial_limitedRange_replot.png",sep="")
         xvals = read.table(paste(filename_prefix,"_2D_binomial_xvals.csv",sep=""),header=T,sep=",",row.names=1)
         yvals = read.table(paste(filename_prefix,"_2D_binomial_yvals.csv",sep=""),header=T,sep=",",row.names=1)

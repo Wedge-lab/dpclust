@@ -289,71 +289,70 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   return(list(fraction.of.tumour.cells=burden, median.density=median.density, xvals=xvals, yvals=yvals))
 }
 
-Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
-  print(paste("density.smooth=",density.smooth,sep=""))
-  png(filename=pngFile,,width=1500,height=1000)
-  # GS.data is the list output from the above function
-  # density.smooth is the smoothing factor used in R's density() function
-  # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
-  
-  if(is.null(mutationCopyNumber)){
-    print("No mutationCopyNumber. Using mutation burden")
-    y <- GS.data$y1
-    N <- GS.data$N1
-    mutationCopyNumber = y/N
-  }
-  
-  if(!is.null(no.chrs.bearing.mut)){
-    mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
-  }
-  
-  V.h.cols <- GS.data$V.h # weights
-  pi.h.cols <- GS.data$pi.h[,,1] # discreteMutationCopyNumbers
-  wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
-  wts[,1] <- V.h.cols[,1]
-  wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
-  for (i in 3:dim(wts)[2]) {wts[,i] <- apply(1-V.h.cols[,1:(i-1)], MARGIN=1, FUN=prod) * V.h.cols[,i]}
-  
-  post.ints <- matrix(NA, ncol=post.burn.in.stop - post.burn.in.start + 1, nrow=512)
-  
-  if (is.na(x.max)) {
-    x.max = ceiling(max(mutationCopyNumber)*12)/10
-  }
-  
-  xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
- 
-  for (i in post.burn.in.start : post.burn.in.stop) {
-    post.ints[,i - post.burn.in.start + 1] <- density(c(pi.h.cols[i-1,]), weights=c(wts[i,]) / sum(c(wts[i,])), adjust=density.smooth, from=density.from, to=x.max)$y
-  }
-  
-  polygon.data = c(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.975), rev(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.025)))
-  if(is.na(y.max)){
-    y.max=ceiling(max(polygon.data)/10)*10
-  }
-  
-  yy = apply(post.ints, MARGIN=1, FUN=quantile, probs=0.5)
-  density = cbind(xx, yy)
-  
-  plot1D(density, 
-         polygon.data, 
-         pngFile=pngFile, 
-         density.from=0, 
-         y.max=y.max, 
-         x.max=x.max, 
-         mutationCopyNumber=mutationCopyNumber, 
-         no.chrs.bearing.mut=no.chrs.bearing.mut,
-         samplename=samplename)
-  
-  
-  print(paste("highest density is at ",xx[which.max(yy)],sep=""))
-  write.table(density,gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
-  write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
-  
-  return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
-}
+# Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
+#   print(paste("density.smooth=",density.smooth,sep=""))
+#   png(filename=pngFile,,width=1500,height=1000)
+#   # GS.data is the list output from the above function
+#   # density.smooth is the smoothing factor used in R's density() function
+#   # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
+#   
+#   if(is.null(mutationCopyNumber)){
+#     print("No mutationCopyNumber. Using mutation burden")
+#     y <- GS.data$y1
+#     N <- GS.data$N1
+#     mutationCopyNumber = y/N
+#   }
+#   
+#   if(!is.null(no.chrs.bearing.mut)){
+#     mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
+#   }
+#   
+#   V.h.cols <- GS.data$V.h # weights
+#   pi.h.cols <- GS.data$pi.h[,,1] # discreteMutationCopyNumbers
+#   wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
+#   wts[,1] <- V.h.cols[,1]
+#   wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
+#   for (i in 3:dim(wts)[2]) {wts[,i] <- apply(1-V.h.cols[,1:(i-1)], MARGIN=1, FUN=prod) * V.h.cols[,i]}
+#   
+#   post.ints <- matrix(NA, ncol=post.burn.in.stop - post.burn.in.start + 1, nrow=512)
+#   
+#   if (is.na(x.max)) {
+#     x.max = ceiling(max(mutationCopyNumber)*12)/10
+#   }
+#   
+#   xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
+#  
+#   for (i in post.burn.in.start : post.burn.in.stop) {
+#     post.ints[,i - post.burn.in.start + 1] <- density(c(pi.h.cols[i-1,]), weights=c(wts[i,]) / sum(c(wts[i,])), adjust=density.smooth, from=density.from, to=x.max)$y
+#   }
+#   
+#   polygon.data = c(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.975), rev(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.025)))
+#   if(is.na(y.max)){
+#     y.max=ceiling(max(polygon.data)/10)*10
+#   }
+#   
+#   yy = apply(post.ints, MARGIN=1, FUN=quantile, probs=0.5)
+#   density = cbind(xx, yy)
+#   
+#   plot1D(density, 
+#          polygon.data, 
+#          pngFile=pngFile, 
+#          density.from=0, 
+#          y.max=y.max, 
+#          x.max=x.max, 
+#          mutationCopyNumber=mutationCopyNumber, 
+#          no.chrs.bearing.mut=no.chrs.bearing.mut,
+#          samplename=samplename)
+#   
+#   
+#   print(paste("highest density is at ",xx[which.max(yy)],sep=""))
+#   write.table(density,gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
+#   write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
+#   
+#   return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
+# }
 
-Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.ma
-                                          x=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
+Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
   print(paste("density.smooth=",density.smooth,sep=""))
   png(filename=pngFile,,width=1500,height=1000)
   # GS.data is the list output from the above function
@@ -417,7 +416,7 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
   write.table(density,gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
   write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
   
-  return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
+  return(list(density=data.frame(fraction.of.tumour.cells=xx, median.density=yy), polygon.data=polygon.data))
 }
 
 Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1, post.burn.in.start = 200, post.burn.in.stop = 1000, max.burden=NA, resolution=NA) {

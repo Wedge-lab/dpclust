@@ -387,7 +387,7 @@ if (ncol(mutCount) > 1) {
     # 1D dataset, plot just the single density
     wd = getwd()
     setwd(output_folder)
-    density = Gibbs.subclone.density.est.1d(GS.data, 
+    res = Gibbs.subclone.density.est.1d(GS.data, 
                                             paste(samplename,"_DirichletProcessplot.png", sep=''), 
                                             samplename=samplename,
                                             post.burn.in.start=no.iters.burn.in, 
@@ -395,6 +395,8 @@ if (ncol(mutCount) > 1) {
                                             y.max=15, 
                                             mutationCopyNumber=mutation.copy.number, 
                                             no.chrs.bearing.mut=copyNumberAdjustment)
+    density = res$density
+    polygon.data = res$polygon.data
     
     # Assign mutations to clusters using one of the different assignment methods
     opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
@@ -403,6 +405,18 @@ if (ncol(mutCount) > 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
       subclonal.fraction[is.nan(subclonal.fraction)] = 0
       consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+      
+      # Replot the data with cluster locations
+      plot1D(density=density, 
+             polygon.data=polygon.data, 
+             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+             density.from=0, 
+             x.max=1.5, 
+             mutationCopyNumber=mutation.copy.number, 
+             no.chrs.bearing.mut=copyNumberAdjustment,
+             samplename=samplename,
+             cluster.locations=consClustering$cluster.locations,
+             mutation.assignments=consClustering$best.node.assignments)
       
     } else if (mut.assignment.type == 2) {
       setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt

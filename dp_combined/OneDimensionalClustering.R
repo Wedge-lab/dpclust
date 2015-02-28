@@ -67,7 +67,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     most.likely.cluster.likelihood = rep(1,no.muts)
   }
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cbind(1:no.optima,localOptima)))
 }
 
 

@@ -1,6 +1,6 @@
 library(lattice)
 
-plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0)) {
+plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL) {
   #
   # Creates the 1D density plot in either allele fraction, mutation copy number or fraction of tumour cells space.
   #   density:      Is a two column data frame. First column x-axis density line, second column y-axis density line.
@@ -14,6 +14,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   #   no.chrs.bearing.mut:  Copynumber adjustment per mutation.
   #   samplename:   Name of the sample under analysis.
   #   CALR:         ?? some kind of annotation
+  #   cluster.locations Locations in the space to be plotted where clusters reside.
   #
   # ggplot equivalent: 
   # conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data[,1]))
@@ -51,6 +52,21 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   polygon(c(xx, rev(xx)), polygon.data, border="plum4", col=cm.colors(1,alpha=0.3))
   lines(xx, yy, col="plum4", lwd=3)
   title(samplename, cex.main=3)
+  
+  # If cluster locations are provided, add them as a vertical line with nr of mutations mentioned
+  if(!is.null(cluster.locations) & !is.null(mutation.assignments)) {
+    assign.counts = table(mutation.assignments)
+    
+    for (cluster in unique(mutation.assignments)) {
+      x = cluster.locations[cluster.locations[,1]==cluster, 2]
+      lines(x=c(x, x),
+            y=c(0, y.max),
+            col="black",
+            lwd=3)
+      text(paste("Cluster",cluster, sep=" "), x=x+0.01, y=(9/10)*y.max, adj=c(0,0), cex=2)
+      text(paste(as.numeric(assign.counts[cluster]), "mutations", sep=" "), x=x+0.01, y=(9/10)*y.max-0.35, adj=c(0,0), cex=2)
+    }
+  }
   
   if(length(CALR)>0){
     x.index = sapply(1:length(CALR),function(i){which.min(abs(CALR[i]-xx))})
