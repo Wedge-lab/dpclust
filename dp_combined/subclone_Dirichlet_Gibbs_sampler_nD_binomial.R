@@ -367,6 +367,10 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
     xlabel = "mutation_burden"
   }
   
+  # Save the original MCN to give to the plotter below. If MCN and chroms.bearing.muts are both submitted MCN was
+  # scaled twice (once just below and once in the plotter) giving rise to wrong figures.
+  mutationCopyNumber.original = mutationCopyNumber
+  
   if(!is.null(no.chrs.bearing.mut)){
     mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
     xlabel = "fraction_of_cells"
@@ -407,7 +411,7 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
          density.from=0, 
          y.max=y.max, 
          x.max=x.max, 
-         mutationCopyNumber=mutationCopyNumber, 
+         mutationCopyNumber=mutationCopyNumber.original, 
          no.chrs.bearing.mut=no.chrs.bearing.mut,
          samplename=samplename)
   
