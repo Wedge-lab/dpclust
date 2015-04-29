@@ -61,7 +61,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
       x = cluster.locations[cluster.locations[,1]==cluster, 2]
       lines(x=c(x, x), y=c(0, y.max), col="black", lwd=3)
       text(paste("Cluster",cluster, sep=" "), x=x+0.01, y=(9/10)*y.max, adj=c(0,0), cex=2)
-      text(paste(as.numeric(assign.counts[cluster]), "mutations", sep=" "), x=x+0.01, y=(9/10)*y.max-0.35, adj=c(0,0), cex=2)
+      text(paste(as.numeric(assign.counts[names(assign.counts)==as.character(cluster)]), "mutations", sep=" "), x=x+0.01, y=(9/10)*y.max-0.35, adj=c(0,0), cex=2)
     }
   }
   
