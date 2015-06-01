@@ -1,9 +1,18 @@
 source("DirichletProcessClustering.R")
 source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
   # Pick the analysis to run
   if (analysis_type == 'nd_dp') {
+	# Obtain the mutations that were not sampled, as these must be assigned to clusters separately
+	  if (muts.sampled) {
+		most.similar.mut = dataset$most.similar.mut
+	  } else {
+		  most.similar.mut = NA
+	  }
+
+
+
     clustering = DirichletProcessClustering(mutCount=dataset$mutCount, 
                                             WTCount=dataset$WTCount, 
                                             no.iters=no.iters, 
@@ -17,7 +26,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                                             output_folder=outdir, 
                                             conc_param=conc_param, 
                                             cluster_conc=cluster_conc,
-                    			                  mut.assignment.type=mut.assignment.type)
+                    			                  mut.assignment.type=mut.assignment.type,
+							  most.similar.mut=most.similar.mut)
   } else if(analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
     if(is.na(bin.size)){
       outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
@@ -100,6 +110,19 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   }
 
   if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
+
+	  # Check if mutation sampling has been done, if so, unpack and assign here
+	if (!is.na(most.similar.mut)) {
+		best.node.assignments = rep(1, nrow(dataset$full.data$chromosome))
+		best.assignment.likelihoods = rep(1, nrow(dataset$full.data$chromosome))
+		best.node.assignments = clustering$best.node.assignments[most.similar.mut]
+		best.assignment.likelihoods = clustering$best.assignment.likelihoods[most.similar.mut]
+		clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
+	}
+
+
+
+
     # Write final output
     outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)

@@ -11,6 +11,9 @@ parallel = as.logical(args[8]) # Supply true or false whether to run parts of th
 no.of.threads = as.integer(args[9]) # Integer that determines how many threads to use when running parts in parallel
 mut.assignment.type = as.integer(args[10]) # Integer that determines which mutation assignment method is to be used in 1d/nd cases
 
+num_muts_sample = 100
+
+
 # Optional arguments
 if (length(args) >= 11) {
   bin.size = as.double(args[11])
@@ -89,7 +92,8 @@ dataset = load.data(datpath,
                     no.chrs.bearing.mut="no.chrs.bearing.mut", 
                     mutation.copy.number="mutation.copy.number", 
                     subclonal.fraction="subclonal.fraction", 
-                    data_file_suffix="")
+                    data_file_suffix="",
+		    num_muts_sample=num_muts_sample)
 
 RunDP(analysis_type=analysis_type, 
       dataset=dataset, 
@@ -110,4 +114,5 @@ RunDP(analysis_type=analysis_type,
       annotation=vector(mode="character",length=nrow(dataset$mutCount)),
       init.alpha=0.01, 
       shrinkage.threshold=0.1,
-      bin.size=bin.size)
+      bin.size=bin.size,
+      muts.sampled=!is.na(num_muts_sample))
