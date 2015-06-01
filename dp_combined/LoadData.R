@@ -100,35 +100,41 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
 
 
 	selection = sample(1:nrow(chromosome))[1:num_muts_sample]
-  	selection = order(selection)
-  	chromosome = chromosome[selection,]
-	mut.position = mut.position[selection,]
-	WTCount = WTCount[selection,]
-	mutCount = mutCount[selection,]
-	totalCopyNumber = totalCopyNumber[selection,]
-	copyNumberAdjustment = copyNumberAdjustment[selection,]
-	non.deleted.muts = non.deleted.muts[selection,]
-	kappa = kappa[selection,]
-	mutationCopyNumber = mutationCopyNumber[selection,]
-	subclonalFraction = subclonalFraction[selection,]
+  	selection = sort(selection)
+
+	print("Selecting mutations:")
+	print(selection)
+
+  	chromosome = as.matrix(chromosome[selection,])
+	mut.position = as.matrix(mut.position[selection,])
+	WTCount = as.matrix(WTCount[selection,])
+	mutCount = as.matrix(mutCount[selection,])
+	totalCopyNumber = as.matrix(totalCopyNumber[selection,])
+	copyNumberAdjustment = as.matrix(copyNumberAdjustment[selection,])
+	non.deleted.muts = as.matrix(non.deleted.muts[selection,])
+	kappa = as.matrix(kappa[selection,])
+	mutationCopyNumber = as.matrix(mutationCopyNumber[selection,])
+	subclonalFraction = as.matrix(subclonalFraction[selection,])
 
 	# for each muation not sampled, find the most similar mutation that was sampled
 	most.similar.mut = rep(1, nrow(full_data$chromosome))
 	for (i in 1:nrow(full_data$chromosome)) {
 		if (i %in% selection) {
-			most.similar.mut[i] = i
+			most.similar.mut[i] = which(selection==i)
 		} else {
 			# Find mutation with closest kappa
-			curr = selection[which.min(abs(full_data$kappa[selection]-kappa[i]))]
+			curr = selection[which.min(abs(full_data$kappa[selection]-full_data$kappa[i]))]
 			# Select all mutations with this kappa
-			curr = which(full_data$kappa[selection]==full_data$kappa[curr])
+			curr = selection[which(full_data$kappa[selection]==full_data$kappa[curr])]
 			# Pick the mutation with the most similar AF as the the most similar mutation for i
 			af.i = full_data$mutCount[i] / (full_data$mutCount[i] + full_data$WTCount[i])
 			af = full_data$mutCount[curr] / (full_data$mutCount[curr] + full_data$WTCount[curr])
 			curr = curr[which.min(abs(af-af.i))]
-			most.similar.mut[i] = curr
+			most.similar.mut[i] = which(selection==curr)
 		}
 	}
+	print("Mutation to selected mutation mapping:")
+	print(cbind(1:nrow(full_data$chromosome), most.similar.mut))
 
 
   } else {
