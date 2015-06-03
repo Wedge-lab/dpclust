@@ -136,7 +136,6 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   		}
   	}
   	#print(cbind(1:nrow(full_data$chromosome), most.similar.mut))
-  	write.table(cbind(1:nrow(full_data$chromosome), most.similar.mut), file="/lustre/scratch110/sanger/sd11/dirichlet/oesophageal/assignment.txt", quote=F, row.names=F)
 
   } else {
 	  selection = NA
