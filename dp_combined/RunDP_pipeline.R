@@ -11,16 +11,16 @@ parallel = as.logical(args[8]) # Supply true or false whether to run parts of th
 no.of.threads = as.integer(args[9]) # Integer that determines how many threads to use when running parts in parallel
 mut.assignment.type = as.integer(args[10]) # Integer that determines which mutation assignment method is to be used in 1d/nd cases
 
-num_muts_sample = 100
+num_muts_sample = as.integer(args[11]) # 2500 Integer that determines how many mutations to sample
 
 
 # Optional arguments
-if (length(args) >= 11) {
-  bin.size = as.double(args[11])
-  if (length(args) >= 12) {
-    blockid = as.integer(args[12])
-    if (length(args) >= 13) {
-      no.of.blocks = as.integer(args[13])
+if (length(args) >= 12) {
+  bin.size = as.double(args[12])
+  if (length(args) >= 13) {
+    blockid = as.integer(args[13])
+    if (length(args) >= 14) {
+      no.of.blocks = as.integer(args[14])
     } else {
       no.of.blocks = 1
     }
@@ -35,7 +35,7 @@ if (length(args) >= 11) {
 }
 
 # Check whether a supported analysis_type was supplied
-supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd')
+supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
 if (!(analysis_type %in% supported_commands)) {
   print(paste("Type of analysis", analysis_type, "unknown."))
   print(paste(c("Specify either ", supported_commands)), sep=" ")
@@ -70,17 +70,30 @@ print("Datafiles:")
 print(datafiles)
 print("")
 
-
-if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin_", sep="")
+# Set the name of the output directory
+if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons' | analysis_type == 'sample_muts') {
+  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
   if (!is.na(bin.size)) {
-    outdir = paste(outdir, "_",bin.size, "binsize")
+    outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
 } else if (analysis_type == 'nd_dp') {
   outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
+} 
+
+# Create the output directory
+if(!file.exists(outdir)){
+  dir.create(outdir)
 }
 
-dataset = load.data(datpath,
+
+if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
+  # Wait a random number of seconds before loading - this is required for when starting multiple threads on this file
+  if (!is.na(blockid) & blockid != "NA") {
+    Sys.sleep(blockid*2)
+  }
+	load(paste(outdir, "/dataset.RData", sep=""))
+} else {
+	dataset = load.data(datpath,
                     "",
                     datafiles, 
                     cellularity=cellularity, 
@@ -93,7 +106,16 @@ dataset = load.data(datpath,
                     mutation.copy.number="mutation.copy.number", 
                     subclonal.fraction="subclonal.fraction", 
                     data_file_suffix="",
-		    num_muts_sample=num_muts_sample)
+		                num_muts_sample=num_muts_sample)
+}
+
+# Save the dataset
+save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+
+if (analysis_type == 'sample_muts') {
+  # If only sampling then quit now. Use this when running parts of a method in parallel
+  q(save="no")
+}
 
 RunDP(analysis_type=analysis_type, 
       dataset=dataset, 

@@ -123,22 +123,20 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
 			most.similar.mut[i] = selection[selection==i]
 		} else {
 			# Find mutation with closest kappa
-			curr = selection[which.min(abs(rowSums(full_data$kappa[selection,]-full_data$kappa[i,])))]
-			# Select all mutations with this kappa
-			curr = selection[which(rowSums(full_data$kappa[selection,])==sum(full_data$kappa[curr,]))]
+			kappa.diff = matrix(full_data$kappa[selection,]-full_data$kappa[i,], ncol=ncol(full_data$mutCount))
+			curr = selection[which.min(abs(rowSums(kappa.diff)))]
+			# Select all mutations with this kappa - a bit of trickery needed to make this work properly with a single column matrix
+			curr = selection[which(rowSums(matrix(full_data$kappa[selection,], ncol=ncol(full_data$kappa)))==sum(full_data$kappa[curr,]))]
 			# Pick the mutation with the most similar AF as the the most similar mutation for i
 			af.i = full_data$mutCount[i,] / (full_data$mutCount[i,] + full_data$WTCount[i,])
 			af = full_data$mutCount[curr,] / (full_data$mutCount[curr,] + full_data$WTCount[curr,])
-
-			if (length(curr) == 1) {
-				curr = curr[which.min(abs(sum(af-af.i)))]
-			} else {
-				curr = curr[which.min(abs(rowSums(af-af.i)))]
-			}
-			most.similar.mut[i] = selection[selection==curr]
+			af.diff = matrix(af-af.i, ncol=ncol(full_data$mutCount))
+			curr = curr[which.min(abs(rowSums(af.diff)))]
+			most.similar.mut[i] = which(selection==curr) # Saving index of most similar mut in the sampled data here for expansion at the end
 		}
 	}
 	#print(cbind(1:nrow(full_data$chromosome), most.similar.mut))
+	write.table(cbind(1:nrow(full_data$chromosome), most.similar.mut), file="/lustre/scratch110/sanger/sd11/dirichlet/oesophageal/assignment.txt", quote=F, row.names=F)
 
 
   } else {

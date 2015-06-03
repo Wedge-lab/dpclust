@@ -6,12 +6,10 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   if (analysis_type == 'nd_dp') {
 	# Obtain the mutations that were not sampled, as these must be assigned to clusters separately
 	  if (muts.sampled) {
-		most.similar.mut = dataset$most.similar.mut
+		  most.similar.mut = dataset$most.similar.mut
 	  } else {
 		  most.similar.mut = NA
 	  }
-
-
 
     clustering = DirichletProcessClustering(mutCount=dataset$mutCount, 
                                             WTCount=dataset$WTCount, 
@@ -27,14 +25,14 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                                             conc_param=conc_param, 
                                             cluster_conc=cluster_conc,
                     			                  mut.assignment.type=mut.assignment.type,
-							  most.similar.mut=most.similar.mut)
+							                              most.similar.mut=most.similar.mut)
   } else if(analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
-    if(is.na(bin.size)){
-      outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
-      
-    }else{
-      outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,"_burnin",no.iters.burn.in,sep="")
-    }
+#     if(is.na(bin.size)){
+#       outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
+#       
+#     }else{
+#       outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,"_burnin",no.iters.burn.in,sep="")
+#     }
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
                              removed_indices=dataset$removed_indices,
