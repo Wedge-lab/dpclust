@@ -120,7 +120,8 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   	most.similar.mut = rep(1, nrow(full_data$chromosome))
   	for (i in 1:nrow(full_data$chromosome)) {
   		if (i %in% selection) {
-  			most.similar.mut[i] = selection[selection==i]
+			# Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
+  			most.similar.mut[i] = which(selection==i)
   		} else {
   			# Find mutation with closest kappa
   			kappa.diff = matrix(full_data$kappa[selection,]-full_data$kappa[i,], ncol=ncol(full_data$mutCount))
