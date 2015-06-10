@@ -12,7 +12,7 @@ no.of.threads = as.integer(args[9]) # Integer that determines how many threads t
 mut.assignment.type = as.integer(args[10]) # Integer that determines which mutation assignment method is to be used in 1d/nd cases
 
 num_muts_sample = as.integer(args[11]) # 2500 Integer that determines how many mutations to sample
-
+#print(num_muts_sample)
 
 # Optional arguments
 if (length(args) >= 12) {
@@ -106,7 +106,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                     mutation.copy.number="mutation.copy.number", 
                     subclonal.fraction="subclonal.fraction", 
                     data_file_suffix="",
-		                num_muts_sample=num_muts_sample)
+		    num_muts_sample=num_muts_sample)
 }
 
 # Save the dataset
