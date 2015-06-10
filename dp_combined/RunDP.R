@@ -110,13 +110,14 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
 
 	  # Check if mutation sampling has been done, if so, unpack and assign here
-	if (!is.na(most.similar.mut)) {
-		best.node.assignments = rep(1, nrow(dataset$full.data$chromosome))
-		best.assignment.likelihoods = rep(1, nrow(dataset$full.data$chromosome))
-		best.node.assignments = clustering$best.node.assignments[most.similar.mut]
-		best.assignment.likelihoods = clustering$best.assignment.likelihoods[most.similar.mut]
-		clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
-	}
+  	if (!is.na(most.similar.mut)) {
+  		best.node.assignments = rep(1, nrow(dataset$full.data$chromosome))
+  		best.assignment.likelihoods = rep(1, nrow(dataset$full.data$chromosome))
+  		best.node.assignments = clustering$best.node.assignments[most.similar.mut]
+  		best.assignment.likelihoods = clustering$best.assignment.likelihoods[most.similar.mut]
+  		clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
+		dataset = dataset$full.data
+  	}
 
 
 
