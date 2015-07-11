@@ -1,5 +1,5 @@
-source("DirichletProcessClustering.R")
-source("PlotDensities.R")
+# source("DirichletProcessClustering.R")
+# source("PlotDensities.R")
 
 RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately

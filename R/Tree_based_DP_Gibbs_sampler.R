@@ -1,8 +1,8 @@
-library(LIM)
-#library(Matrix)
-library(vegan)
-source("CullTree.R")
-source("RemoveBranch.R")
+# library(LIM)
+# #library(Matrix)
+# library(vegan)
+# source("CullTree.R")
+# source("RemoveBranch.R")
 
 younger.siblings <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are younger siblings of curr.node

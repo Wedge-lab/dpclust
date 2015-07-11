@@ -1,4 +1,4 @@
-library(igraph)
+# library(igraph)
 plotTree<-function(tree,main="",font.size=0.75,plotAsPercentage=T){
 	theta.cols = grep("theta",names(tree))
 	labels <-rownames(tree)

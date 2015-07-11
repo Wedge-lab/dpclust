@@ -50,9 +50,11 @@ if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
 # Source the required files
 setwd(libdir)
 source("RunDP.R")
-source("LoadData.R")
-source("SampleMutations.R")
+# source("LoadData.R")
+# source("SampleMutations.R")
 setwd(outdir)
+
+library(DPClust)
 
 # Parse the input file and obtain the required data for this run
 sample2purity = read.table(purity_file, header=T, stringsAsFactors=F)

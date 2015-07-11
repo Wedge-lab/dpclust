@@ -1,7 +1,7 @@
-library(lattice)
-library(KernSmooth)
-source("interconvertMutationBurdens.R")
-source("PlotDensities.R")
+# library(lattice)
+# library(KernSmooth)
+# source("interconvertMutationBurdens.R")
+# source("PlotDensities.R")
 
 subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,dim(mutCount)), normalCopyNumber=array(2,dim(mutCount)), copyNumberAdjustment = array(1,dim(mutCount)),C=30, cellularity=rep(1,ncol(mutCount)),iter=1000,conc_param=1,cluster_conc=10) {
   # y is a p-by-q matrix of the number of reads reporting each variant (p=number of mutations,q=number of timepoints / related samples)

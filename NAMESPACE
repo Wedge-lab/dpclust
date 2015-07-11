@@ -1,1 +1,8 @@
 exportPattern("^[[:alpha:]]+")
+import(doParallel)
+import(doRNG)
+import(lattice)
+import(igraph)
+import(KernSmooth)
+import(LIM)
+import(vegan)

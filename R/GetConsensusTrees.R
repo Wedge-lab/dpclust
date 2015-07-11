@@ -1,8 +1,8 @@
-source("Tree_based_DP_Gibbs_sampler.R")
-# source("interconvertMutationBurdens.R")
-source("CullTree.R")
-source("PlotConsensusTree.R")
-source("GetConsensusStartPosition.R")
+# source("Tree_based_DP_Gibbs_sampler.R")
+# # source("interconvertMutationBurdens.R")
+# source("CullTree.R")
+# source("PlotConsensusTree.R")
+# source("GetConsensusStartPosition.R")
 
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), no.iters=1250, no.iters.burn.in=250, resort.mutations=T, shrinkage.threshold=0.1, init.alpha=0.01, outdir=getwd(), bin.indices=NULL, strengths=NULL){
   start = Sys.time()
