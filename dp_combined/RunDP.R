@@ -1,7 +1,14 @@
 source("DirichletProcessClustering.R")
 source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
+  # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
+  if (muts.sampled) {
+    most.similar.mut = dataset$most.similar.mut
+  } else {
+    most.similar.mut = NA
+  }
+  
   # Pick the analysis to run
   if (analysis_type == 'nd_dp') {
     clustering = DirichletProcessClustering(mutCount=dataset$mutCount, 
@@ -17,14 +24,10 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                                             output_folder=outdir, 
                                             conc_param=conc_param, 
                                             cluster_conc=cluster_conc,
-                    			                  mut.assignment.type=mut.assignment.type)
-  } else if(analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
-    if(is.na(bin.size)){
-      outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
-      
-    }else{
-      outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,"_burnin",no.iters.burn.in,sep="")
-    }
+                    			                  mut.assignment.type=mut.assignment.type,
+							                              most.similar.mut=most.similar.mut)
+    
+  } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
                              removed_indices=dataset$removed_indices,
@@ -46,8 +49,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              annotation=annotation,
                              init.alpha=init.alpha, 
                              shrinkage.threshold=shrinkage.threshold)
-    
-  } else if(analysis_type == "replot_1d") {
+
+  } else if (analysis_type == "replot_1d") {
     ##############################
     # Replot 1D clustering
     ##############################
@@ -65,7 +68,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
            no.chrs.bearing.mut=dataset$copyNumberAdjustment,
            samplename=samplename)
     
-  } else if(analysis_type == "replot_nd") {  
+  } else if (analysis_type == "replot_nd") {  
     ##############################
     # Replot nD clustering
     ##############################
@@ -100,6 +103,14 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   }
 
   if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
+
+	  # Check if mutation sampling has been done, if so, unpack and assign here
+  	if (!is.na(most.similar.mut)) {
+  	  res = unsample_mutations(dataset, clustering_result)
+      dataset = res$dataset
+      clustering_result = res$clustering_result
+  	}
+
     # Write final output
     outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)

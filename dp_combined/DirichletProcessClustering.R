@@ -17,14 +17,8 @@ source("RunTreeBasedDPMCMC.R")
 # Shared includes
 source("interconvertMutationBurdens.R")
 
-#library(compiler)
-#mutationCopyNumberToMutationBurden = cmpfun(mutationCopyNumberToMutationBurden)
-
-#library(foreach)
 library(doParallel)
 library(doRNG)
-# library(snowfall)
-#library(snow)
 
 TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
   #
@@ -145,7 +139,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
     
     trees_end_time = Sys.time()
     print(paste("Finished tree.struct.dirichlet in", as.numeric(trees_end_time-trees_start_time,units="secs"), "seconds"))
-    write.table(data.frame(diff=c(difftime(trees_end_time, trees_start_time, units='sec')), unit=c('seconds')), file=paste(outdir,'runtime_trees_',blockid,'.txt', sep=''), quote=F, row.names=F)
+    write.table(data.frame(diff=c(difftime(trees_end_time, trees_start_time, units='sec')), unit=c('seconds')), file=paste(outdir,'/runtime_trees_',blockid,'.txt', sep=''), quote=F, row.names=F)
     
     if(parallel) { stopCluster(clp) }
     
@@ -308,7 +302,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
 }
 
 
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type) {
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut) {
   #
   # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
   # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
