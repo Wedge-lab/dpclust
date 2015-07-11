@@ -3,6 +3,7 @@
 ## Installation instructions
 
 From local source
+
     > install.packages("~/repo/dirichlet_packaging", repos = NULL, type="source")
 
 
