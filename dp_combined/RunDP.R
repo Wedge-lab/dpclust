@@ -2,15 +2,15 @@ source("DirichletProcessClustering.R")
 source("PlotDensities.R")
 
 RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
+  # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
+  if (muts.sampled) {
+    most.similar.mut = dataset$most.similar.mut
+  } else {
+    most.similar.mut = NA
+  }
+  
   # Pick the analysis to run
   if (analysis_type == 'nd_dp') {
-	# Obtain the mutations that were not sampled, as these must be assigned to clusters separately
-	  if (muts.sampled) {
-		  most.similar.mut = dataset$most.similar.mut
-	  } else {
-		  most.similar.mut = NA
-	  }
-
     clustering = DirichletProcessClustering(mutCount=dataset$mutCount, 
                                             WTCount=dataset$WTCount, 
                                             no.iters=no.iters, 
@@ -26,13 +26,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                                             cluster_conc=cluster_conc,
                     			                  mut.assignment.type=mut.assignment.type,
 							                              most.similar.mut=most.similar.mut)
-  } else if(analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
-#     if(is.na(bin.size)){
-#       outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_burnin",no.iters.burn.in,sep="")
-#       
-#     }else{
-#       outdir = paste(samplename,"_treeBasedDirichletProcessOutputs_noIters",no.iters,"_binSize",bin.size,"_burnin",no.iters.burn.in,sep="")
-#     }
+    
+  } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
                              removed_indices=dataset$removed_indices,
@@ -54,8 +49,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              annotation=annotation,
                              init.alpha=init.alpha, 
                              shrinkage.threshold=shrinkage.threshold)
-    
-  } else if(analysis_type == "replot_1d") {
+
+  } else if (analysis_type == "replot_1d") {
     ##############################
     # Replot 1D clustering
     ##############################
@@ -73,7 +68,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
            no.chrs.bearing.mut=dataset$copyNumberAdjustment,
            samplename=samplename)
     
-  } else if(analysis_type == "replot_nd") {  
+  } else if (analysis_type == "replot_nd") {  
     ##############################
     # Replot nD clustering
     ##############################
@@ -116,11 +111,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   		best.node.assignments = clustering$best.node.assignments[most.similar.mut]
   		best.assignment.likelihoods = clustering$best.assignment.likelihoods[most.similar.mut]
   		clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
-		dataset = dataset$full.data
+      dataset = dataset$full.data
   	}
-
-
-
 
     # Write final output
     outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")

@@ -10,9 +10,7 @@ analysis_type = toString(args[7]) # String that represents the analysis that is 
 parallel = as.logical(args[8]) # Supply true or false whether to run parts of the method in parallel
 no.of.threads = as.integer(args[9]) # Integer that determines how many threads to use when running parts in parallel
 mut.assignment.type = as.integer(args[10]) # Integer that determines which mutation assignment method is to be used in 1d/nd cases
-
 num_muts_sample = as.integer(args[11]) # 2500 Integer that determines how many mutations to sample
-#print(num_muts_sample)
 
 # Optional arguments
 if (length(args) >= 12) {
