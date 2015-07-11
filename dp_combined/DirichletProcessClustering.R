@@ -17,14 +17,8 @@ source("RunTreeBasedDPMCMC.R")
 # Shared includes
 source("interconvertMutationBurdens.R")
 
-#library(compiler)
-#mutationCopyNumberToMutationBurden = cmpfun(mutationCopyNumberToMutationBurden)
-
-#library(foreach)
 library(doParallel)
 library(doRNG)
-# library(snowfall)
-#library(snow)
 
 TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
   #
