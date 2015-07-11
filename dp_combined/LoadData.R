@@ -89,60 +89,60 @@ load.data <- function(datpath, samplename, list_of_data_files, cellularity, Chro
   subclonalFraction = as.matrix(subclonalFraction[select,])
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
 
-  # Sample mutations
-  if (!is.na(num_muts_sample) & (nrow(chromosome) > 2*num_muts_sample)) {
-  	print(paste("Sampling mutations:", num_muts_sample))
-  	# Store the original mutations
-  	full_data = list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount,
-  	                  totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment,
-                      non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber,
-  	                  subclonal.fraction=subclonalFraction, removed_indices=removed_indices,
-  		                chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered,
-  		                sampling.selection=NA, full.data=NA, most.similar.mut=NA)
-
-  	# Do the sampling
-  	selection = sample(1:nrow(chromosome))[1:num_muts_sample]
-  	selection = sort(selection)
-
-  	# Select all the data from the various matrices
-  	chromosome = as.matrix(chromosome[selection,])
-  	mut.position = as.matrix(mut.position[selection,])
-  	WTCount = as.matrix(WTCount[selection,])
-  	mutCount = as.matrix(mutCount[selection,])
-  	totalCopyNumber = as.matrix(totalCopyNumber[selection,])
-  	copyNumberAdjustment = as.matrix(copyNumberAdjustment[selection,])
-  	non.deleted.muts = as.matrix(non.deleted.muts[selection,])
-  	kappa = as.matrix(kappa[selection,])
-  	mutationCopyNumber = as.matrix(mutationCopyNumber[selection,])
-  	subclonalFraction = as.matrix(subclonalFraction[selection,])
-
-  	# for each muation not sampled, find the most similar mutation that was sampled
-  	most.similar.mut = rep(1, nrow(full_data$chromosome))
-  	for (i in 1:nrow(full_data$chromosome)) {
-  		if (i %in% selection) {
-			# Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
-  			most.similar.mut[i] = which(selection==i)
-  		} else {
-  			# Find mutation with closest kappa
-  			kappa.diff = matrix(full_data$kappa[selection,]-full_data$kappa[i,], ncol=ncol(full_data$mutCount))
-  			curr = selection[which.min(abs(rowSums(kappa.diff)))]
-  			# Select all mutations with this kappa - a bit of trickery needed to make this work properly with a single column matrix
-  			curr = selection[which(rowSums(matrix(full_data$kappa[selection,], ncol=ncol(full_data$kappa)))==sum(full_data$kappa[curr,]))]
-  			# Pick the mutation with the most similar AF as the the most similar mutation for i
-  			af.i = full_data$mutCount[i,] / (full_data$mutCount[i,] + full_data$WTCount[i,])
-  			af = full_data$mutCount[curr,] / (full_data$mutCount[curr,] + full_data$WTCount[curr,])
-  			af.diff = matrix(af-af.i, ncol=ncol(full_data$mutCount))
-  			curr = curr[which.min(abs(rowSums(af.diff)))]
-  			most.similar.mut[i] = which(selection==curr) # Saving index of most similar mut in the sampled data here for expansion at the end
-  		}
-  	}
+#   # Sample mutations
+#   if (!is.na(num_muts_sample) & (nrow(chromosome) > 2*num_muts_sample)) {
+#   	print(paste("Sampling mutations:", num_muts_sample))
+#   	# Store the original mutations
+#   	full_data = list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount,
+#   	                  totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment,
+#                       non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutationCopyNumber,
+#   	                  subclonal.fraction=subclonalFraction, removed_indices=removed_indices,
+#   		                chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered,
+#   		                sampling.selection=NA, full.data=NA, most.similar.mut=NA)
+# 
+#   	# Do the sampling
+#   	selection = sample(1:nrow(chromosome))[1:num_muts_sample]
+#   	selection = sort(selection)
+# 
+#   	# Select all the data from the various matrices
+#   	chromosome = as.matrix(chromosome[selection,])
+#   	mut.position = as.matrix(mut.position[selection,])
+#   	WTCount = as.matrix(WTCount[selection,])
+#   	mutCount = as.matrix(mutCount[selection,])
+#   	totalCopyNumber = as.matrix(totalCopyNumber[selection,])
+#   	copyNumberAdjustment = as.matrix(copyNumberAdjustment[selection,])
+#   	non.deleted.muts = as.matrix(non.deleted.muts[selection,])
+#   	kappa = as.matrix(kappa[selection,])
+#   	mutationCopyNumber = as.matrix(mutationCopyNumber[selection,])
+#   	subclonalFraction = as.matrix(subclonalFraction[selection,])
+# 
+#   	# for each muation not sampled, find the most similar mutation that was sampled
+#   	most.similar.mut = rep(1, nrow(full_data$chromosome))
+#   	for (i in 1:nrow(full_data$chromosome)) {
+#   		if (i %in% selection) {
+# 			# Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
+#   			most.similar.mut[i] = which(selection==i)
+#   		} else {
+#   			# Find mutation with closest kappa
+#   			kappa.diff = matrix(full_data$kappa[selection,]-full_data$kappa[i,], ncol=ncol(full_data$mutCount))
+#   			curr = selection[which.min(abs(rowSums(kappa.diff)))]
+#   			# Select all mutations with this kappa - a bit of trickery needed to make this work properly with a single column matrix
+#   			curr = selection[which(rowSums(matrix(full_data$kappa[selection,], ncol=ncol(full_data$kappa)))==sum(full_data$kappa[curr,]))]
+#   			# Pick the mutation with the most similar AF as the the most similar mutation for i
+#   			af.i = full_data$mutCount[i,] / (full_data$mutCount[i,] + full_data$WTCount[i,])
+#   			af = full_data$mutCount[curr,] / (full_data$mutCount[curr,] + full_data$WTCount[curr,])
+#   			af.diff = matrix(af-af.i, ncol=ncol(full_data$mutCount))
+#   			curr = curr[which.min(abs(rowSums(af.diff)))]
+#   			most.similar.mut[i] = which(selection==curr) # Saving index of most similar mut in the sampled data here for expansion at the end
+#   		}
+#   	}
   	#print(cbind(1:nrow(full_data$chromosome), most.similar.mut))
 
-  } else {
+#   } else {
 	  selection = NA
 	  full_data = NA
 	  most.similar.mut = NA
-  }
+#   }
   
   return(list(chromosome=chromosome, position=mut.position, WTCount=WTCount, mutCount=mutCount, 
               totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, 

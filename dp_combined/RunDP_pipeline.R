@@ -51,6 +51,7 @@ if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
 setwd(libdir)
 source("RunDP.R")
 source("LoadData.R")
+source("SampleMutations.R")
 setwd(outdir)
 
 # Parse the input file and obtain the required data for this run
@@ -104,7 +105,13 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                     mutation.copy.number="mutation.copy.number", 
                     subclonal.fraction="subclonal.fraction", 
                     data_file_suffix="",
-		    num_muts_sample=num_muts_sample)
+		                num_muts_sample=num_muts_sample)
+
+  print(num_muts_sample)
+  print(class(num_muts_sample))
+  if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
+    dataset = sample_mutations(dataset, num_muts_sample)
+  }
 }
 
 # Save the dataset
