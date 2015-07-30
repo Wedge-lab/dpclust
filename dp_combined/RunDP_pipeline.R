@@ -92,9 +92,9 @@ if(!file.exists(outdir)){
 
 
 if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
-  # Wait a random number of seconds before loading - this is required for when starting multiple threads on this file
+  # Wait a certain number of seconds before loading - this is required for when starting multiple processes/threads on this file
   if (!is.na(blockid) & blockid != "NA") {
-    Sys.sleep(blockid*2)
+    Sys.sleep(blockid*3)
   }
 	load(paste(outdir, "/dataset.RData", sep=""))
 } else {
