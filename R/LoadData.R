@@ -23,17 +23,17 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   
   if (!is.vcf) {
     for(s in 1:length(list_of_data_files)) {
-      data[[s]] = read.table(paste(datpath,samplename,list_of_data_files[s],data_file_suffix,sep=""),header=T,sep="\t",stringsAsFactors=F)
+      data[[s]] = read.table(list_of_data_files[s], header=T, stringsAsFactors=F)
     }
   } else {
     for(s in 1:length(list_of_data_files)) {
       v = readVcf(list_of_data_files[s], genome=ref.genome.version)
       # Transform the VCF into the format that the original load.data function understands
       data[[s]] = data.frame(chr=as.vector(seqnames(v)), start=as.vector(start(v))-1, end=as.vector(end(v)),
-                             WT.count=as.vector(info(v)$WC), mut.count=as.vector(info(v)$MC), subclonal.CN=as.vector(info(v)$SCN),
+                             WT.count=as.vector(info(v)$WC), mut.count=as.vector(info(v)$MC), subclonal.CN=as.vector(info(v))$TSC,
                              nMaj1=as.vector(info(v)$NMA1), nMin1=as.vector(info(v)$NMI1), frac1=as.vector(info(v)$FR1),
                              nMaj2=as.vector(info(v)$NMA2), nMin2=as.vector(info(v)$NMI2), frac2=as.vector(info(v)$FR2),
-                             phase=as.vector(info(v)$PHS), mutation.copy.number=as.vector(info(v)$MCN), subclonal.fraction=as.vector(info(v)$SF),
+                             phase=as.vector(info(v)$PHS), mutation.copy.number=as.vector(info(v)$MCN), subclonal.fraction=as.vector(info(v)$CCF),
                              no.chrs.bearing.mut=as.vector(info(v)$NCBM))
     }
   }
@@ -87,7 +87,11 @@ load.data.inner = function(list_of_tables, cellularity, is.male) {
   # Remove those mutations that have no coverage. These cause for trouble lateron.
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
-  not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
+  if (is.male) {
+    not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
+  } else {
+    not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% c(1:22, "X")) })
+  }
 
   cov.mean = mean(colMeans(WTCount+mutCount))
   cov.std = mean(apply((WTCount+mutCount), 2, sd))
