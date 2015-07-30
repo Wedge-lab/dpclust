@@ -9,5 +9,13 @@ Authors@R: c(person("David", "Wedge", role=c("aut"), email="dw9@sanger.ac.uk"),
     person("Stefan","Dentro", email="sd11@sanger.ac.uk", role=c("aut", "cre")))
 Description: Dirichlet process based subclonal reconstruction methods
 Depends: 
-  R (>= 2.13.0)
+  R (>= 2.15.0),
+  doParallel,
+  doRNG,
+  igraph,
+  KernSmooth,
+  lattice,
+  LIM,
+  vegan,
+  VariantAnnotation
 LazyLoad: yes
