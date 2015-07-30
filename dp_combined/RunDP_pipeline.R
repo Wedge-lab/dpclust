@@ -98,7 +98,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   }
 	load(paste(outdir, "/dataset.RData", sep=""))
 } else {
-  list_of_datafiles = list(paste(datpath, datafiles, sep="/"))
+  list_of_datafiles = paste(datpath, datafiles, sep="/")
   
 	dataset = load.data(list_of_datafiles, 
                       cellularity=cellularity, 
