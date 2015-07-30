@@ -32,6 +32,10 @@ if (length(args) >= 12) {
   no.of.blocks = 1
 }
 
+# TODO: Hard coded for now
+is.male = T
+is.vcf = F
+
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
 if (!(analysis_type %in% supported_commands)) {
@@ -94,20 +98,21 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   }
 	load(paste(outdir, "/dataset.RData", sep=""))
 } else {
-	dataset = load.data(datpath,
-                    "",
-                    datafiles, 
-                    cellularity=cellularity, 
-                    Chromosome="chr", 
-                    position="end",
-                    WT.count="WT.count", 
-                    mut.count="mut.count", 
-                    subclonal.CN="subclonal.CN", 
-                    no.chrs.bearing.mut="no.chrs.bearing.mut", 
-                    mutation.copy.number="mutation.copy.number", 
-                    subclonal.fraction="subclonal.fraction", 
-                    data_file_suffix="",
-		                num_muts_sample=num_muts_sample)
+  list_of_datafiles = list(paste(datpath, datafiles, sep="/"))
+  
+	dataset = load.data(list_of_datafiles, 
+                      cellularity=cellularity, 
+                      Chromosome="chr", 
+                      position="end",
+                      WT.count="WT.count", 
+                      mut.count="mut.count", 
+                      subclonal.CN="subclonal.CN", 
+                      no.chrs.bearing.mut="no.chrs.bearing.mut", 
+                      mutation.copy.number="mutation.copy.number", 
+                      subclonal.fraction="subclonal.fraction", 
+  		                is.male=is.male,
+                      is.vcf=is.vcf,
+  		                ref.genome.version="hg19")
 
   print(num_muts_sample)
   print(class(num_muts_sample))
