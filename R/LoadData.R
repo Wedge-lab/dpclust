@@ -39,15 +39,15 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
-  return(load.data.inner(data, cellularity, is.male))
+  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male))
 }
   
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
 #' @noRD
-load.data.inner = function(list_of_tables, cellularity, is.male) {
+load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male) {
   no.subsamples = length(list_of_tables)
-  no.muts = nrow(list_of_tables[1])
+  no.muts = nrow(list_of_tables[[1]])
   
   # One matrix for each data type and propagate it
   chromosome = matrix(0,no.muts,no.subsamples)
@@ -56,26 +56,26 @@ load.data.inner = function(list_of_tables, cellularity, is.male) {
   mutCount = matrix(0,no.muts,no.subsamples)
   totalCopyNumber = matrix(0,no.muts,no.subsamples)
   copyNumberAdjustment = matrix(0,no.muts,no.subsamples)
-  non.deleted.muts = vector(mode="logical",length=nrow(data[[1]]))
+  non.deleted.muts = vector(mode="logical",length=nrow(list_of_tables[[1]]))
   mutationCopyNumber = matrix(NA,no.muts,no.subsamples)
   subclonalFraction = matrix(NA,no.muts,no.subsamples)
-  for(s in 1:length(list_of_data_files)){
-    chromosome[,s] = data[[s]][,Chromosome]
-    mut.position[,s] = as.numeric(data[[s]][,position])
-    WTCount[,s] = as.numeric(data[[s]][,WT.count])
-    mutCount[,s] = as.numeric(data[[s]][,mut.count])
-    totalCopyNumber[,s] = as.numeric(data[[s]][,subclonal.CN])
-    copyNumberAdjustment[,s] = as.numeric(data[[s]][,no.chrs.bearing.mut])
-    non.deleted.muts[data[[s]][,no.chrs.bearing.mut]>0]=T
-    mutationCopyNumber[,s] = as.numeric(data[[s]][,mutation.copy.number])
-    subclonalFraction[,s] = as.numeric(data[[s]][,subclonal.fraction])
+  for(s in 1:length(list_of_tables)){
+    chromosome[,s] = list_of_tables[[s]][,Chromosome]
+    mut.position[,s] = as.numeric(list_of_tables[[s]][,position])
+    WTCount[,s] = as.numeric(list_of_tables[[s]][,WT.count])
+    mutCount[,s] = as.numeric(list_of_tables[[s]][,mut.count])
+    totalCopyNumber[,s] = as.numeric(list_of_tables[[s]][,subclonal.CN])
+    copyNumberAdjustment[,s] = as.numeric(list_of_tables[[s]][,no.chrs.bearing.mut])
+    non.deleted.muts[list_of_tables[[s]][,no.chrs.bearing.mut]>0]=T
+    mutationCopyNumber[,s] = as.numeric(list_of_tables[[s]][,mutation.copy.number])
+    subclonalFraction[,s] = as.numeric(list_of_tables[[s]][,subclonal.fraction])
   }
   
   # Calculate the kappa, in essense the correction component for the allele frequency of each mutation
   kappa = matrix(1,no.muts,no.subsamples)
-  for(i in 1:length(list_of_data_files)){
+  for(i in 1:length(list_of_tables)){
     #multiply by no.chrs.bearing.mut, so that kappa is the fraction of reads required for fully clonal mutations, rather than mutation at MCN = 1
-    kappa[,i] = mutationCopyNumberToMutationBurden(1,data[[i]][,subclonal.CN],cellularity[i]) * data[[i]][,no.chrs.bearing.mut]
+    kappa[,i] = mutationCopyNumberToMutationBurden(1,list_of_tables[[i]][,subclonal.CN],cellularity[i]) * list_of_tables[[i]][,no.chrs.bearing.mut]
   }
 
   # Remove those mutations that have missing values
