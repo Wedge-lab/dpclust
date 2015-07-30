@@ -23,7 +23,7 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   
   if (!is.vcf) {
     for(s in 1:length(list_of_data_files)) {
-      data[[s]] = read.table(list_of_data_files[s], header=T, stringsAsFactors=F)
+      data[[s]] = read.table(list_of_data_files[s], header=T, stringsAsFactors=F, sep="\t")
     }
   } else {
     for(s in 1:length(list_of_data_files)) {
