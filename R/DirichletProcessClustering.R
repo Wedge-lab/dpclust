@@ -383,7 +383,8 @@ if (ncol(mutCount) > 1) {
                                             samplename=samplename,
                                             post.burn.in.start=no.iters.burn.in, 
                                             post.burn.in.stop=no.iters,
-                                            y.max=15, 
+                                            y.max=15,
+					    x.max=NA, 
                                             mutationCopyNumber=mutation.copy.number, 
                                             no.chrs.bearing.mut=copyNumberAdjustment)
     density = res$density
@@ -396,7 +397,8 @@ if (ncol(mutCount) > 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
       subclonal.fraction[is.nan(subclonal.fraction)] = 0
       consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
-      
+     
+      setwd(wd) # Go back to original work directory 
       # Replot the data with cluster locations
       plot1D(density=density, 
              polygon.data=polygon.data, 
