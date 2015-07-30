@@ -47,7 +47,7 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
 #' @noRD
 load.data.inner = function(list_of_tables, cellularity, is.male) {
   no.subsamples = length(list_of_tables)
-  no.muts = nrow(list_of_tables[[1]])
+  no.muts = nrow(list_of_tables[1])
   
   # One matrix for each data type and propagate it
   chromosome = matrix(0,no.muts,no.subsamples)
