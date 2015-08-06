@@ -28,6 +28,12 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 							                              most.similar.mut=most.similar.mut)
     
   } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
+	# REMOVE temp CNA branching testing
+	mutCount = dataset$mutCount
+  	WTCount = dataset$WTCount
+	kappa = dataset$kappa
+	conflict_indices = c(which(dataset$position==20734478), which(dataset$position==24377093), which(dataset$position==32866944))
+
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
                              removed_indices=dataset$removed_indices,
@@ -48,7 +54,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              remove.branch.frequency=remove.branch.frequency,
                              annotation=annotation,
                              init.alpha=init.alpha, 
-                             shrinkage.threshold=shrinkage.threshold)
+                             shrinkage.threshold=shrinkage.threshold,
+			     conflict_indices=conflict_indices)
 
   } else if (analysis_type == "replot_1d") {
     ##############################
