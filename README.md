@@ -1,4 +1,12 @@
-# Readme
+# DPClust R package
+
+## Installation instructions
+
+From local source
+
+    > install.packages("~/repo/dirichlet_packaging", repos = NULL, type="source")
+
+
 
 Repository containing various dirichlet process based Cancer genomics methods
 

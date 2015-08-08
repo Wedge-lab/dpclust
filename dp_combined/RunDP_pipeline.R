@@ -32,6 +32,10 @@ if (length(args) >= 12) {
   no.of.blocks = 1
 }
 
+# TODO: Hard coded for now
+is.male = T
+is.vcf = F
+
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
 if (!(analysis_type %in% supported_commands)) {
@@ -50,9 +54,11 @@ if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
 # Source the required files
 setwd(libdir)
 source("RunDP.R")
-source("LoadData.R")
-source("SampleMutations.R")
+# source("LoadData.R")
+# source("SampleMutations.R")
 setwd(outdir)
+
+library(DPClust)
 
 # Parse the input file and obtain the required data for this run
 sample2purity = read.table(purity_file, header=T, stringsAsFactors=F)
@@ -86,26 +92,27 @@ if(!file.exists(outdir)){
 
 
 if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
-  # Wait a random number of seconds before loading - this is required for when starting multiple threads on this file
+  # Wait a certain number of seconds before loading - this is required for when starting multiple processes/threads on this file
   if (!is.na(blockid) & blockid != "NA") {
-    Sys.sleep(blockid*2)
+    Sys.sleep(blockid*3)
   }
 	load(paste(outdir, "/dataset.RData", sep=""))
 } else {
-	dataset = load.data(datpath,
-                    "",
-                    datafiles, 
-                    cellularity=cellularity, 
-                    Chromosome="chr", 
-                    position="end",
-                    WT.count="WT.count", 
-                    mut.count="mut.count", 
-                    subclonal.CN="subclonal.CN", 
-                    no.chrs.bearing.mut="no.chrs.bearing.mut", 
-                    mutation.copy.number="mutation.copy.number", 
-                    subclonal.fraction="subclonal.fraction", 
-                    data_file_suffix="",
-		                num_muts_sample=num_muts_sample)
+  list_of_datafiles = paste(datpath, datafiles, sep="/")
+  
+	dataset = load.data(list_of_datafiles, 
+                      cellularity=cellularity, 
+                      Chromosome="chr", 
+                      position="end",
+                      WT.count="WT.count", 
+                      mut.count="mut.count", 
+                      subclonal.CN="subclonal.CN", 
+                      no.chrs.bearing.mut="no.chrs.bearing.mut", 
+                      mutation.copy.number="mutation.copy.number", 
+                      subclonal.fraction="subclonal.fraction", 
+  		                is.male=is.male,
+                      is.vcf=is.vcf,
+  		                ref.genome.version="hg19")
 
   print(num_muts_sample)
   print(class(num_muts_sample))

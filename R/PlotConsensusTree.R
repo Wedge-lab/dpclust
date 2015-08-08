@@ -1,5 +1,5 @@
-source("DensityEstimator.R")
-source("PlotTreeWithIgraph.R")
+# source("DensityEstimator.R")
+# source("PlotTreeWithIgraph.R")
 
 makeValidThetas<-function(tree){
   theta.cols = names(tree)[grep("theta",names(tree))]

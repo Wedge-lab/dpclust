@@ -1,5 +1,5 @@
-source("DirichletProcessClustering.R")
-source("PlotDensities.R")
+# source("DirichletProcessClustering.R")
+# source("PlotDensities.R")
 
 RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
@@ -28,6 +28,12 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 							                              most.similar.mut=most.similar.mut)
     
   } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
+	# REMOVE temp CNA branching testing
+	mutCount = dataset$mutCount
+  	WTCount = dataset$WTCount
+	kappa = dataset$kappa
+	conflict_indices = c(which(dataset$position==20734478), which(dataset$position==24377093), which(dataset$position==32866944))
+
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
                              removed_indices=dataset$removed_indices,
@@ -48,7 +54,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              remove.branch.frequency=remove.branch.frequency,
                              annotation=annotation,
                              init.alpha=init.alpha, 
-                             shrinkage.threshold=shrinkage.threshold)
+                             shrinkage.threshold=shrinkage.threshold,
+			     conflict_indices=conflict_indices)
 
   } else if (analysis_type == "replot_1d") {
     ##############################

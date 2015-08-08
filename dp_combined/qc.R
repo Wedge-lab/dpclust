@@ -7,11 +7,12 @@ infile = toString(args[1])
 datpath = toString(args[2])
 outpath = toString(args[3])
 
-wd = getwd()
-setwd("~/repo/dirichlet/dp_combined")
-source('interconvertMutationBurdens.R')
-source('LoadData.R')
-setwd(wd)
+# wd = getwd()
+# setwd("~/repo/dirichlet/dp_combined")
+# source('interconvertMutationBurdens.R')
+# source('LoadData.R')
+# setwd(wd)
+library(DPClust)
 
 # infile = "_allDirichletProcessInfo.txt"
 # datpath = "/lustre/scratch110/sanger/sd11/epitax/dirichlet_input/"

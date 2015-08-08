@@ -1,26 +1,23 @@
 # nD method includes
-#library(MASS)
-#ilibrary(MCMCpack)
-#library(mvtnorm)
-source('subclone_Dirichlet_Gibbs_sampler_nD_binomial.R')
-source("OneDimensionalClustering.R")
+# source('subclone_Dirichlet_Gibbs_sampler_nD_binomial.R')
+# source("OneDimensionalClustering.R")
+# 
+# # Tree based method includes
+# source("Tree_based_DP_Gibbs_sampler.R")
+# source("GetConsensusTrees.R")
+# source("PlotTreeWithIgraph.R")
+# source("AnnotateTree.R")
+# source("InformationCriterions.R")
+# source("RunTreeBasedDPConsensus.R")
+# source("RunTreeBasedDPMCMC.R")
+# 
+# # Shared includes
+# source("interconvertMutationBurdens.R")
+# 
+# library(doParallel)
+# library(doRNG)
 
-# Tree based method includes
-source("Tree_based_DP_Gibbs_sampler.R")
-source("GetConsensusTrees.R")
-source("PlotTreeWithIgraph.R")
-source("AnnotateTree.R")
-source("InformationCriterions.R")
-source("RunTreeBasedDPConsensus.R")
-source("RunTreeBasedDPMCMC.R")
-
-# Shared includes
-source("interconvertMutationBurdens.R")
-
-library(doParallel)
-library(doRNG)
-
-TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
+TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL, conflict_indices=NA){
   #
   # Tree based method that will yield a tree that contains the estimated clone/subclone structure for 
   # the samples given as input.
@@ -110,7 +107,8 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          bin.indices=bin.indices, 
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
-                         remove.branch.frequency=remove.branch.frequency)
+                         remove.branch.frequency=remove.branch.frequency,
+			 conflict_indices=conflict_indices)
     } else {
       mcmcResults = RunTreeBasedDPMCMC(mutCount=mutCount, 
                          WTCount=WTCount, 
@@ -128,7 +126,8 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          bin.indices=NULL, 
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
-                         remove.branch.frequency=remove.branch.frequency)
+                         remove.branch.frequency=remove.branch.frequency,
+			 conflict_indices=conflict_indices)
     }
     
     # Set these variables in case both trees and cons need to be run consecutively in one R call
@@ -386,7 +385,8 @@ if (ncol(mutCount) > 1) {
                                             samplename=samplename,
                                             post.burn.in.start=no.iters.burn.in, 
                                             post.burn.in.stop=no.iters,
-                                            y.max=15, 
+                                            y.max=15,
+					    x.max=NA, 
                                             mutationCopyNumber=mutation.copy.number, 
                                             no.chrs.bearing.mut=copyNumberAdjustment)
     density = res$density
@@ -399,7 +399,8 @@ if (ncol(mutCount) > 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
       subclonal.fraction[is.nan(subclonal.fraction)] = 0
       consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
-      
+     
+      setwd(wd) # Go back to original work directory 
       # Replot the data with cluster locations
       plot1D(density=density, 
              polygon.data=polygon.data, 

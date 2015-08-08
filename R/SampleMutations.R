@@ -9,32 +9,35 @@ sample_mutations = function(dataset, num_muts_sample) {
     return(dataset)
   }
   
-  attach(dataset)
+  #attach(dataset)
   
   print(paste("Sampling mutations:", num_muts_sample))
   # Store the original mutations
-  full_data = list(chromosome=chromosome, position=position, WTCount=WTCount, mutCount=mutCount,
-                   totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment,
-                   non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutation.copy.number,
-                   subclonal.fraction=subclonal.fraction, removed_indices=removed_indices,
-                   chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered,
+  full_data = list(chromosome=dataset$chromosome, position=dataset$position, WTCount=dataset$WTCount, mutCount=dataset$mutCount,
+                   totalCopyNumber=dataset$totalCopyNumber, copyNumberAdjustment=dataset$copyNumberAdjustment,
+                   non.deleted.muts=dataset$non.deleted.muts, kappa=dataset$kappa, mutation.copy.number=dataset$mutation.copy.number,
+                   subclonal.fraction=dataset$subclonal.fraction, removed_indices=dataset$removed_indices,
+                   chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
                    sampling.selection=NA, full.data=NA, most.similar.mut=NA)
   
   # Do the sampling
-  selection = sample(1:nrow(chromosome))[1:num_muts_sample]
+  selection = sample(1:nrow(dataset$chromosome))[1:num_muts_sample]
   selection = sort(selection)
+  print(length(selection))
+  print(head(dataset$kappa))
   
   # Select all the data from the various matrices
-  chromosome = as.matrix(chromosome[selection,])
-  position = as.matrix(position[selection,])
-  WTCount = as.matrix(WTCount[selection,])
-  mutCount = as.matrix(mutCount[selection,])
-  totalCopyNumber = as.matrix(totalCopyNumber[selection,])
-  copyNumberAdjustment = as.matrix(copyNumberAdjustment[selection,])
-  non.deleted.muts = as.matrix(non.deleted.muts[selection,])
-  kappa = as.matrix(kappa[selection,])
-  mutation.copy.number = as.matrix(mutation.copy.number[selection,])
-  subclonal.fraction = as.matrix(subclonal.fraction[selection,])
+  chromosome = as.matrix(dataset$chromosome[selection,])
+  position = as.matrix(dataset$position[selection,])
+  WTCount = as.matrix(dataset$WTCount[selection,])
+  mutCount = as.matrix(dataset$mutCount[selection,])
+  totalCopyNumber = as.matrix(dataset$totalCopyNumber[selection,])
+  copyNumberAdjustment = as.matrix(dataset$copyNumberAdjustment[selection,])
+  non.deleted.muts = as.matrix(dataset$non.deleted.muts[selection,])
+  kappa = as.matrix(dataset$kappa[selection,])
+  mutation.copy.number = as.matrix(dataset$mutation.copy.number[selection,])
+  subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
+  removed_indices = as.matrix(dataset$removed_indices[selection])
   
   # for each muation not sampled, find the most similar mutation that was sampled
   most.similar.mut = rep(1, nrow(full_data$chromosome))
@@ -61,7 +64,7 @@ sample_mutations = function(dataset, num_muts_sample) {
               totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, 
               non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutation.copy.number, 
               subclonal.fraction=subclonal.fraction, removed_indices=removed_indices,
-              chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered,
+              chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
               sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut))
 }
 
