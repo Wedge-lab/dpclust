@@ -1,36 +1,7 @@
 RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, samplename, no.iters, no.iters.burn.in, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL, remove.node.frequency=NA, remove.branch.frequency=NA, conflict_indices=NA) {
 
-# REMOVE
-# TEMP hardcoded test for branching on single sample
-CNA = 0.27
-cellularity = 0.78
-
-# Adding in one CNA event
-conflict.array = array(1,c(nrow(mutCount)+1, nrow(mutCount)+1))
-j = nrow(mutCount)+1
-N = mean(WTCount+mutCount) * 1000
-mutCount = rbind(mutCount, rep(round(N * CNA * cellularity / 2), ncol(mutCount)))
-WTCount = rbind(WTCount, N-mutCount[j,])
-# This CNA is 1+0, so set total CN to 1 and no.chrs.bearing.mut to 1 as well, although this CNA is subclonal
-kappa = rbind(kappa, rep(mutationCopyNumberToMutationBurden(1, 1, cellularity) * 1, ncol(kappa)))
-for (i in conflict_indices) {
-	conflict.array[j,i] = 2
-	conflict.array[i,j] = 1024 #equivalent to 10 mutations
-}
-
-
-#   if(is.na(bin.size)){
+  # Run the Gibbs sampler
   temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency=remove.node.frequency, remove.branch.frequency=remove.branch.frequency, parallel=parallel, cluster=clp, conflict.array=conflict.array)
-#   }else{
-#     save(bin.indices,file=paste(outdir,"/",samplename,"_",no.iters,"iters_burnin",no.iters.burn.in,"_binnedIndices.RData",sep=""))
-#     temp.list = tree.struct.dirichlet.gibbs(y=binned.mutCount,n=binned.WTCount+binned.mutCount,kappa=binned.kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency = NA, remove.branch.frequency = NA, parallel=parallel, cluster=clp)	
-#   }
-  
-# REMOVE CNA testing, removing the inserted mutation
-mutCount = mutCount[1:nrow(mutCount)-1,]
-WTCount = WTCount[1:nrow(WTCount)-1,]
-kappa = kappa[1:nrow(kappa)-1,]
-
   setwd(outdir)
   
   trees = temp.list$trees
