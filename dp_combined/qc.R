@@ -154,7 +154,7 @@ createQCDocument <- function(res, samplename, subsamplenames, outpath, cellulari
 
   af.summary$samplename = rep(samplename, ncol(res$mutCount))
   af.summary$subsample = subsamplenames
-  write.table(af.summary, file=paste(samplename, "_af_summary.txt", sep=""), quote=F)
+  write.table(af.summary, file=paste(outpath, samplename, "_af_summary.txt", sep=""), quote=F)
 
   # Plot AF divided by the cellularity
   dat = res$mutCount/(res$mutCount+res$WTCount)/cellularity
