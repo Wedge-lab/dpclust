@@ -55,7 +55,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              annotation=annotation,
                              init.alpha=init.alpha, 
                              shrinkage.threshold=shrinkage.threshold,
-			     conflict_indices=conflict_indices)
+                             conflict.array=dataset$conflict.array)
 
   } else if (analysis_type == "replot_1d") {
     ##############################

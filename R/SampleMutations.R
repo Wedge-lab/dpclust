@@ -18,7 +18,7 @@ sample_mutations = function(dataset, num_muts_sample) {
                    non.deleted.muts=dataset$non.deleted.muts, kappa=dataset$kappa, mutation.copy.number=dataset$mutation.copy.number,
                    subclonal.fraction=dataset$subclonal.fraction, removed_indices=dataset$removed_indices,
                    chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
-                   sampling.selection=NA, full.data=NA, most.similar.mut=NA)
+                   sampling.selection=NA, full.data=NA, most.similar.mut=NA, mutationType=dataset$mutationType)
   
   # Do the sampling
   selection = sample(1:nrow(dataset$chromosome))[1:num_muts_sample]
@@ -38,6 +38,7 @@ sample_mutations = function(dataset, num_muts_sample) {
   mutation.copy.number = as.matrix(dataset$mutation.copy.number[selection,])
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
   removed_indices = as.matrix(dataset$removed_indices[selection])
+  mutationType = dataset$mutationType[selection]
   
   # for each muation not sampled, find the most similar mutation that was sampled
   most.similar.mut = rep(1, nrow(full_data$chromosome))
@@ -65,7 +66,8 @@ sample_mutations = function(dataset, num_muts_sample) {
               non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutation.copy.number, 
               subclonal.fraction=subclonal.fraction, removed_indices=removed_indices,
               chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
-              sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut))
+              sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut,
+              mutationType=mutationType))
 }
 
 #' Unsample a sampled dataset and expand clustering results with the mutations that were not used during clustering.
