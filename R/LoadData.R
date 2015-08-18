@@ -12,13 +12,14 @@
 #' @param no.chrs.bearing.mut String, the column that contains the number of chromosomes not bearing any mutations
 #' @param mutation.copy.number String, colname with mutation copy number estimates
 #' @param subclonal.fraction String, colname of the column that contains the subclonal fraction (or CCF) estimate for each mutation
+#' @param phase String, colname of the phasing info column
 #' @param is.male Optional boolean that represents the sex, set to TRUE if male, FALSE if female. This information is used to decide whether to include X chromosome mutations
 #' @param is.vcf Optional boolean parameter whether the files to be read in are in VCF format
 #' @param ref.genome.version Optional string that represents the reference genome, required when reading in VCF files
 #' @author sdentro
 #' @return A list of tables, one for each type of information
 # REMOVED datpath, samplename, data_file_suffix num_muts_sample=NA, 
-load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male=T, is.vcf=F, ref.genome.version="hg19") {
+load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male=T, is.vcf=F, ref.genome.version="hg19") {
   data=list()
   
   if (!is.vcf) {
@@ -34,18 +35,18 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
                              nMaj1=as.vector(info(v)$NMA1), nMin1=as.vector(info(v)$NMI1), frac1=as.vector(info(v)$FR1),
                              nMaj2=as.vector(info(v)$NMA2), nMin2=as.vector(info(v)$NMI2), frac2=as.vector(info(v)$FR2),
                              phase=as.vector(info(v)$PHS), mutation.copy.number=as.vector(info(v)$MCN), subclonal.fraction=as.vector(info(v)$CCF),
-                             no.chrs.bearing.mut=as.vector(info(v)$NCBM))
+                             no.chrs.bearing.mut=as.vector(info(v)$NCBM)) # TODO: add in phase
     }
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
-  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male))
+  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male))
 }
   
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
 #' @noRD
-load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male) {
+load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male) {
   no.subsamples = length(list_of_tables)
   no.muts = nrow(list_of_tables[[1]])
   
@@ -59,6 +60,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   non.deleted.muts = vector(mode="logical",length=nrow(list_of_tables[[1]]))
   mutationCopyNumber = matrix(NA,no.muts,no.subsamples)
   subclonalFraction = matrix(NA,no.muts,no.subsamples)
+  phasing = data.frame(matrix(NA,no.muts,no.subsamples))
   for(s in 1:length(list_of_tables)){
     chromosome[,s] = list_of_tables[[s]][,Chromosome]
     mut.position[,s] = as.numeric(list_of_tables[[s]][,position])
@@ -69,6 +71,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
     non.deleted.muts[list_of_tables[[s]][,no.chrs.bearing.mut]>0]=T
     mutationCopyNumber[,s] = as.numeric(list_of_tables[[s]][,mutation.copy.number])
     subclonalFraction[,s] = as.numeric(list_of_tables[[s]][,subclonal.fraction])
+    phasing[,s] = list_of_tables[[s]][,phase]
   }
   
   # Calculate the kappa, in essense the correction component for the allele frequency of each mutation
@@ -122,10 +125,11 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   mutCount = as.matrix(mutCount[select,])
   totalCopyNumber = as.matrix(totalCopyNumber[select,])
   copyNumberAdjustment = as.matrix(copyNumberAdjustment[select,])
-  non.deleted.muts = as.matrix(non.deleted.muts[select])
+  non.deleted.muts = non.deleted.muts[select]
   kappa = as.matrix(kappa[select,])
   mutationCopyNumber = as.matrix(mutationCopyNumber[select,])
   subclonalFraction = as.matrix(subclonalFraction[select,])
+  phasing = as.data.frame(phasing[select,])
   mutationType = rep("SNV", nrow(mutCount))
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
 
@@ -140,7 +144,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
               subclonal.fraction=subclonalFraction, removed_indices=removed_indices,
               chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered,
 	            sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut, 
-              mutationType=mutationType, conflict.array=NA))
+              mutationType=mutationType, conflict.array=NA, cellularity=cellularity, phase=phasing))
 }
 
 #' Load the CN input for a single sample (for now)
@@ -159,19 +163,19 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
   
   num.samples = ncol(dataset$mutCount)
   
-  # Unpack the dataset
-  chromosome = dataset$chromosome
-  position = dataset$position
-  mutCount = dataset$mutCount
-  WTCount = dataset$WTCount
-  totalCopyNumber = dataset$totalCopyNumber
-  copyNumberAdjustment = dataset$copyNumberAdjustment
-  kappa = dataset$kappa
-  mutation.copy.number = dataset$mutation.copy.number
-  subclonal.fraction = dataset$subclonal.fraction
+#   # Unpack the dataset
+#   chromosome = dataset$chromosome
+#   position = dataset$position
+#   mutCount = dataset$mutCount
+#   WTCount = dataset$WTCount
+#   totalCopyNumber = dataset$totalCopyNumber
+#   copyNumberAdjustment = dataset$copyNumberAdjustment
+#   kappa = dataset$kappa
+#   mutation.copy.number = dataset$mutation.copy.number
+#   subclonal.fraction = dataset$subclonal.fraction
                    
   # Take average depth as template for these CNAs disguised as fictional SNVs
-  N = mean(WTCount+mutCount)
+  N = mean(dataset$WTCount+dataset$mutCount)
   for (i in 1:nrow(cndata)) {
     # Fetch fraction of cells and confidence
     CNA = cndata[i,]$frac1_A
@@ -183,13 +187,15 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
     #dataset$mutCount = rbind(dataset$mutCount, rep(round(conf * N * CNA * cellularity / 2), num.samples))
     dataset$mutCount = rbind(dataset$mutCount, rep(round(N * CNA * cellularity / 2), num.samples))
     #dataset$WTCount = rbind(dataset$WTCount, (conf * N) - dataset$mutCount[j,])
-    dataset$WTCount = rbind(dataset$WTCount, N - dataset$mutCount[j,])
+    dataset$WTCount = rbind(dataset$WTCount, N - dataset$mutCount[nrow(dataset$mutCount),])
     dataset$totalCopyNumber = rbind(dataset$totalCopyNumber, rep(1, num.samples))
     dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, rep(1, num.samples))
     dataset$kappa = rbind(dataset$kappa, rep(mutationCopyNumberToMutationBurden(1, 1, dataset$cellularity) * 1, num.samples))
     dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, rep(1, num.samples))
     # TODO: Setting same CNA CCF across samples does not work for multiple samples!
     dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, rep(CNA, num.samples))
+    dataset$phase = rbind(dataset$phase, rep("unphased", num.samples))
+    dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
   }
   dataset$mutationType = c(dataset$mutationType, rep("CNA", nrow(cndata)))
   
@@ -208,13 +214,14 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
       
       conflicting_mutcount = 0
       for (i in 1:nrow(cndata)) {
-        conflict_indices = dataset$chromosome[dataset$mutationType=="SNV"]==cndata$chr[i] & 
-                           dataset$position[dataset$mutationType=="SNV"] >= cndata$startpos[i] & 
-                           dataset$position[dataset$mutationType=="SNV"] <= cndata$endpos[i] & 
-                           dataset$subclonal.fraction[dataset$mutationType=="SNV"] < 0.9 &
-                           dataset$phase[dataset$mutationType=="SNV"] == "MUT_ON_DELETED"
+        conflict_indices = dataset$chromosome[dataset$mutationType=="SNV",1]==cndata$chr[i] & 
+                           dataset$position[dataset$mutationType=="SNV",1] >= cndata$startpos[i] & 
+                           dataset$position[dataset$mutationType=="SNV",1] <= cndata$endpos[i] & 
+                           dataset$subclonal.fraction[dataset$mutationType=="SNV",1] < 0.9 &
+                           dataset$phase[dataset$mutationType=="SNV",1] == "MUT_ON_DELETED"
+
         # If there are no conflicts, then move on to the next CNA
-        if (sum(conflicting_indices) == 0) { 
+        if (sum(conflict_indices, na.rm=T) == 0) { 
           next
         }
         

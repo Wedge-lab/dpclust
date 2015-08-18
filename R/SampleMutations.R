@@ -21,7 +21,7 @@ sample_mutations = function(dataset, num_muts_sample) {
                    conflict.array=dataset$conflict.array, phase=dataset$phase)
   
   # Do the sampling - only sample SNVs, leave the CNAs in there (if available)
-  selection = sample(1:nrow(dataset$chromosome[dataset$mutationType=="SNV"]))[1:num_muts_sample]
+  selection = sample(1:length(dataset$chromosome[dataset$mutationType=="SNV"]))[1:num_muts_sample]
   selection = c(selection, which(dataset$mutationType=="CNA"))
   selection = sort(selection)
   print(length(selection))
@@ -34,17 +34,19 @@ sample_mutations = function(dataset, num_muts_sample) {
   mutCount = as.matrix(dataset$mutCount[selection,])
   totalCopyNumber = as.matrix(dataset$totalCopyNumber[selection,])
   copyNumberAdjustment = as.matrix(dataset$copyNumberAdjustment[selection,])
-  non.deleted.muts = as.matrix(dataset$non.deleted.muts[selection,])
+  non.deleted.muts = dataset$non.deleted.muts[selection]
   kappa = as.matrix(dataset$kappa[selection,])
   mutation.copy.number = as.matrix(dataset$mutation.copy.number[selection,])
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
   removed_indices = as.matrix(dataset$removed_indices[selection])
   mutationType = dataset$mutationType[selection]
   phase = dataset$phase[selection,]
+  conflict.array = dataset$conflict.array[selection, selection]
   
   # for each muation not sampled, find the most similar mutation that was sampled
+  # TODO: add in code that at least selects the conflicting SNVs to help find branching trees
   most.similar.mut = rep(1, nrow(full_data$chromosome))
-  for (i in 1:nrow(full_data$chromosome[full_data$mutationType=="SNV"])) {
+  for (i in 1:length(full_data$chromosome[full_data$mutationType=="SNV"])) {
     if (i %in% selection) {
       # Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
       most.similar.mut[i] = which(selection==i)
@@ -71,7 +73,7 @@ sample_mutations = function(dataset, num_muts_sample) {
               subclonal.fraction=subclonal.fraction, removed_indices=removed_indices,
               chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
               sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut,
-              mutationType=mutationType, cellularity=dataset$cellularity, conflict.array=dataset$conflict.array,
+              mutationType=mutationType, cellularity=dataset$cellularity, conflict.array=conflict.array,
               phase=phase))
 }
 
