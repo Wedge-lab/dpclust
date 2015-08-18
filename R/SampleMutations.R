@@ -2,14 +2,13 @@
 #' dataset object is kept within the returned dataset with label full.data
 #' 
 #' Note: Resampling an already sampled dataset will not work and returns the original
+#' Note2: A conflict array will not be updated.
 #' @return A dataset object with only the sampled mutations and a full.data field that contains the original dataset
 sample_mutations = function(dataset, num_muts_sample) {
   # Check if sampling already was done
   if (!is.na(dataset$sampling.selection)) {
     return(dataset)
   }
-  
-  #attach(dataset)
   
   print(paste("Sampling mutations:", num_muts_sample))
   # Store the original mutations
@@ -18,10 +17,12 @@ sample_mutations = function(dataset, num_muts_sample) {
                    non.deleted.muts=dataset$non.deleted.muts, kappa=dataset$kappa, mutation.copy.number=dataset$mutation.copy.number,
                    subclonal.fraction=dataset$subclonal.fraction, removed_indices=dataset$removed_indices,
                    chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
-                   sampling.selection=NA, full.data=NA, most.similar.mut=NA, mutationType=dataset$mutationType)
+                   sampling.selection=NA, full.data=NA, most.similar.mut=NA, mutationType=dataset$mutationType, cellularity=dataset$cellularity,
+                   conflict.array=dataset$conflict.array, phase=dataset$phase)
   
-  # Do the sampling
-  selection = sample(1:nrow(dataset$chromosome))[1:num_muts_sample]
+  # Do the sampling - only sample SNVs, leave the CNAs in there (if available)
+  selection = sample(1:nrow(dataset$chromosome[dataset$mutationType=="SNV"]))[1:num_muts_sample]
+  selection = c(selection, which(dataset$mutationType=="CNA"))
   selection = sort(selection)
   print(length(selection))
   print(head(dataset$kappa))
@@ -39,10 +40,11 @@ sample_mutations = function(dataset, num_muts_sample) {
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
   removed_indices = as.matrix(dataset$removed_indices[selection])
   mutationType = dataset$mutationType[selection]
+  phase = dataset$phase[selection,]
   
   # for each muation not sampled, find the most similar mutation that was sampled
   most.similar.mut = rep(1, nrow(full_data$chromosome))
-  for (i in 1:nrow(full_data$chromosome)) {
+  for (i in 1:nrow(full_data$chromosome[full_data$mutationType=="SNV"])) {
     if (i %in% selection) {
       # Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
       most.similar.mut[i] = which(selection==i)
@@ -60,6 +62,8 @@ sample_mutations = function(dataset, num_muts_sample) {
       most.similar.mut[i] = which(selection==curr) # Saving index of most similar mut in the sampled data here for expansion at the end
     }
   }
+  # Map CNAs back onto themselves
+  most.similar.mut = c(most.similar.mut, which(full_data$mutationType=="CNA"))
   
   return(list(chromosome=chromosome, position=position, WTCount=WTCount, mutCount=mutCount, 
               totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, 
@@ -67,7 +71,8 @@ sample_mutations = function(dataset, num_muts_sample) {
               subclonal.fraction=subclonal.fraction, removed_indices=removed_indices,
               chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
               sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut,
-              mutationType=mutationType))
+              mutationType=mutationType, cellularity=dataset$cellularity, conflict.array=dataset$conflict.array,
+              phase=phase))
 }
 
 #' Unsample a sampled dataset and expand clustering results with the mutations that were not used during clustering.
@@ -79,7 +84,6 @@ unsample_mutations = function(dataset, clustering_result) {
   best.node.assignments = clustering_result$best.node.assignments[most.similar.mut]
   best.assignment.likelihoods = clustering_result$best.assignment.likelihoods[most.similar.mut]
   clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
-  dataset = dataset$full.data
-  return(dataset=dataset, clustering=clustering)
+  return(dataset=dataset$full.data, clustering=clustering)
 }
 
