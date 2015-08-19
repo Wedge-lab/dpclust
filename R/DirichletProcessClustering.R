@@ -127,7 +127,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
                          remove.branch.frequency=remove.branch.frequency,
-			 conflict_indices=conflict_indices)
+                         conflict.array=conflict.array)
     }
     
     # Set these variables in case both trees and cons need to be run consecutively in one R call
@@ -213,7 +213,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
     child.parent.strengths = as.matrix(Reduce('+', child.parent.strengths_all))
     strengths = list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths)
 
-    # Add the previously removed mutations back into these matrices and save them to disk
+    # Save the matrices
     write.strengths.table(ancestor.strengths, removed_indices, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
     write.strengths.table(sibling.strengths, removed_indices, paste("sibling.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
     write.strengths.table(identity.strengths, removed_indices, paste("identity.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
