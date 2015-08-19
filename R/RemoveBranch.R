@@ -4,7 +4,8 @@ remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 	log.probs = vector(mode="numeric",length=nrow(tree1))
 	for (r in 1:nrow(tree1)) {
 		thetas = unlist(tree1[r, grepl("theta", names(tree1))])
-		inds = match(tree1$label[r],curr.assignments)
+# 		inds = match(tree1$label[r],curr.assignments)
+    inds = which(curr.assignments==tree1$label[r])
 		if(length(inds)>0){
 			for(i in inds){			
 				log.probs[r] = log.probs[r] + log.f.of.y(y[i,],n[i,],kappas[i,],thetas)
@@ -42,10 +43,10 @@ remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 	{
 		for(i in 1:length(younger.indices)){
 			ind = younger.indices[i]
-			tree1$nu[ind] = tree1$nu[ind] * tree1$nu[remove.index]
-			tree1$psi[ind] = tree1$psi[ind] * tree1$psi[remove.index]
-			tree1$phi[ind] = tree1$psi[ind] * tree1$phi[remove.index]
-			tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
+# 			tree1$nu[ind] = tree1$nu[ind] * tree1$nu[remove.index]
+# 			tree1$psi[ind] = tree1$psi[ind] * tree1$psi[remove.index]
+# 			tree1$phi[ind] = tree1$psi[ind] * tree1$phi[remove.index]
+# 			tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
 
 			spl2 = unlist(strsplit(tree1$label[ind],":"))
 			no.to.shift = max(no.to.shift,as.integer(spl2[remove.depth+1])-1)
@@ -89,7 +90,11 @@ remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 
 			#adjust psi for younger siblings
 			if(ind %in% younger.sibling.indices){
-				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
+# 				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
+				tree1$nu[ind] = tree1$nu[ind] * (1-tree1$nu[remove.index])
+				new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
+				tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
+				tree1$psi[ind] = new.psi
 			}
 		}
 	}
@@ -101,84 +106,85 @@ remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 	return(list(tree=tree1,node.assignments=node.assignments,df=df))
 }
 
-remove.specific.node <- function(tree1, remove.node) {
-	saved.tree = tree1
-	
-	remove.index = which(tree1$label==remove.node)
-	
-	spl = unlist(strsplit(remove.node,":"))
-	remove.depth = length(spl)
-	remove.pos = as.integer(spl[length(spl)])
-	ancestor.index = which(tree1$label==tree1$ancestor[remove.index])
-
-	younger.indices = which(younger.direct.descendants(remove.node, tree1$label) & tree1$label!=remove.node)		
-	younger.indirect.indices = which(younger.descendants(remove.node, tree1$label) & tree1$label!=remove.node)		
-	younger.indirect.indices = younger.indirect.indices[!(younger.indirect.indices %in% younger.indices)]		
-	younger.descendants = tree1$label[younger.indices]
-
-	no.to.shift = 0
-	if(length(younger.indices)>0)
-	{
-		for(i in 1:length(younger.indices)){
-			ind = younger.indices[i]
-			tree1$nu[ind] = tree1$nu[ind] * tree1$nu[remove.index]
-			tree1$psi[ind] = tree1$psi[ind] * tree1$psi[remove.index]
-			tree1$phi[ind] = tree1$psi[ind] * tree1$phi[remove.index]
-			tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
-
-			spl2 = unlist(strsplit(tree1$label[ind],":"))
-			no.to.shift = max(no.to.shift,as.integer(spl2[remove.depth+1])-1)
-			tree1$label[ind] = paste(c(spl[1:(remove.depth-1)],remove.pos+as.integer(spl2[remove.depth+1])-1),collapse=":")
-			if(length(spl2)>(remove.depth+1)){
-				tree1$label[ind] = paste(c(tree1$label[ind],spl2[(remove.depth+2):length(spl2)]),collapse=":")
-			}
-			tree1$label[ind] = paste(tree1$label[ind],":",sep="")
-			spl3 = unlist(strsplit(tree1$label[ind],":"))
-			tree1$ancestor[ind] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
-		}
-		if(no.to.shift>0 & length(younger.indirect.indices)>0){	
-			younger.indirect.descendants = tree1$label[younger.indirect.indices]
-			for(i in 1:length(younger.indirect.indices)){
-				ind = younger.indirect.indices[i]
-				ind2 = younger.indirect.indices[i]
-				spl2 = unlist(strsplit(tree1$label[ind2],":"))
-				tree1$label[ind2] = paste(c(spl[1:(remove.depth-1)],as.integer(spl2[remove.depth])+no.to.shift),collapse=":")
-				if(length(spl2)>(remove.depth)){
-					tree1$label[ind2] = paste(c(tree1$label[ind2],spl2[(remove.depth+1):length(spl2)]),collapse=":")
-				}
-				tree1$label[ind2] = paste(tree1$label[ind2],":",sep="")
-				spl3 = unlist(strsplit(tree1$label[ind2],":"))
-				tree1$ancestor[ind2] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
-			}
-		}
-	}else if(length(younger.indirect.indices)>0){
-		younger.sibling.indices = which(younger.siblings(remove.node, tree1$label) & tree1$label!=remove.node)
-		younger.sibling.descendants = tree1$label[younger.sibling.indices]
-
-		for(i in 1:length(younger.indirect.indices)){
-			ind = younger.indirect.indices[i]
-			spl2 = unlist(strsplit(tree1$label[ind],":"))
-			tree1$label[ind] = paste(c(spl[1:(remove.depth-1)],as.integer(spl2[remove.depth])-1),collapse=":")
-			if(length(spl2)>remove.depth){
-				tree1$label[ind] = paste(c(tree1$label[ind],spl2[(remove.depth+1):length(spl2)]),collapse=":")
-			}
-			tree1$label[ind] = paste(tree1$label[ind],":",sep="")
-			spl3 = unlist(strsplit(tree1$label[ind],":"))
-			tree1$ancestor[ind] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
-
-			#adjust psi for younger siblings
-			if(ind %in% younger.sibling.indices){
-				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
-			}
-		}
-	}
-	tree1 <- tree1[-remove.index,]
-	old.labels = row.names(tree1)
-	row.names(tree1) = tree1$label
-	
-	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
-	return(list(tree=tree1,df=df))
-}
+#' Note: This function is never used and has not been updated to reflect the correct parameter updates
+# remove.specific.node <- function(tree1, remove.node) {
+# 	saved.tree = tree1
+# 	
+# 	remove.index = which(tree1$label==remove.node)
+# 	
+# 	spl = unlist(strsplit(remove.node,":"))
+# 	remove.depth = length(spl)
+# 	remove.pos = as.integer(spl[length(spl)])
+# 	ancestor.index = which(tree1$label==tree1$ancestor[remove.index])
+# 
+# 	younger.indices = which(younger.direct.descendants(remove.node, tree1$label) & tree1$label!=remove.node)		
+# 	younger.indirect.indices = which(younger.descendants(remove.node, tree1$label) & tree1$label!=remove.node)		
+# 	younger.indirect.indices = younger.indirect.indices[!(younger.indirect.indices %in% younger.indices)]		
+# 	younger.descendants = tree1$label[younger.indices]
+# 
+# 	no.to.shift = 0
+# 	if(length(younger.indices)>0)
+# 	{
+# 		for(i in 1:length(younger.indices)){
+# 			ind = younger.indices[i]
+# 			tree1$nu[ind] = tree1$nu[ind] * tree1$nu[remove.index]
+# 			tree1$psi[ind] = tree1$psi[ind] * tree1$psi[remove.index]
+# 			tree1$phi[ind] = tree1$psi[ind] * tree1$phi[remove.index]
+# 			tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
+# 
+# 			spl2 = unlist(strsplit(tree1$label[ind],":"))
+# 			no.to.shift = max(no.to.shift,as.integer(spl2[remove.depth+1])-1)
+# 			tree1$label[ind] = paste(c(spl[1:(remove.depth-1)],remove.pos+as.integer(spl2[remove.depth+1])-1),collapse=":")
+# 			if(length(spl2)>(remove.depth+1)){
+# 				tree1$label[ind] = paste(c(tree1$label[ind],spl2[(remove.depth+2):length(spl2)]),collapse=":")
+# 			}
+# 			tree1$label[ind] = paste(tree1$label[ind],":",sep="")
+# 			spl3 = unlist(strsplit(tree1$label[ind],":"))
+# 			tree1$ancestor[ind] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
+# 		}
+# 		if(no.to.shift>0 & length(younger.indirect.indices)>0){	
+# 			younger.indirect.descendants = tree1$label[younger.indirect.indices]
+# 			for(i in 1:length(younger.indirect.indices)){
+# 				ind = younger.indirect.indices[i]
+# 				ind2 = younger.indirect.indices[i]
+# 				spl2 = unlist(strsplit(tree1$label[ind2],":"))
+# 				tree1$label[ind2] = paste(c(spl[1:(remove.depth-1)],as.integer(spl2[remove.depth])+no.to.shift),collapse=":")
+# 				if(length(spl2)>(remove.depth)){
+# 					tree1$label[ind2] = paste(c(tree1$label[ind2],spl2[(remove.depth+1):length(spl2)]),collapse=":")
+# 				}
+# 				tree1$label[ind2] = paste(tree1$label[ind2],":",sep="")
+# 				spl3 = unlist(strsplit(tree1$label[ind2],":"))
+# 				tree1$ancestor[ind2] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
+# 			}
+# 		}
+# 	}else if(length(younger.indirect.indices)>0){
+# 		younger.sibling.indices = which(younger.siblings(remove.node, tree1$label) & tree1$label!=remove.node)
+# 		younger.sibling.descendants = tree1$label[younger.sibling.indices]
+# 
+# 		for(i in 1:length(younger.indirect.indices)){
+# 			ind = younger.indirect.indices[i]
+# 			spl2 = unlist(strsplit(tree1$label[ind],":"))
+# 			tree1$label[ind] = paste(c(spl[1:(remove.depth-1)],as.integer(spl2[remove.depth])-1),collapse=":")
+# 			if(length(spl2)>remove.depth){
+# 				tree1$label[ind] = paste(c(tree1$label[ind],spl2[(remove.depth+1):length(spl2)]),collapse=":")
+# 			}
+# 			tree1$label[ind] = paste(tree1$label[ind],":",sep="")
+# 			spl3 = unlist(strsplit(tree1$label[ind],":"))
+# 			tree1$ancestor[ind] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
+# 
+# 			#adjust psi for younger siblings
+# 			if(ind %in% younger.sibling.indices){
+# 				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
+# 			}
+# 		}
+# 	}
+# 	tree1 <- tree1[-remove.index,]
+# 	old.labels = row.names(tree1)
+# 	row.names(tree1) = tree1$label
+# 	
+# 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
+# 	return(list(tree=tree1,df=df))
+# }
 
 remove.branch <- function(tree1, curr.assignments, y, n, kappas) {
 	saved.tree = tree1
@@ -236,7 +242,9 @@ remove.branch <- function(tree1, curr.assignments, y, n, kappas) {
 
 			#adjust psi for younger siblings
 			if(ind %in% younger.sibling.indices){
-				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
+# 				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
+				new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
+				tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
 			}
 		}
 	}

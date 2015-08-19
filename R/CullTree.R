@@ -37,10 +37,14 @@ cull.tree <- function(tree1, curr.assignments) {
 		for(j in 1:length(younger.indices2)){	
 			ind = younger.indices[j]
 			ind2 = younger.indices2[j]
-			tree1$nu[ind2] = tree1$nu[ind2] * tree1$nu[remove.index]
-			tree1$psi[ind2] = tree1$psi[ind2] * tree1$psi[remove.index]
-			tree1$phi[ind2] = tree1$psi[ind2] * tree1$phi[remove.index]
-			tree1$edge.length[ind2] = tree1$nu[ind2] * tree1$psi[ind2] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
+# # 			tree1$nu[ind2] = tree1$nu[ind2] * tree1$nu[remove.index]
+# # 			tree1$psi[ind2] = tree1$psi[ind2] * tree1$psi[remove.index]
+# # 			tree1$phi[ind2] = tree1$psi[ind2] * tree1$phi[remove.index]
+#       new.psi = tree1$psi[ind2] * tree1$psi[remove.index]
+#       new.phi = tree1$psi[ind2] * tree1$phi[remove.index]
+#       tree1$psi[ind2] = new.psi
+#       tree1$phi[ind2] = new.phi
+# 			tree1$edge.length[ind2] = tree1$nu[ind2] * tree1$psi[ind2] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
 			
 			spl2 = unlist(strsplit(tree1$label[ind2],":"))
 			no.to.shift = max(no.to.shift,as.integer(spl2[remove.depth+1])-1)
@@ -115,6 +119,11 @@ cull.tree <- function(tree1, curr.assignments) {
 				#adjust psi for younger siblings
 				if(ind2 %in% younger.sibling.indices2){
 					tree1$psi[ind2] = tree1$psi[ind2] * (1-tree1$psi[remove.index])
+					new.psi = tree1$psi[ind2] * tree1$psi[remove.index]
+					tree1$phi[ind2] = tree1$psi[ind2] * tree1$phi[remove.index]
+					tree1$psi[ind2] = new.psi
+					tree1$edge.length[ind2] = tree1$nu[ind2] * tree1$psi[ind2] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]					
+					
 				}
 			}
 		}
@@ -128,8 +137,9 @@ cull.tree <- function(tree1, curr.assignments) {
 	df = data.frame(old=old.labels,new=tree1$label,stringsAsFactors=F)
   
   # Order the nodes in the tree by length of their name. Make sure that the plotter will insert the nodes in the right order.
-	node.name.lengths = unlist(lapply(as.list(rownames(tree1)), nchar))
-	tree1 = tree1[rownames(tree1)[order(node.name.lengths, rownames(tree1))],] # Sort by name length first, then by rowname to make sure M:2:, M:1: is sorted correctly
+# 	node.name.lengths = unlist(lapply(as.list(rownames(tree1)), nchar))
+# 	tree1 = tree1[rownames(tree1)[order(node.name.lengths, rownames(tree1))],] # Sort by name length first, then by rowname to make sure M:2:, M:1: is sorted correctly
+  tree1 = tree1[order(tree1$label), ]
 	return(list(culled.tree=tree1,mapping=df))
 }
 
