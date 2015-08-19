@@ -35,6 +35,7 @@ if (length(args) >= 12) {
 # TODO: Hard coded for now
 is.male = T
 is.vcf = F
+num_muts_sample = 500 # TODO REMOVE
 
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
@@ -77,7 +78,7 @@ print("")
 
 # Set the name of the output directory
 if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons' | analysis_type == 'sample_muts') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin_withCN", sep="")
+  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
   if (!is.na(bin.size)) {
     outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
@@ -110,6 +111,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                       no.chrs.bearing.mut="no.chrs.bearing.mut", 
                       mutation.copy.number="mutation.copy.number", 
                       subclonal.fraction="subclonal.fraction", 
+                      phase="phase",
   		                is.male=is.male,
                       is.vcf=is.vcf,
   		                ref.genome.version="hg19")
@@ -117,20 +119,21 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   #print(num_muts_sample)
   #print(class(num_muts_sample))
   
-  print(dim(dataset$WTCount))
-  print("Adding in CN events")
-  cn.dat = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
-  dataset = add.in.cn(dataset, cndata, add.conflicts=T)
-  print(dim(dataset$WTCount))
+#   print(dim(dataset$WTCount))
+#   print("Adding in CN events")
+#   cndata = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
+#   dataset = add.in.cn(dataset, cndata, add.conflicts=T)
+#   print(dim(dataset$WTCount))
   
   
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
     dataset = sample_mutations(dataset, num_muts_sample)
   }
-}
 
-# Save the dataset
-save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+  print(dim(dataset$WTCount))
+  # Save the dataset
+  save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+}
 
 if (analysis_type == 'sample_muts') {
   # If only sampling then quit now. Use this when running parts of a method in parallel
