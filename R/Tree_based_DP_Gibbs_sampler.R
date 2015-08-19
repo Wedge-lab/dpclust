@@ -362,7 +362,7 @@ checkInvariants = function(curr.tree) {
       if (stat > 0.001) {
         print("                             lvl")
         print("                             PHI DOES NOT HOLD")
-        print(curr.tree)
+        #print(curr.tree)
       }
     } else if(lvl[length(lvl)] != "M") {
       stat = curr.tree$psi[i]
@@ -372,7 +372,7 @@ checkInvariants = function(curr.tree) {
       if (stat-curr.tree$phi[i] > 0.001) {
         print("                             lvl")
         print("                             PHI DOES NOT HOLD")
-        print(curr.tree)
+        #print(curr.tree)
       }
     }
     
@@ -395,7 +395,7 @@ checkInvariants = function(curr.tree) {
     if (stat - curr.tree$edge.length[i] > 0.001) {
       print(paste("                                ", curr.tree[i,]))
       print("                             EDGE.LENGTH DOES NOT HOLD")
-      print(curr.tree)
+      #print(curr.tree)
     }
   }
 }
