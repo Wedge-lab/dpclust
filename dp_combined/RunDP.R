@@ -140,7 +140,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     # Save the consensus mutation assignments
     save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
     print(head(output))
-    colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
+    colnames(output) = c("chr", "start", "end", "cluster", "likelihood", "mut_type")
     write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
 
     # If tree based analysis, also save the tree

@@ -190,7 +190,7 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
     dataset$WTCount = rbind(dataset$WTCount, N - dataset$mutCount[nrow(dataset$mutCount),])
     dataset$totalCopyNumber = rbind(dataset$totalCopyNumber, rep(1, num.samples))
     dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, rep(1, num.samples))
-    dataset$kappa = rbind(dataset$kappa, rep(mutationCopyNumberToMutationBurden(1, 1, dataset$cellularity) * 1, num.samples))
+    dataset$kappa = rbind(dataset$kappa, rep(mutationCopyNumberToMutationBurden(1, CNA, dataset$cellularity) * 1, num.samples))
     dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, rep(1, num.samples))
     # TODO: Setting same CNA CCF across samples does not work for multiple samples!
     dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, rep(CNA, num.samples))

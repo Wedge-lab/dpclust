@@ -17,7 +17,7 @@ RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotati
                                             conflict.array=conflict.array)
   
     # Save the output
-    save(checkpoint_file, temp.list)
+    save(file=checkpoint_file, temp.list)
   } else {
     # Load the checkpoint
     load(checkpoint_file)

@@ -38,10 +38,13 @@ sample_mutations = function(dataset, num_muts_sample) {
   kappa = as.matrix(dataset$kappa[selection,])
   mutation.copy.number = as.matrix(dataset$mutation.copy.number[selection,])
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
-  removed_indices = as.matrix(dataset$removed_indices[selection])
   mutationType = dataset$mutationType[selection]
   phase = dataset$phase[selection,]
   conflict.array = dataset$conflict.array[selection, selection]
+
+  # Don't update these - maybe this should be done, but not like this as the removed_indices matrix remains the same size as CNAs are added
+  #removed_indices = as.matrix(dataset$removed_indices[selection])
+  removed_indices = dataset$removed_indices
   
   # for each muation not sampled, find the most similar mutation that was sampled
   # TODO: add in code that at least selects the conflicting SNVs to help find branching trees
@@ -83,9 +86,9 @@ sample_mutations = function(dataset, num_muts_sample) {
 unsample_mutations = function(dataset, clustering_result) {
   best.node.assignments = rep(1, nrow(dataset$full.data$chromosome))
   best.assignment.likelihoods = rep(1, nrow(dataset$full.data$chromosome))
-  best.node.assignments = clustering_result$best.node.assignments[most.similar.mut]
-  best.assignment.likelihoods = clustering_result$best.assignment.likelihoods[most.similar.mut]
+  best.node.assignments = clustering_result$best.node.assignments[dataset$most.similar.mut]
+  best.assignment.likelihoods = clustering_result$best.assignment.likelihoods[dataset$most.similar.mut]
   clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
-  return(dataset=dataset$full.data, clustering=clustering)
+  return(list(dataset=dataset$full.data, clustering=clustering))
 }
 
