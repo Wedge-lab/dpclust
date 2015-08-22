@@ -21,6 +21,8 @@ cull.tree <- function(tree1, curr.assignments) {
 		#name in tree1
 		remove.node = tree1[remove.node,"label"]
 		
+#     print(paste("REMOVING", remove.node))
+    
 		spl = unlist(strsplit(remove.node,":"))
 		remove.depth = length(spl)
 		remove.pos = as.integer(spl[length(spl)])
@@ -40,13 +42,8 @@ cull.tree <- function(tree1, curr.assignments) {
 # # 			tree1$nu[ind2] = tree1$nu[ind2] * tree1$nu[remove.index]
 # # 			tree1$psi[ind2] = tree1$psi[ind2] * tree1$psi[remove.index]
 # # 			tree1$phi[ind2] = tree1$psi[ind2] * tree1$phi[remove.index]
-#       new.psi = tree1$psi[ind2] * tree1$psi[remove.index]
-#       new.phi = tree1$psi[ind2] * tree1$phi[remove.index]
-#       tree1$psi[ind2] = new.psi
-#       tree1$phi[ind2] = new.phi
-# 			tree1$edge.length[ind2] = tree1$nu[ind2] * tree1$psi[ind2] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]			
-			
-			spl2 = unlist(strsplit(tree1$label[ind2],":"))
+
+      spl2 = unlist(strsplit(tree1$label[ind2],":"))
 			no.to.shift = max(no.to.shift,as.integer(spl2[remove.depth+1])-1)
 			tree1$label[ind2] = paste(c(spl[1:(remove.depth-1)],remove.pos+as.integer(spl2[remove.depth+1])-1),collapse=":")
 			if(length(spl2)>(remove.depth+1)){
@@ -59,6 +56,21 @@ cull.tree <- function(tree1, curr.assignments) {
 			if(nodes.in.tree$replace.with.siblings[i] & length(spl2) == (length(spl)+1) & !nodes.in.tree$keep.node[ind] & !nodes.in.tree$replace.with.descendants[ind] & !nodes.in.tree$replace.with.siblings[ind]){
 				nodes.in.tree$replace.with.siblings[ind] = T
 			}
+
+      # If this will become the first node on a bit of stick we need to make sure psi and phi are the same
+      lvl = unlist(strsplit(tree1$label[ind2], ":"))
+      if (lvl[length(lvl)] == 1) {
+        new.psi = tree1$psi[ind2] * tree1$psi[remove.index]
+        new.phi = new.psi
+      } else {
+        new.psi = tree1$psi[ind2] * tree1$psi[remove.index]
+        new.phi = tree1$psi[ind2] * tree1$phi[remove.index]
+      }
+      tree1$nu[ind2] = tree1$nu[ind2] * tree1$nu[remove.index]
+      tree1$psi[ind2] = new.psi
+      tree1$phi[ind2] = new.phi
+      tree1$edge.length[ind2] = tree1$nu[ind2] * tree1$psi[ind2] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]
+
 		}
 		if(no.to.shift>0 & length(younger.indirect.indices2)>0){	
 			younger.indirect.descendants = tree1$label[younger.indirect.indices2]
@@ -67,17 +79,21 @@ cull.tree <- function(tree1, curr.assignments) {
 				ind = younger.indirect.indices[j]
 				ind2 = younger.indirect.indices2[j]
 				spl2 = unlist(strsplit(tree1$label[ind2],":"))
+				#oldlabel = tree1$label[ind2]
 				tree1$label[ind2] = paste(c(spl[1:(remove.depth-1)],as.integer(spl2[remove.depth])+no.to.shift),collapse=":")
 				if(length(spl2)>(remove.depth)){
 					tree1$label[ind2] = paste(c(tree1$label[ind2],spl2[(remove.depth+1):length(spl2)]),collapse=":")
 				}
 				tree1$label[ind2] = paste(tree1$label[ind2],":",sep="")
+				#print(paste(oldlabel, "becomes", tree1$label[ind2]))
 				spl3 = unlist(strsplit(tree1$label[ind2],":"))
 				tree1$ancestor[ind2] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
 			}
 		}
 		#remove nodes one at a time
 		tree1 <- tree1[-remove.index,]		
+#     print("CULLTREE 1")
+#     checkInvariants(tree1)
 	}
     # Replace with siblings
 	for(i in which(nodes.in.tree$replace.with.siblings & !nodes.in.tree$replace.with.descendants)){		
@@ -118,17 +134,19 @@ cull.tree <- function(tree1, curr.assignments) {
 
 				#adjust psi for younger siblings
 				if(ind2 %in% younger.sibling.indices2){
-					tree1$psi[ind2] = tree1$psi[ind2] * (1-tree1$psi[remove.index])
-					new.psi = tree1$psi[ind2] * tree1$psi[remove.index]
-					tree1$phi[ind2] = tree1$psi[ind2] * tree1$phi[remove.index]
+					#tree1$psi[ind2] = tree1$psi[ind2] * (1-tree1$psi[remove.index])
+				  #tree1$nu[ind2] = tree1$nu[ind2] * tree1$nu[remove.index]
+					new.psi = tree1$psi[ind2] * (1-tree1$psi[remove.index])
+					tree1$phi[ind2] = tree1$psi[ind2] * (1-tree1$phi[remove.index])
 					tree1$psi[ind2] = new.psi
 					tree1$edge.length[ind2] = tree1$nu[ind2] * tree1$psi[ind2] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]					
-					
 				}
 			}
 		}
 		#remove nodes one at a time
 		tree1 <- tree1[-remove.index,]
+# 		print("CULLTREE 2")
+# 		checkInvariants(tree1)
 	}
 	tree1<-tree1[tree1$node %in% original.keep.nodes,]
 	row.names(tree1) = tree1$label
@@ -142,7 +160,6 @@ cull.tree <- function(tree1, curr.assignments) {
   tree1 = tree1[order(tree1$label), ]
 	return(list(culled.tree=tree1,mapping=df))
 }
-
 
 createInventory <- function(tree1, curr.assignments) {
   # Crate an inventory of which nodes are to be kept and which ones should be replaced by a sibling

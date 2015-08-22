@@ -57,6 +57,21 @@ remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 			tree1$label[ind] = paste(tree1$label[ind],":",sep="")
 			spl3 = unlist(strsplit(tree1$label[ind],":"))
 			tree1$ancestor[ind] = paste(paste(spl3[1:(length(spl3)-1)],collapse=":"),":",sep="")
+
+      # If this will become the first node on a bit of stick we need to make sure psi and phi are the same
+      lvl = unlist(strsplit(tree1$label[ind], ":"))
+      if (lvl[length(lvl)] == 1) {
+        new.psi = tree1$psi[ind] * tree1$psi[remove.index]
+        new.phi = new.psi
+      } else {
+        new.psi = tree1$psi[ind] * tree1$psi[remove.index]
+        new.phi = tree1$psi[ind] * tree1$phi[remove.index]
+      }
+      tree1$nu[ind] = tree1$nu[ind] * tree1$nu[remove.index]
+      tree1$psi[ind] = new.psi
+      tree1$phi[ind] = new.phi
+      tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]
+
 		}
 		if(no.to.shift>0 & length(younger.indirect.indices)>0){	
 			younger.indirect.descendants = tree1$label[younger.indirect.indices]
@@ -91,10 +106,14 @@ remove.node <- function(tree1, curr.assignments, y, n, kappas) {
 			#adjust psi for younger siblings
 			if(ind %in% younger.sibling.indices){
 # 				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
-				tree1$nu[ind] = tree1$nu[ind] * (1-tree1$nu[remove.index])
-				new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
-				tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
-				tree1$psi[ind] = new.psi
+# 				tree1$nu[ind] = tree1$nu[ind] * (1-tree1$nu[remove.index])
+# 				new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
+# 				tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
+# 				tree1$psi[ind] = new.psi
+			  new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
+			  tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
+			  tree1$psi[ind] = new.psi
+			  tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]
 			}
 		}
 	}
@@ -243,8 +262,12 @@ remove.branch <- function(tree1, curr.assignments, y, n, kappas) {
 			#adjust psi for younger siblings
 			if(ind %in% younger.sibling.indices){
 # 				tree1$psi[ind] = tree1$psi[ind] * (1-tree1$psi[remove.index])
-				new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
-				tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
+# 				new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
+# 				tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
+			  new.psi = tree1$psi[ind] * (1-tree1$psi[remove.index])
+			  tree1$phi[ind] = tree1$psi[ind] * (1-tree1$phi[remove.index])
+			  tree1$psi[ind] = new.psi
+			  tree1$edge.length[ind] = tree1$nu[ind] * tree1$psi[ind] * tree1$edge.length[ancestor.index]*(1-tree1$nu[ancestor.index])/tree1$nu[ancestor.index]
 			}
 		}
 	}
