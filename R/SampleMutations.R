@@ -40,7 +40,11 @@ sample_mutations = function(dataset, num_muts_sample) {
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
   mutationType = dataset$mutationType[selection]
   phase = dataset$phase[selection,]
-  conflict.array = dataset$conflict.array[selection, selection]
+  if (!is.na(dataset$conflict.array)) {
+    conflict.array = dataset$conflict.array[selection, selection]
+  } else {
+    conflict.array = NA
+  }
 
   # Don't update these - maybe this should be done, but not like this as the removed_indices matrix remains the same size as CNAs are added
   #removed_indices = as.matrix(dataset$removed_indices[selection])
