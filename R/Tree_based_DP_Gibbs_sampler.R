@@ -244,6 +244,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		}
     
     if (do_update) {
+      print("REMOVED NODE OR BRANCH")
       curr.tree = temp.list$tree
       new.assignments = update.tree.after.removal(temp.list[[1]], temp.list[[2]], temp.list[[3]], new.assignments, num.muts, y, n, kappa)
     }
@@ -254,10 +255,16 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		node.assignments[,m] = new.assignments
  		for (i in 1:num.muts) {
 			conflicts = get.conflicts(rand.inds[i], conflict.array, node.assignments[,m],curr.tree)
+      if (i==150) {
+      #save(file="sampling_issue.RData", conflicts, rand.inds, i, y, n, kappa, curr.tree, node.assignments, lambda, alpha0, gamma)
+      temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts, debug=F)
+      } else {
 			temp.assignments <- sample.assignment(y[rand.inds[i],], n[rand.inds[i],], kappa[rand.inds[i],], curr.tree, node.assignments[rand.inds[i],m], lambda[m-1], alpha0[m-1], gamma[m-1], conflicts)
-      			curr.tree <- temp.assignments[[2]]
+      }
+			curr.tree <- temp.assignments[[2]]
 			node.assignments[rand.inds[i],m] <- temp.assignments[[3]]
 		}
+    print("AFTER SAMPLING MUTS")
 
 		#chunkSize = ceiling(num.muts/4)
 		#out = foreach(i=1:4, .packages="doRNG", .export=c("get.conflicts", "sample.assignment", "ancestors", "find.node", "log.f.of.y")) %dorng% { 
@@ -272,7 +279,10 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		#}
     
     gc()
-		
+    print("BEFORE CULLING TREE INVARIANTS")
+		checkInvariants(curr.tree)
+    
+		print("CULLING TREE")
 		#cull tree (remove empty nodes)
 		temp.list <- cull.tree(curr.tree, node.assignments[,m])
 		curr.tree <- temp.list$culled.tree
@@ -282,7 +292,9 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 			new.node.assignments[node.assignments[,m]==mapping$old[i]] = mapping$new[i]
 		}
 		node.assignments[,m] = new.node.assignments
-		
+		print("DONE CULLING TREE")
+		checkInvariants(curr.tree)
+    
 		print("# Resample theta.S variables")
 		# It is not safe to run this in parallel
 		for (k in grep("theta", names(curr.tree))) {
@@ -295,7 +307,8 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
 		alpha0[m] <- temp.hypers[1]
 		lambda[m] <- temp.hypers[2]
-		gamma[m] <- temp.hypers[3]
+		#gamma[m] <- temp.hypers[3]
+		gamma[m] = init.gamma
     
 		print("# Resample stick lengths")
 		curr.tree <- sample.sticks(curr.tree, node.assignments[,m], alpha0[m], lambda[m], gamma[m])
@@ -360,8 +373,9 @@ checkInvariants = function(curr.tree) {
       # First node of this level, therefore phi ~== psi
       stat = curr.tree$psi[i]-curr.tree$phi[i]
       if (stat > 0.001) {
-        print("                             lvl")
+        print(paste("                             lvl",lvl))
         print("                             PHI DOES NOT HOLD")
+        print(paste("                             ", curr.tree$psi[i], curr.tree$phi[i]))
         #print(curr.tree)
       }
     } else if(lvl[length(lvl)] != "M") {
@@ -370,7 +384,7 @@ checkInvariants = function(curr.tree) {
         stat = stat * (1-curr.tree$psi[j])
       }
       if (stat-curr.tree$phi[i] > 0.001) {
-        print("                             lvl")
+        print(paste("                             lvl",lvl))
         print("                             PHI DOES NOT HOLD")
         #print(curr.tree)
       }
@@ -379,6 +393,11 @@ checkInvariants = function(curr.tree) {
     # Check the edge lengths
     get.ancestors.rec = function(node.label, tree, start=T) { 
       # Recursively obtain the path from root to this node recursively, excluding the given node
+      if (identical(node.label, character(0))) {
+        warning("Found empty node label")
+        print(tree)
+      }
+      
       if(node.label=="M:") { 
         # Stop once the root is reached
         return(node.label) 
@@ -388,6 +407,7 @@ checkInvariants = function(curr.tree) {
         return(c(node.label, get.ancestors.rec(tree[tree$label==node.label,]$ancestor, tree, start=F)))
       } 
     }
+    
     # Obtain the ancestral path to the root
     anc = get.ancestors.rec(curr.tree$label[i], curr.tree)
     # 
@@ -400,14 +420,14 @@ checkInvariants = function(curr.tree) {
   }
 }
 
-find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1,nrow(tree))) {
+find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1,nrow(tree)), debug=F) {
 	# Subroutine to find the node of the tree partition that holds the random datum u on (0,1]
 	# curr.state is the current state of the mutation
-	descend <- function(u1, tree1, curr.node, depth1, lambda1, alpha01, gamma, conflicts) {
+	descend <- function(u1, tree1, curr.node, depth1, lambda1, alpha01, gamma, conflicts, debug) {
 		curr.nu = tree1[curr.node,"nu"]
 		#adjust root node to allow for conflicts - if there are conflicting variants they should not be placed in the root node
 		#doesn't work very well!!
-		#if(curr.node=="M:"){curr.nu = curr.nu / conflicts["M:"]}
+		#if(curr.node=="M:"){ curr.nu = curr.nu / conflicts["M:"] }
 		if(is.na(u1) | is.na(curr.nu)){
 			print("ERROR. u1 or curr.nu is NA")
 			print(paste(curr.node,u1, curr.nu, sep=","))
@@ -421,6 +441,11 @@ find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1
 		# Define immediate children of current node
 		temp.matrix <- tree1[tree1$ancestor == curr.node, ]
 		while (dim(temp.matrix)[1] == 0 | u1 > (1-prod(1-temp.matrix$psi))) {
+      
+      if (debug) {
+        print(tree1)
+      }
+      
 			new.psi <- rbeta(1,1,gamma)
 			#don't allow nu = 1 (causes problems with resampling alpha and probably other probs)
 			new.nu <- min(rbeta(1,1,alpha01 * (lambda1^depth1)),0.999)
@@ -461,13 +486,13 @@ find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1
 	
 	result <- list("Fail", u, tree, "M:", 0, lambda, alpha0, gamma, conflicts)
 	while (result[[1]] == "Fail") {
-		result <- descend(result[[2]], result[[3]], result[[4]], result[[5]], result[[6]], result[[7]], result[[8]], result[[9]])
+		result <- descend(result[[2]], result[[3]], result[[4]], result[[5]], result[[6]], result[[7]], result[[8]], result[[9]], debug)
 	}
 	
 	return(result)
 }
 
-sample.assignment <- function(y, n, kappa, tree1, curr.assignment, lambda, alpha0, gamma, conflicts = vector(mode="character",length=0)) {
+sample.assignment <- function(y, n, kappa, tree1, curr.assignment, lambda, alpha0, gamma, conflicts = vector(mode="character",length=0), debug=F) {
 	# y is the vector of the number of reads reporting the variant in each of the samples
 	# n is the vector of the total number of reads across the base in each of the samples
 	# kappa is the vector of expected proportion of reads at that base
@@ -477,15 +502,29 @@ sample.assignment <- function(y, n, kappa, tree1, curr.assignment, lambda, alpha
 	 curr.thetas <- unlist(tree1[curr.assignment, grepl("theta", names(tree1))])
 	 	
 	 p.slice <- log(runif(n=1)) + log.f.of.y(y,n,kappa,curr.thetas)
-	 	 
+	 	
+   if (debug) {
+     print(paste(max.u, min.u, curr.thetas, p.slice))
+   }
+   
 	 output <- list("Fail", min.u, max.u)
 	 old.tree <- tree1
 	 
 	 while (output[[1]] == "Fail") {
 	 	curr.u <- runif(1,min.u,max.u)
 	
-	 	new.assignment <- find.node(curr.u, tree1, lambda, 0, alpha0, gamma, conflicts)
+     if (debug) {
+       new.assignment <- find.node(curr.u, tree1, lambda, 0, alpha0, gamma, conflicts, debug=F)
+     } else {
+	 	  new.assignment <- find.node(curr.u, tree1, lambda, 0, alpha0, gamma, conflicts)
+     }
 	 	
+	 	if (debug) {
+	 	  print(curr.u)
+       print(new.assignment)
+	 	} 
+     
+     
 	 	tree1 <- new.assignment[[3]]
 	 	new.node <- new.assignment[[2]]
 	 	thetas.new.asst <- unlist(tree1[new.node, grepl("theta", names(tree1))])
