@@ -180,25 +180,32 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
     # Fetch fraction of cells and confidence
     CNA = cndata[i,]$frac1_A
     # Confidence is used to downweigh the depth of this CNA to mimick uncertainty
-    #conf = cndata[i,]$SDfrac_A+1 # TODO: maybe devide N by this?
+    #conf = cndata[i,]$SDfrac_A+1 # TODO: maybe divide N by this?
     
     dataset$chromosome = rbind(dataset$chromosome, rep(cndata[i,]$chr, num.samples))
     dataset$position = rbind(dataset$position, rep(cndata[i,]$startpos, num.samples))
-    #dataset$mutCount = rbind(dataset$mutCount, rep(round(conf * N * CNA * cellularity / 2), num.samples))
     dataset$mutCount = rbind(dataset$mutCount, rep(round(N * CNA * cellularity / 2), num.samples))
-    #dataset$WTCount = rbind(dataset$WTCount, (conf * N) - dataset$mutCount[j,])
     dataset$WTCount = rbind(dataset$WTCount, N - dataset$mutCount[nrow(dataset$mutCount),])
     dataset$totalCopyNumber = rbind(dataset$totalCopyNumber, rep(1, num.samples))
     dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, rep(1, num.samples))
-    dataset$kappa = rbind(dataset$kappa, rep(mutationCopyNumberToMutationBurden(1, CNA, dataset$cellularity) * 1, num.samples))
+    #dataset$kappa = rbind(dataset$kappa, rep(mutationCopyNumberToMutationBurden(1, CNA, dataset$cellularity) * 1, num.samples))
+#     dataset$kappa = rbind(dataset$kappa, cellularity*(CNA*(cndata[i,]$nMaj1/(cndata[i,]$nMaj1+cndata[i,]$nMin1)*(dataset$mutCount[i,]+dataset$WTCount[i,]) + 
+#                                                         cndata[i,]$nMin1/(cndata[i,]$nMaj1+cndata[i,]$nMin1)*(dataset$mutCount[i,]+dataset$WTCount[i,])) +
+#                                                       (1-CNA)*(cndata[i,]$nMaj2/(cndata[i,]$nMaj2+cndata[i,]$nMin2)*(dataset$mutCount[i,]+dataset$WTCount[i,]) + 
+#                                                            cndata[i,]$nMin2/(cndata[i,]$nMaj2+cndata[i,]$nMin2)*(dataset$mutCount[i,]+dataset$WTCount[i,]))))
+    #dataset$kappa = rbind(dataset$kappa, N*cellularity/2)
+    dataset$kappa = rbind(dataset$kappa, cellularity/2)
+    
+    
     dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, rep(1, num.samples))
     # TODO: Setting same CNA CCF across samples does not work for multiple samples!
     dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, rep(CNA, num.samples))
     dataset$phase = rbind(dataset$phase, rep("unphased", num.samples))
     dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
   }
+  # Setting mutation type of all CNAs and making each CNA most similar to itself
   dataset$mutationType = c(dataset$mutationType, rep("CNA", nrow(cndata)))
-  
+  dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
   
   if (add.conflicts) {
     # Only allow subclonal losses here
