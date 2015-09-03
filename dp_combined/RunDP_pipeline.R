@@ -78,7 +78,7 @@ print("")
 
 # Set the name of the output directory
 if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons' | analysis_type == 'sample_muts') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin_withCN", sep="")
+  outdir = paste(outdir, "/", samplename, "_DPoutput_treeBased_", no.iters,"iters_",no.iters.burn.in,"burnin_withCN_withRemoving", sep="")
   if (!is.na(bin.size)) {
     outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
