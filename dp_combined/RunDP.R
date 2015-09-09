@@ -104,12 +104,81 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
       }
     }
     
+  } else if (analysis_type == "reassign_muts_1d") {
+    ##############################
+    # Reassign mutations to clusters using a previous 1D clustering run
+    ##############################
+    GS.data = list()
+    full_outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters, "iters_", no.iters.burn.in, "burnin", "/", sep="")
+    filename_prefix = paste(full_outdir, samplename, "_2D_iters", no.iters, "_concParam", conc_param, "_clusterWidth", 1/cluster_conc, sep="")
+    GS.data$S.i = as.matrix(read.csv(paste(filename_prefix, "_states.csv", sep=""), row.names=1))
+    GS.data$V.h = as.matrix(read.csv(paste(filename_prefix, "_stickbreaking_weights.csv", sep=""), row.names=1))
+    GS.data$pi.h = as.matrix(read.csv(paste(filename_prefix, "_discreteMutationCopyNumbers.csv", sep=""), row.names=1))
+    GS.data$alpha = read.csv(paste(filename_prefix, "_alpha.csv", sep=""), row.names=1)
+    
+    # Fix the dimensions of these arrays
+    S.i = array(NA, c(nrow(GS.data$S.i), ncol(GS.data$S.i), 1))
+    S.i[1:nrow(GS.data$S.i), 1:ncol(GS.data$S.i), 1] = GS.data$S.i
+    GS.data$S.i = S.i
+    
+    pi.h = array(NA, c(nrow(GS.data$pi.h), ncol(GS.data$pi.h), 1))
+    pi.h[1:nrow(GS.data$pi.h), 1:ncol(GS.data$pi.h), 1] = GS.data$pi.h
+    GS.data$pi.h = pi.h
+    
+    opts = list(samplename=samplename, subsamplenames=subsamples, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=outdir)
+    
+    #clustering = mutation_assignment_em(mutCount=dataset$mutCount, WTCount=dataset$WTCount, node.assignments=GS.data$S.i, opts=opts)
+    
+    if (mut.assignment.type == 1) {
+      wd = getwd()
+      setwd(paste(full_outdir, sep=""))
+      res = Gibbs.subclone.density.est.1d(GS.data, 
+                                          paste(samplename,"_DirichletProcessplot.png", sep=''), 
+                                          samplename=samplename,
+                                          post.burn.in.start=no.iters.burn.in, 
+                                          post.burn.in.stop=no.iters,
+                                          y.max=15,
+                                          x.max=NA, 
+                                          mutationCopyNumber=dataset$mutation.copy.number, 
+                                          no.chrs.bearing.mut=dataset$copyNumberAdjustment)
+      density = res$density
+      polygon.data = res$polygon.data
+      
+      
+      #density = read.table(paste(full_outdir, samplename, "_DirichletProcessplotdensity.txt", sep=""), header=T)
+      subclonal.fraction = dataset$mutation.copy.number / dataset$copyNumberAdjustment
+      subclonal.fraction[is.nan(subclonal.fraction)] = 0
+      clustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+      
+      # Disabled for now
+      setwd(wd)
+#       # Replot the data with cluster locations
+#       plot1D(density=density, 
+#              polygon.data=polygon.data, 
+#              pngFile=paste(full_outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+#              density.from=0, 
+#              x.max=1.5, 
+#              mutationCopyNumber=dataset$mutation.copy.number, 
+#              no.chrs.bearing.mut=dataset$copyNumberAdjustment,
+#              samplename=samplename,
+#              cluster.locations=clustering$cluster.locations,
+#              mutation.assignments=clustering$best.node.assignments)
+      
+    } else if (mut.assignment.type == 2) {
+      setwd(wd)
+      clustering = mutation_assignment_em(mutCount=dataset$mutCount, WTCount=dataset$WTCount, node.assignments=GS.data$S.i, opts=opts)
+      
+    } else {
+      print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
+      q(save="no", status=1)
+    }
+    
   } else {
     print(paste("Unknown type of analysis",analysis_type))
     q(save="no", status=1)
   }
 
-  if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
+  if (all(!analysis_type %in% c('tree', 'replot_1d', 'replot_nd', 'reassign_muts_1d'))) {
 
 	  # Check if mutation sampling has been done, if so, unpack and assign here
   	if (!is.na(most.similar.mut)) {
