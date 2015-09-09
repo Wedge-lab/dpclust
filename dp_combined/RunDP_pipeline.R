@@ -37,7 +37,7 @@ is.male = T
 is.vcf = F
 
 # Check whether a supported analysis_type was supplied
-supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
+supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts', 'reassign_muts_1d')
 if (!(analysis_type %in% supported_commands)) {
   print(paste("Type of analysis", analysis_type, "unknown."))
   print(paste(c("Specify either ", supported_commands)), sep=" ")
