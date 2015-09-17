@@ -29,10 +29,10 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     
   } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
 	# REMOVE temp CNA branching testing
-	mutCount = dataset$mutCount
-  	WTCount = dataset$WTCount
-	kappa = dataset$kappa
-	conflict_indices = c(which(dataset$position==20734478), which(dataset$position==24377093), which(dataset$position==32866944))
+# 	mutCount = dataset$mutCount
+#   	WTCount = dataset$WTCount
+# 	kappa = dataset$kappa
+# 	conflict_indices = c(which(dataset$position==20734478), which(dataset$position==24377093), which(dataset$position==32866944))
 
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
@@ -55,7 +55,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                              annotation=annotation,
                              init.alpha=init.alpha, 
                              shrinkage.threshold=shrinkage.threshold,
-			     conflict_indices=conflict_indices)
+			     conflict.array=array(1,c(nrow(dataset$mutCount),nrow(dataset$mutCount))))
 
   } else if (analysis_type == "replot_1d") {
     ##############################
@@ -125,6 +125,11 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     pi.h[1:nrow(GS.data$pi.h), 1:ncol(GS.data$pi.h), 1] = GS.data$pi.h
     GS.data$pi.h = pi.h
     
+    # TODO: REMOVE - temp overwrite of no.iters.burn.in
+#     no.iters.burn.in.supplied = no.iters.burn.in
+#     no.iters.burn.in = no.iters-1000 # Taking only the latest 500 iterations
+#     print(paste("BURNIN", no.iters.burn.in))
+    
     opts = list(samplename=samplename, subsamplenames=subsamples, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=outdir)
     
     #clustering = mutation_assignment_em(mutCount=dataset$mutCount, WTCount=dataset$WTCount, node.assignments=GS.data$S.i, opts=opts)
@@ -172,6 +177,9 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
       print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
       q(save="no", status=1)
     }
+#     # TODO: REMOVE - temp overwrite of no.iters.burn.in
+#     no.iters.burn.in = no.iters.burn.in.supplied
+    
     
   } else {
     print(paste("Unknown type of analysis",analysis_type))

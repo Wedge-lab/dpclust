@@ -1,4 +1,4 @@
-RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, samplename, no.iters, no.iters.burn.in, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL, remove.node.frequency=NA, remove.branch.frequency=NA, conflict_indices=NA) {
+RunTreeBasedDPMCMC <- function(mutCount, WTCount, kappa, no.muts.input, annotation, samplename, no.iters, no.iters.burn.in, shrinkage.threshold, init.alpha, outdir, parallel, clp, blockid=1, bin.indices=NULL, remove.node.frequency=NA, remove.branch.frequency=NA, conflict.array=NA) {
 
   # Run the Gibbs sampler
   temp.list = tree.struct.dirichlet.gibbs(y=mutCount,n=WTCount+mutCount,kappa=kappa,iter=no.iters,shrinkage.threshold=shrinkage.threshold,init.alpha=init.alpha, remove.node.frequency=remove.node.frequency, remove.branch.frequency=remove.branch.frequency, parallel=parallel, cluster=clp, conflict.array=conflict.array)
@@ -179,6 +179,8 @@ get.mut.ass.strengths = function(no.muts, no.iters, no.iters.post.burn.in, node.
   ancestor.strengths = array(0,c(no.muts,no.muts))
   sibling.strengths = array(0,c(no.muts,no.muts))
   identity.strengths = array(0,c(no.muts,no.muts))
+  parent.child.strengths = array(0,c(no.muts,no.muts))
+  child.parent.strengths = array(0,c(no.muts,no.muts))
   #it would be faster to use apply
   for(i in 1:no.iters.post.burn.in){
     ancestor.or.identity.relationship = array(NA,c(no.muts,no.muts))

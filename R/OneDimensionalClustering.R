@@ -2,6 +2,7 @@
 oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in) {
   no.muts = length(subclonal.fraction)
   normal.copy.number = rep(2,no.muts)
+  post.burn.in.start = no.iters.burn.in
   
   S.i = GS.data$S.i
   V.h = GS.data$V.h

@@ -17,7 +17,7 @@
 # library(doParallel)
 # library(doRNG)
 
-TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL, conflict_indices=NA){
+TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL, conflict.array=NA){
   #
   # Tree based method that will yield a tree that contains the estimated clone/subclone structure for 
   # the samples given as input.
@@ -108,7 +108,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
                          remove.branch.frequency=remove.branch.frequency,
-			 conflict_indices=conflict_indices)
+			 conflict.array=conflict.array)
     } else {
       mcmcResults = RunTreeBasedDPMCMC(mutCount=mutCount, 
                          WTCount=WTCount, 
@@ -127,7 +127,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
                          remove.branch.frequency=remove.branch.frequency,
-			 conflict_indices=conflict_indices)
+			 conflict.array=conflict.array)
     }
     
     # Set these variables in case both trees and cons need to be run consecutively in one R call
