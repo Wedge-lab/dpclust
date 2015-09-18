@@ -101,7 +101,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   list_of_datafiles = paste(datpath, datafiles, sep="/")
   
 	dataset = load.data(list_of_datafiles, 
-                      cellularity=cellularity, 
+                      cellularity=as.numeric(cellularity), 
                       Chromosome="chr", 
                       position="end",
                       WT.count="WT.count", 
