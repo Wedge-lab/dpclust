@@ -74,10 +74,10 @@ sample_mutations = function(dataset, num_muts_sample) {
 unsample_mutations = function(dataset, clustering_result) {
   best.node.assignments = rep(1, nrow(dataset$full.data$chromosome))
   best.assignment.likelihoods = rep(1, nrow(dataset$full.data$chromosome))
-  best.node.assignments = clustering_result$best.node.assignments[most.similar.mut]
-  best.assignment.likelihoods = clustering_result$best.assignment.likelihoods[most.similar.mut]
+  best.node.assignments = clustering_result$best.node.assignments[dataset$most.similar.mut]
+  best.assignment.likelihoods = clustering_result$best.assignment.likelihoods[dataset$most.similar.mut]
   clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
   dataset = dataset$full.data
-  return(dataset=dataset, clustering=clustering)
+  return(list(dataset=dataset, clustering=clustering))
 }
 
