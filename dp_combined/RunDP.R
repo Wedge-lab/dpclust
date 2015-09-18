@@ -190,9 +190,9 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 
 	  # Check if mutation sampling has been done, if so, unpack and assign here
   	if (!is.na(most.similar.mut)) {
-  	  res = unsample_mutations(dataset, clustering_result)
+  	  res = unsample_mutations(dataset, clustering)
       dataset = res$dataset
-      clustering_result = res$clustering_result
+      clustering = res$clustering
   	}
 
     # Write final output
