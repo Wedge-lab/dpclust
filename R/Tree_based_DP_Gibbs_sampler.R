@@ -307,8 +307,7 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
 		temp.hypers <- sample.hyperparameters(alpha0[m-1], lambda[m-1], gamma[m-1], allowed.ranges, curr.tree)
 		alpha0[m] <- temp.hypers[1]
 		lambda[m] <- temp.hypers[2]
-		#gamma[m] <- temp.hypers[3]
-		gamma[m] = init.gamma
+		gamma[m] <- temp.hypers[3]
     
 		print("# Resample stick lengths")
 		curr.tree <- sample.sticks(curr.tree, node.assignments[,m], alpha0[m], lambda[m], gamma[m])
