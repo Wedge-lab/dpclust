@@ -44,7 +44,7 @@ if (!(analysis_type %in% supported_commands)) {
   q(save="no", status=1)
 }
 # Check whether the mut.assignment.type is supported
-supported_mut.assignment.methods = c(1,2)
+supported_mut.assignment.methods = c(1,2,3)
 if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
   print(paste("Type of mutation assignment method", mut.assignment.type, "unknown."))
   print(paste(c("Specify either ", supported_mut.assignment.methods)), sep=" ")
