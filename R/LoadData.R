@@ -160,46 +160,48 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
   # The subclonal events can be used for clustering
   allowed.cn = c("sHD", "sLOH", "sAmp", "sGain", "sLoss")
   cndata = cndata[cndata$CNA %in% allowed.cn,]
+
+  # Remove duplicates
+  dups = cndata[cndata$CNA=="sLOH",]$startpos # These are added in twice, remove the sLoss marking
+  cndata = cndata[cndata$startpos %in% dups & cndata$CNA=="sLoss",]
+
+  if (sum(duplicated(cndata$startpos)) > 0) {
+	  print("After removing sLOH/sLoss duplicates, still found these:")
+  	  print(cndata[duplicated(cndata$startpos),])
+  }
   
   num.samples = ncol(dataset$mutCount)
   
-#   # Unpack the dataset
-#   chromosome = dataset$chromosome
-#   position = dataset$position
-#   mutCount = dataset$mutCount
-#   WTCount = dataset$WTCount
-#   totalCopyNumber = dataset$totalCopyNumber
-#   copyNumberAdjustment = dataset$copyNumberAdjustment
-#   kappa = dataset$kappa
-#   mutation.copy.number = dataset$mutation.copy.number
-#   subclonal.fraction = dataset$subclonal.fraction
-                   
-  # Take average depth as template for these CNAs disguised as fictional SNVs
-  N = mean(dataset$WTCount+dataset$mutCount)
+  # Take average depth as template for these CNAs disguised as fictional SNVs, but make the CNA weigh as much as 100 SNVs, to be downscaled below due to uncertainty
+  N = round(mean(dataset$WTCount+dataset$mutCount) * 100)
   for (i in 1:nrow(cndata)) {
     # Fetch fraction of cells and confidence
-    CNA = cndata[i,]$frac1_A
+    CNA_frac = cndata[i,]$frac1_A
     # Confidence is used to downweigh the depth of this CNA to mimick uncertainty
-    #conf = cndata[i,]$SDfrac_A+1 # TODO: maybe divide N by this?
-    
+    conf = cndata[i,]$SDfrac_A*100+1 
+   
+    # Create pseudo SNV carried by 1 copy in 1+1 area, and being subclonal proportionate to the CNA
+    tumourCN = 2
+    ncbm = 1
+    reads.per.clonal.copy = (cellularity*N/conf) / (cellularity*tumourCN + (1-cellularity)*2)
+    mc = round(reads.per.clonal.copy*CNA_frac)
+    wt = round(N/conf) - mc
+    mcn = mutationBurdenToMutationCopyNumber(mc/(mc+wt), tumourCN, cellularity, 2)
+
+    # Save the pseudo SNV in the dataset
     dataset$chromosome = rbind(dataset$chromosome, rep(cndata[i,]$chr, num.samples))
     dataset$position = rbind(dataset$position, rep(cndata[i,]$startpos, num.samples))
-    dataset$mutCount = rbind(dataset$mutCount, rep(round(N * CNA * cellularity / 2), num.samples))
-    dataset$WTCount = rbind(dataset$WTCount, N - dataset$mutCount[nrow(dataset$mutCount),])
-    dataset$totalCopyNumber = rbind(dataset$totalCopyNumber, rep(1, num.samples))
-    dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, rep(1, num.samples))
-    #dataset$kappa = rbind(dataset$kappa, rep(mutationCopyNumberToMutationBurden(1, CNA, dataset$cellularity) * 1, num.samples))
-#     dataset$kappa = rbind(dataset$kappa, cellularity*(CNA*(cndata[i,]$nMaj1/(cndata[i,]$nMaj1+cndata[i,]$nMin1)*(dataset$mutCount[i,]+dataset$WTCount[i,]) + 
-#                                                         cndata[i,]$nMin1/(cndata[i,]$nMaj1+cndata[i,]$nMin1)*(dataset$mutCount[i,]+dataset$WTCount[i,])) +
-#                                                       (1-CNA)*(cndata[i,]$nMaj2/(cndata[i,]$nMaj2+cndata[i,]$nMin2)*(dataset$mutCount[i,]+dataset$WTCount[i,]) + 
-#                                                            cndata[i,]$nMin2/(cndata[i,]$nMaj2+cndata[i,]$nMin2)*(dataset$mutCount[i,]+dataset$WTCount[i,]))))
-    #dataset$kappa = rbind(dataset$kappa, N*cellularity/2)
-    dataset$kappa = rbind(dataset$kappa, cellularity/2)
+    dataset$mutCount = rbind(dataset$mutCount, rep(mc, num.samples))
+    dataset$WTCount = rbind(dataset$WTCount, rep(wt, num.samples))
+    dataset$totalCopyNumber = rbind(dataset$totalCopyNumber, rep(tumourCN, num.samples))
+    dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, rep(ncbm, num.samples))
+    dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, rep(mcn, num.samples))
+    dataset$kappa = rbind(dataset$kappa, mutationCopyNumberToMutationBurden(1, tumourCN, cellularity))
     
-    
-    dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, rep(1, num.samples))
+    index = nrow(dataset$mutCount)
+    print(paste("NEW CNA CCF/MCN", cndata[i,]$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf))
     # TODO: Setting same CNA CCF across samples does not work for multiple samples!
-    dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, rep(CNA, num.samples))
+    dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, rep(dataset$mutation.copy.number[index,1], num.samples))
     dataset$phase = rbind(dataset$phase, rep("unphased", num.samples))
     dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
   }
@@ -233,6 +235,13 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
         }
         
         # There are conflicts, put them in the conficts array
+	if (sum(conflict_indices) > 3) {
+		print(paste("Found", sum(conflict_indices), "conflicts for this segment, but keeping only 1"))
+		keep = which(conflict_indices)[1]
+		conflict_indices[which(conflict_indices)] = FALSE
+		conflict_indices[keep] = TRUE
+	}
+
         conflicting_mutcount = conflicting_mutcount + sum(conflict_indices)
         for (i in which(conflict_indices)) {
           j = which(dataset$position==cndata$startpos[i] & dataset$mutationType=="CNA")
