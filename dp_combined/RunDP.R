@@ -112,26 +112,26 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
 
 	  # Check if mutation sampling has been done, if so, unpack and assign here
-  	if (!is.na(most.similar.mut)) {
-  	  res = unsample_mutations(dataset, clustering)
-      dataset = res$dataset
-  	  clustering = res$clustering
-  	}
+  	#if (!is.na(most.similar.mut)) {
+  	#  res = unsample_mutations(dataset, clustering)
+      #dataset = res$dataset
+  #	  clustering = res$clustering
+  #	}
 
     # Write final output
     outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods, dataset$mutationType)
 
     # Add the removed mutations back in - Assuming here that only SNVs have been removed
-    for (i in dataset$removed_indices) {
-      if (i==1) {
-        output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output)
-      } else if (i >= nrow(output)) {
-        output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"))
-      } else {
-        output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output[i:nrow(output),])
-      }
-    }
+   # for (i in dataset$removed_indices) {
+   #   if (i==1) {
+   #     output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output)
+   #   } else if (i >= nrow(output)) {
+   #     output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"))
+   #   } else {
+   #     output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output[i:nrow(output),])
+   #   }
+   # }
     
     
     # Save the indices of the mutations that were not used during the analysis
