@@ -204,7 +204,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
       
       
       # TODO: Save consensus assignments and create a table in png
-      writeStandardFinalOutput(clustering=clustering, 
+      writeStandardFinalOutput(clustering=consClustering, 
                                dataset=dataset, 
                                most.similar.mut=most.similar.mut,
                                outfiles.prefix=paste(full_outdir, samplename, "_reassign_option_3", sep=""))
