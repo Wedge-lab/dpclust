@@ -702,27 +702,30 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   res = getLocalOptima(clustering_density)
   cluster_locations = res$localOptima
   num.clusters = length(cluster_locations)
-
+  
   # Calculate log likelihoods for each mutation to be part of each cluster location
   assignment_ll = array(NA, c(num.muts, num.clusters))
   for (t in 1:num.timepoints) {
     for (c in 1:num.clusters) {
       mutBurdens = mutationCopyNumberToMutationBurden(cluster_locations[c] * copyNumberAdjustment[,t], tumourCopyNumber[,t], cellularity[t], normalCopyNumber[,t])
-      assignment_ll[,c] = sapply(1:num.muts, function(k, t, mc, wt, mb) {  mutCount[k,t]*log(mutBurdens[k]) + WTCount[k,t]*log(1-mutBurdens[k]) }, t=t, mc=mutCount, wt=WTCount, mb=mutBurdens)
+      print(length(mutBurdens))
+      print(head(mutBurdens))
+      print(length(sapply(1:num.muts, function(k, mc, wt, mb) {  mc[k]*log(mb[k]) + wt[k]*log(1-mb[k]) }, mc=mutCount, wt=WTCount, mb=mutBurdens)))
+      assignment_ll[,c] = sapply(1:num.muts, function(k, mc, wt, mb) {  mc[k]*log(mb[k]) + wt[k]*log(1-mb[k]) }, mc=mutCount[,t], wt=WTCount[,t], mb=mutBurdens)
     }
   }
-  
+
   # Convert ll to prob
   assignment_probs = assignment_ll
   assignment_probs[is.na(assignment_probs)] = 0
   assignment_probs = t(apply(assignment_probs, 1, function(assignment_probs_k) { assignment_probs_k - max(assignment_probs_k) }))
   assignment_probs = exp(assignment_probs)
   assignment_probs = assignment_probs / rowSums(assignment_probs)
-  
+
   # Hard assign mutations
   most.likely.cluster = sapply(1:num.muts, function(k, assignment_probs) { which.max(assignment_probs[k,]) }, assignment_probs=assignment_probs)
   assignment.likelihood = sapply(1:num.muts, function(k, assignment_probs, most.likely.cluster) { assignment_probs[k, most.likely.cluster[k]] }, assignment_probs=assignment_probs, most.likely.cluster=most.likely.cluster)
-  
+
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=assignment_probs))
 }
 

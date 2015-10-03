@@ -428,9 +428,11 @@ if (ncol(mutCount) > 1) {
                                                  copyNumberAdjustment=copyNumberAdjustment, 
                                                  tumourCopyNumber=totalCopyNumber,
                                                  normalCopyNumber=array(2, dim(mutCount)),
-                                                 cellularity=cellularity,
-                                                 node.assignments=GS.data$S.i)
-      write.table(consClustering$all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt" sep=""), colnames(paste("prob.cluster", 1:)))  
+                                                 cellularity=cellularity)
+      
+      all.likelihoods = consClustering$all.likelihoods
+      colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
+      write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
       
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
