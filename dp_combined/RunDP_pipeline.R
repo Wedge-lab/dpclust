@@ -119,12 +119,13 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   print(dim(dataset$WTCount))
   print("Adding in CN events")
   cndata = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
-  dataset = add.in.cn(dataset, cndata, add.conflicts=T)
+  #dataset = add.in.cn(dataset, cndata, add.conflicts=T)
+  dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T)
   print(dim(dataset$WTCount))
   
   
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
-    dataset = sample_mutations(dataset, num_muts_sample)
+    dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=F)
   }
 
   print(dim(dataset$WTCount))

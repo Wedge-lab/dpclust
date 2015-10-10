@@ -154,8 +154,52 @@ load.cn.data = function(infile) {
   return(cndata)
 }
 
-#' Function that adds copy number into a data set
-add.in.cn = function(dataset, cndata, add.conflicts=T) {
+#' Function that adds copy number as a series of SNVs into a data set
+add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T) {
+  # The subclonal events can be used for clustering
+  allowed.cn = c("sHD", "sLOH", "sAmp", "sGain", "sLoss")
+  cndata = cndata[cndata$CNA %in% allowed.cn,]
+  
+  # Remove duplicates
+  dups = cndata[cndata$CNA=="sLOH",]$startpos # These are added in twice, remove the sLoss marking
+  cndata = cndata[cndata$startpos %in% dups & cndata$CNA=="sLoss",]
+  
+  num.samples = ncol(dataset$mutCount)
+  
+  # Take average depth as template for these CNAs disguised as fictional SNVs
+  N = round(mean(dataset$WTCount+dataset$mutCount)*3)
+  
+  # Calculate the average mutation rate per 10kb
+  hum_genome_size = 323483
+  mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
+  
+  # For each copy number event simulate a mutation cluster
+  for (i in 1:nrow(cndata)) {
+    print(paste("CNA",i))
+    # Confidence is used to downweigh the depth of this CNA to mimick uncertainty
+    conf = cndata[i,]$SDfrac_A*100+1
+    
+    # Calculate the size of this segment in kb and the number of muts it needs to be represented by
+    CNA_size = cndata[i,]$endpos/10000 - cndata[i,]$startpos/10000
+    CNA_num_muts = ceiling(CNA_size * mut_rate_10kb)
+    
+    # Now create the number of mutations required
+    if (CNA_num_muts > 0) {
+      print(cndata[i,])
+      print(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity))
+      dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset)
+    }
+  }
+  
+  if (add.conflicts) {
+    dataset = add.snv.cna.conflicts(dataset, cndata)
+  }
+  
+  return(dataset)
+}
+
+#' Function that adds copy number as a single SNV into a data set
+add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
   
   # The subclonal events can be used for clustering
   allowed.cn = c("sHD", "sLOH", "sAmp", "sGain", "sLoss")
@@ -173,7 +217,7 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
   num.samples = ncol(dataset$mutCount)
   
   # Take average depth as template for these CNAs disguised as fictional SNVs, but make the CNA weigh as much as 100 SNVs, to be downscaled below due to uncertainty
-  N = round(mean(dataset$WTCount+dataset$mutCount) * 100)
+  N = round(mean(dataset$WTCount+dataset$mutCount) * 3)
   for (i in 1:nrow(cndata)) {
     # Fetch fraction of cells and confidence
     CNA_frac = cndata[i,]$frac1_A
@@ -255,6 +299,96 @@ add.in.cn = function(dataset, cndata, add.conflicts=T) {
     }
     dataset$conflict.array = conflict.array
   }
+  return(dataset)
+}
+
+#' Create a number of pseudo SNVs to represent a CNA and add them to the dataset
+create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset) {
+  num.samples = ncol(dataset$mutCount)
+  # Create pseudo SNV carried by 1 copy in 1+1 area, and being subclonal proportionate to the CNA
+  tumourCN = 2
+  ncbm = 1
+  reads.per.clonal.copy = (cellularity*N/conf) / (cellularity*tumourCN + (1-cellularity)*2)
+  # Calculate the expected number of reads carying the mutation and from there mutCount, WTCount and mutation.copy.number
+  exp_mc = round(reads.per.clonal.copy*cndata.i$frac1_A)
+  mc = rbinom(num_muts, round(N/conf), exp_mc/(N/conf))
+  mc[mc==0] = 1
+  wt = round(N/conf) - mc
+  mcn = mutationBurdenToMutationCopyNumber(mc/(mc+wt), tumourCN, cellularity, 2)
+  
+  # Save the pseudo SNVs in the dataset
+  dataset$chromosome = rbind(dataset$chromosome, matrix(rep(cndata.i$chr, num.samples*num_muts), ncol=num.samples))
+  dataset$position = rbind(dataset$position, matrix(rep(cndata.i$startpos, num.samples*num_muts), ncol=num.samples))
+  dataset$mutCount = rbind(dataset$mutCount, matrix(rep(mc, num.samples), ncol=num.samples))
+  dataset$WTCount = rbind(dataset$WTCount,  matrix(rep(wt, num.samples), ncol=num.samples))
+  dataset$totalCopyNumber = rbind(dataset$totalCopyNumber,  matrix(rep(tumourCN, num.samples*num_muts), ncol=num.samples))
+  dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, matrix(rep(ncbm, num.samples*num_muts), ncol=num.samples))
+  dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, matrix(rep(mcn, num.samples), ncol=num.samples))
+  dataset$kappa = rbind(dataset$kappa, matrix(rep(mutationCopyNumberToMutationBurden(1, tumourCN, cellularity), num.samples*num_muts), ncol=num.samples))
+  
+  index = which(dataset$position==cndata.i$startpos)
+  print(paste("NEW CNA CCF/MCN", cndata.i$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf))
+  # TODO: Setting same CNA CCF across samples does not work for multiple samples!
+  dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, matrix(rep(dataset$mutation.copy.number[index,1], num.samples), ncol=num.samples))
+  dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
+  
+  new_phase = as.data.frame(matrix(rep("unphased", num.samples), ncol=num.samples))
+  colnames(new_phase) = colnames(dataset$phase)
+  dataset$phase = rbind(dataset$phase, new_phase)
+  
+  # Setting mutation type of all SNVs and making each CNA most similar to itself
+  dataset$mutationType = c(dataset$mutationType, rep("CNA", num_muts))
+  dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
+  
+  return(dataset)
+}
+
+add.snv.cna.conflicts = function(dataset, cndata) {
+  # Only allow subclonal losses here
+  allowed.conflicts = c("sLoss", "sLOH")
+  cndata = cndata[cndata$CNA %in% allowed.conflicts,]
+  
+  if (nrow(cndata) == 0) {
+    print("No potential conflicting CNA events found")
+  } else {
+    
+    # The CNA events have already been added to the dataset
+    conflict.array = array(1, c(nrow(dataset$mutCount), nrow(dataset$mutCount)))
+    
+    conflicting_mutcount = 0
+    for (i in 1:nrow(cndata)) {
+      conflict_indices = dataset$chromosome[dataset$mutationType=="SNV",1]==cndata$chr[i] & 
+        dataset$position[dataset$mutationType=="SNV",1] >= cndata$startpos[i] & 
+        dataset$position[dataset$mutationType=="SNV",1] <= cndata$endpos[i] & 
+        dataset$subclonal.fraction[dataset$mutationType=="SNV",1] < 0.9 &
+        dataset$phase[dataset$mutationType=="SNV",1] == "MUT_ON_DELETED"
+      
+      # If there are no conflicts, then move on to the next CNA
+      if (sum(conflict_indices, na.rm=T) == 0) { 
+        next
+      }
+      
+      # There are conflicts, put them in the conficts array
+      if (sum(conflict_indices) > 3) {
+        print(paste("Found", sum(conflict_indices), "conflicts for this segment, but keeping only 1"))
+        keep = which(conflict_indices)[1]
+        conflict_indices[which(conflict_indices)] = FALSE
+        conflict_indices[keep] = TRUE
+      }
+      
+      conflicting_mutcount = conflicting_mutcount + sum(conflict_indices)
+      for (i in which(conflict_indices)) {
+        j = which(dataset$position==cndata$startpos[i] & dataset$mutationType=="CNA")
+        # If there are multiple SNVs that represent this CNA, then just take the first to not create too much weight
+        j = j[1]
+        conflict.array[j,i] = 2
+        conflict.array[i,j] = 1024 # equivalent to 10 mutations
+      }
+    }
+    
+    print(paste("Found ", conflicting_mutcount, " conflicting CNA and SNVs", sep=""))
+  }
+  dataset$conflict.array = conflict.array
   return(dataset)
 }
 
