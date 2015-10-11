@@ -124,7 +124,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 	new.pairwise.agreements = list()
   
 	node.added=T
-	while(node.added){	
+	while(node.added && tree.number < 30){	
     # Perform EM to try out various layout extensions
     res = do_em_layout(no.muts, consensus.assignments, pairwise.agreements, new.pairwise.agreements, identity.strengths, ancestor.strengths, sibling.strengths)
     new.agreements = res$new.agreements
