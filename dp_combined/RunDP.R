@@ -188,40 +188,12 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 
   if (all(!analysis_type %in% c('tree', 'replot_1d', 'replot_nd', 'reassign_muts_1d'))) {
 
-	  # Check if mutation sampling has been done, if so, unpack and assign here
-  	if (!is.na(most.similar.mut)) {
-  	  res = unsample_mutations(dataset, clustering)
-      dataset = res$dataset
-      clustering = res$clustering
-  	}
-
-    # Write final output
+    write_tree = analysis_type != 'nd_dp'
     outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
-    output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
-    
-    # Add the removed mutations back in
-    for (i in dataset$removed_indices) {
-      if (i==1) {
-        output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
-      } else if (i >= nrow(output)) {
-        output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
-      } else {
-        output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
-      }
-    }
-    
-    # Save the indices of the mutations that were not used during the analysis
-    write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
-
-    # Save the consensus mutation assignments
-    save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
-    print(head(output))
-    colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
-    write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
-
-    # If tree based analysis, also save the tree
-    if (analysis_type != 'nd_dp') {
-      write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
-    }
+    produceMutAssignmentOutput(dataset=dataset, 
+                               clustering=clustering, 
+                               outfiles.prefix=outfiles.prefix, 
+                               most.similar.mut=most.similar.mut,
+                               write_tree=write_tree)
   }
 }

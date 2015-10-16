@@ -691,3 +691,43 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood))
 }
+
+#' Function that creates various final output files that contain fixed information about mutations.
+#' This includes adding removed mutations (either due to sampling or data characteristics) back in.
+produceMutAssignmentOutput = function(dataset, clustering, outfiles.prefix, most.similar.mut=NA, write_tree=F) {
+  # Check if mutation sampling has been done, if so, unpack and assign here
+  if (!is.na(most.similar.mut)) {
+    res = unsample_mutations(dataset, clustering)
+    dataset = res$dataset
+    clustering = res$clustering
+  }
+  
+  # Create final output data matrix
+  output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
+  
+  # Add the removed mutations back in
+  for (i in dataset$removed_indices) {
+    if (i==1) {
+      output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
+    } else if (i >= nrow(output)) {
+      output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
+    } else {
+      output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+    }
+  }
+  
+  # Save the indices of the mutations that were not used during the analysis
+  write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
+  
+  # Save the consensus mutation assignments
+  save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
+  colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
+  write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
+  
+  # If tree based analysis, also save the tree
+  if (write_tree) {
+    write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
+  }
+}
+
+
