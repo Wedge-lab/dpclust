@@ -720,7 +720,7 @@ produceMutAssignmentOutput = function(dataset, clustering, outfiles.prefix, most
   write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
   
   # Save the consensus mutation assignments
-  save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
+  save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering)
   colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
   write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
   
