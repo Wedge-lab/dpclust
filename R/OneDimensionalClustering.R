@@ -699,9 +699,10 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   }
   
   # Obtain peak locations whtin the given clustering density
-  res = getLocalOptima(clustering_density)
+  res = getLocalOptima(clustering_density, hypercube.size=5)
   cluster_locations = res$localOptima
   num.clusters = length(cluster_locations)
+  print(cluster_locations)
   
   # Calculate log likelihoods for each mutation to be part of each cluster location
   assignment_ll = array(NA, c(num.muts, num.clusters))
