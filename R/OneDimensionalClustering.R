@@ -742,7 +742,7 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   }
   write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=assignment_probs))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=assignment_probs, cluster.locations=cbind(1:num.clusters, cluster_locations)))
 }
 
 #' Function that fetches the local optima from a density function call output
