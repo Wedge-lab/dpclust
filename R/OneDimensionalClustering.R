@@ -764,7 +764,7 @@ getClusterDensity = function(clustering_density, cluster_locations, min.window.d
     run = T
     i = x.cluster
     while (run) {
-      if (clustering_density[i,]$median.density > min.window.density || i!=0) {
+      if (i!=0 && clustering_density[i,]$median.density > min.window.density) {
         i = i-1
       } else {
         run = F
@@ -776,7 +776,7 @@ getClusterDensity = function(clustering_density, cluster_locations, min.window.d
     run = T
     i = x.cluster
     while (run) {
-      if (clustering_density[i,]$median.density > min.window.density || i!=(nrow(clustering_density)+1)) {
+      if (i!=(nrow(clustering_density)+1) && clustering_density[i,]$median.density > min.window.density) {
         i = i+1
       } else {
         run = F
