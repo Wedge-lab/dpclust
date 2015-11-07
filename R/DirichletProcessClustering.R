@@ -434,6 +434,19 @@ if (ncol(mutCount) > 1) {
       colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
       write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
       
+      setwd(wd) # Go back to original work directory 
+      # Replot the data with cluster locations
+      plot1D(density=density, 
+             polygon.data=polygon.data, 
+             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+             density.from=0, 
+             x.max=1.5, 
+             mutationCopyNumber=mutation.copy.number, 
+             no.chrs.bearing.mut=copyNumberAdjustment,
+             samplename=samplename,
+             cluster.locations=consClustering$cluster.locations,
+             mutation.assignments=consClustering$best.node.assignments)
+      
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
       q(save="no", status=1)

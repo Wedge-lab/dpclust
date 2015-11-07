@@ -732,6 +732,16 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   most.likely.cluster = sapply(1:num.muts, function(k, assignment_probs) { which.max(assignment_probs[k,]) }, assignment_probs=assignment_probs)
   assignment.likelihood = sapply(1:num.muts, function(k, assignment_probs, most.likely.cluster) { assignment_probs[k, most.likely.cluster[k]] }, assignment_probs=assignment_probs, most.likely.cluster=most.likely.cluster)
 
+  # Save a table with the output as a summary
+  cluster_assignments = table(most.likely.cluster)
+  output = array(NA, c(length(cluster_locations), 3))
+  for (c in 1:length(cluster_locations)) {
+    output[c,1] = c
+    output[c,2] = cluster_locations[c]
+    output[c,3] = cluster_assignments[names(cluster_assignments)==as.character(c)]
+  }
+  write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
+  
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=assignment_probs))
 }
 
