@@ -701,6 +701,11 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   # Obtain peak locations whtin the given clustering density
   res = getLocalOptima(clustering_density, hypercube.size=5)
   cluster_locations = res$localOptima
+  
+  # Strip out clusters with a small density
+  cluster_density = getClusterDensity(clustering_density, cluster_locations, min.window.density=1)
+  # Take all clusters with at least 1% of the density
+  cluster_locations = cluster_locations[cluster_density > 0.01]
   num.clusters = length(cluster_locations)
   print(cluster_locations)
   
@@ -742,4 +747,48 @@ getLocalOptima = function(cluster_density, hypercube.size=20) {
     }
   }
   return(list(localOptima=localOptima, peak.indices=peak.indices))
+}
+
+#' Obtain the mean density of each cluster. This function takes the cluster_locations and for
+#' each cluster it walks from the cluster peak along CCF space until the median density
+#' drops below the supplied minimum in both directions. After obtaining the CCF space that a
+#' cluster takes up we calculate the mean density in that space. Finally across all cluster
+#' densities we normalise to obtain the fraction of total density that each cluster represents
+#' @return A vector with for each cluster the fraction of density
+getClusterDensity = function(clustering_density, cluster_locations, min.window.density) {
+  cluster_density = array(NA, length(cluster_locations))
+  for (c in 1:length(cluster_locations)) {
+    cluster_location = cluster_locations[c]
+    x.cluster = which.min(abs(clustering_density$fraction.of.tumour.cells-cluster_location))
+    # Obtain the left most x.axis point of the cluster
+    run = T
+    i = x.cluster
+    while (run) {
+      if (clustering_density[i,]$median.density > min.window.density || i!=0) {
+        i = i-1
+      } else {
+        run = F
+      }
+    }
+    x.cluster.min = i
+    
+    # Obtain the right most x.axis point of the cluster
+    run = T
+    i = x.cluster
+    while (run) {
+      if (clustering_density[i,]$median.density > min.window.density || i!=(nrow(clustering_density)+1)) {
+        i = i+1
+      } else {
+        run = F
+      }
+    }
+    x.cluster.max = i
+    
+    # Take the average density
+    cluster_density[c] = mean(clustering_density[x.cluster.min:x.cluster.max,]$median.density)
+  }
+  
+  # Normalise the densities across the clusters
+  cluster_density = cluster_density/sum(cluster_density)
+  return(cluster_density)
 }
