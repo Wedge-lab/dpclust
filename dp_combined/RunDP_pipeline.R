@@ -82,7 +82,7 @@ if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'con
   if (!is.na(bin.size)) {
     outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
-} else if (analysis_type == 'nd_dp') {
+} else if (analysis_type == 'nd_dp' | analysis_type =='replot_1d' | analysis_type =='replot_nd') {
   outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
 } 
 
@@ -97,6 +97,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   if (!is.na(blockid) & blockid != "NA") {
     Sys.sleep(blockid*3)
   }
+  print(paste("Loading", paste(outdir, "/dataset.RData", sep="")))
 	load(paste(outdir, "/dataset.RData", sep=""))
 } else {
   list_of_datafiles = paste(datpath, datafiles, sep="/")

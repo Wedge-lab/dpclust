@@ -55,19 +55,27 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     mutation.preferences = mutation.preferences / length(sampledIters)
     most.likely.cluster = max.col(mutation.preferences)
     
-    out = cbind(mutation.preferences,most.likely.cluster)
+    out = cbind(mutation.preferences, most.likely.cluster)
     colnames(out)[(ncol(out)-no.optima):ncol(out)] = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
-    write.table(cbind(1:no.optima,localOptima,colSums(mutation.preferences)),paste(samplename,"_optimaInfo.txt",sep=""),col.names = c("cluster.no","location","no.of.mutations"),row.names=F,sep="\t",quote=F)		
     write.table(out,paste(samplename,"_DP_and_cluster_info.txt",sep=""),sep="\t",row.names=F,quote=F)
+
+    # Assemble a table with mutation assignments to each cluster
+    cluster_assignment_counts = table(most.likely.cluster)
+    cluster_locations = array(NA, c(length(cluster_assignment_counts), 3))
+    cluster_locations[,1] = as.numeric(names(cluster_assignment_counts))
+    cluster_locations[,2] = localOptima[cluster_locations[,1]]
+    cluster_locations[,3] = cluster_assignment_counts
+    write.table(cluster_locations, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)		
     
     most.likely.cluster.likelihood = apply(mutation.preferences, 1, max)
     
   }else{
     most.likely.cluster = rep(1,no.muts)
     most.likely.cluster.likelihood = rep(1,no.muts)
+    cluster_locations = NA
   }
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cbind(1:no.optima,localOptima)))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cluster_locations))
 }
 
 

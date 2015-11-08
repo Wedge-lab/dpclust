@@ -402,7 +402,8 @@ if (ncol(mutCount) > 1) {
      
       setwd(wd) # Go back to original work directory 
       # Replot the data with cluster locations
-      plot1D(density=density, 
+      library(ggplot2)
+      plot1D_2(density=density, 
              polygon.data=polygon.data, 
              pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
              density.from=0, 
@@ -412,6 +413,11 @@ if (ncol(mutCount) > 1) {
              samplename=samplename,
              cluster.locations=consClustering$cluster.locations,
              mutation.assignments=consClustering$best.node.assignments)
+      
+      library(gridExtra)
+      # Plot a table with the assignments
+      plotAssignmentTable(cluster_locations=consClustering$cluster.locations, 
+                          pngFile=paste(output_folder, "/", samplename, "_mutation_assignments.png", sep=""))
       
     } else if (mut.assignment.type == 2) {
       setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt

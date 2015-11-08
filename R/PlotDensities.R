@@ -1,6 +1,6 @@
 # library(lattice)
 
-plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL) {
+plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   #
   # Creates the 1D density plot in either allele fraction, mutation copy number or fraction of tumour cells space.
   #   density:      Is a two column data frame. First column x-axis density line, second column y-axis density line.
@@ -48,7 +48,14 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   
   # Plot the histogram, the density line and add the plot title
   par(mar = c(5,6,4,1)+0.1)
-  hist(mutationCopyNumber[mutationCopyNumber<=x.max], breaks=seq(-0.1, x.max, 0.025), col="lightgrey",freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
+  if (is.null(mutationTypes)) {
+    # Plot all the data as a lightgrey histogram
+    hist(mutationCopyNumber[mutationCopyNumber<=x.max], breaks=seq(-0.1, x.max, 0.025), col="lightgrey",freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
+  } else {
+    # Plot SNVs and CNAs with different colours
+    hist(mutationCopyNumber[mutationCopyNumber<=x.max & mutationTypes=="SNV"], breaks=seq(-0.1, x.max, 0.025), col=rgb(211/255,211/255,211/255,0.8),freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
+    hist(mutationCopyNumber[mutationCopyNumber<=x.max & mutationTypes=="CNA"], breaks=seq(-0.1, x.max, 0.025), col=rgb(255/255,0,0,0.8), freq=FALSE, cex.axis=2, cex.lab=2, add=T)
+  }
   polygon(c(xx, rev(xx)), polygon.data, border="plum4", col=cm.colors(1,alpha=0.3))
   lines(xx, yy, col="plum4", lwd=3)
   title(samplename, cex.main=3)
@@ -72,6 +79,64 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   }
   
   if (!is.na(pngFile)) { dev.off() }
+}
+
+plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
+  cbPalette = c("#E69F00", "#999999")
+  colnames(density)[1] = "fraction.of.tumour.cells"
+  if(is.na(y.max)) { y.max=ceiling(max(polygon.data)) }
+  
+  conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data))
+  mutationCopyNumber.df = as.data.frame(mutationCopyNumber)
+  mutationCopyNumber.df$mutationType = mutationTypes
+  p = ggplot() + 
+    geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..density.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
+    geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 
+    geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="black") +
+    xlab("Fraction of Tumour Cells") + 
+    ylab("Density") + 
+    ggtitle(samplename) + 
+    theme_bw() +
+    xlim(0, x.max) +
+    theme(axis.text=element_text(size=14), 
+          axis.title=element_text(size=16),
+          strip.text.x=element_text(size=16)) +
+    scale_fill_manual(values=cbPalette)
+  
+  # If cluster locations are provided, add them as a vertical line with nr of mutations mentioned
+  if(!is.null(cluster.locations) & !is.null(mutation.assignments)) {
+    # Get non empty clusters and their ids
+    clusters = unique(mutation.assignments)
+    clusters = sort(clusters[!is.na(clusters)])
+    assignment_counts = array(NA, length(clusters))
+    for (c in 1:length(clusters)) {
+      assignment_counts[c] = sum(mutation.assignments==clusters[c], na.rm=T)
+    }
+    non_empty_cluster_ids = cluster.locations[cluster.locations[,1] %in% clusters, 1]
+    non_empty_cluster_locations = cluster.locations[cluster.locations[,1] %in% clusters, 2]
+    
+    # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
+    p = p + geom_segment(aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) + 
+      geom_text(aes(x=(non_empty_cluster_locations+0.01), y=rep((9/10)*y.max, length(non_empty_cluster_locations)), label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0)) +
+      geom_text(aes(x=(non_empty_cluster_locations+0.01), y=rep((9/10)*y.max-0.35, length(non_empty_cluster_locations)), label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
+  }
+  
+  if (!is.na(pngFile)) { 
+    png(filename=pngFile,,width=1500,height=1000) 
+    print(p)  
+    dev.off()
+  } else {
+    return(p)
+  }
+}
+
+#' Plot a table with the assignment counts
+plotAssignmentTable = function(cluster_locations, pngFile) {
+  cluster_locations = cluster_locations[with(cluster_locations, order(-cluster.no)),]
+  cluster_locations$location = round(cluster_locations$location, 2)
+  png(filename=pngFile,,width=500,height=500)
+  grid.table(cluster_locations, show.rownames=F)
+  dev.off()
 }
 
 plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_y, pngFile, samplename_x, samplename_y, max.plotted.value=NA) {
