@@ -714,9 +714,6 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   for (t in 1:num.timepoints) {
     for (c in 1:num.clusters) {
       mutBurdens = mutationCopyNumberToMutationBurden(cluster_locations[c] * copyNumberAdjustment[,t], tumourCopyNumber[,t], cellularity[t], normalCopyNumber[,t])
-      print(length(mutBurdens))
-      print(head(mutBurdens))
-      print(length(sapply(1:num.muts, function(k, mc, wt, mb) {  mc[k]*log(mb[k]) + wt[k]*log(1-mb[k]) }, mc=mutCount, wt=WTCount, mb=mutBurdens)))
       assignment_ll[,c] = sapply(1:num.muts, function(k, mc, wt, mb) {  mc[k]*log(mb[k]) + wt[k]*log(1-mb[k]) }, mc=mutCount[,t], wt=WTCount[,t], mb=mutBurdens)
     }
   }
@@ -726,7 +723,7 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   assignment_probs[is.na(assignment_probs)] = 0
   assignment_probs = t(apply(assignment_probs, 1, function(assignment_probs_k) { assignment_probs_k - max(assignment_probs_k) }))
   assignment_probs = exp(assignment_probs)
-  assignment_probs = assignment_probs / rowSums(assignment_probs)
+  assignment_probs = matrix(assignment_probs / rowSums(assignment_probs), ncol=num.clusters)
 
   # Hard assign mutations
   most.likely.cluster = sapply(1:num.muts, function(k, assignment_probs) { which.max(assignment_probs[k,]) }, assignment_probs=assignment_probs)
