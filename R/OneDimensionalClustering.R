@@ -689,6 +689,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
 #' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
 #' This for now only works with a single timepoint
 mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copyNumberAdjustment, tumourCopyNumber, normalCopyNumber, cellularity) {
+  save(file="temp.RData", clustering_density, mutCount, WTCount, copyNumberAdjustment, tumourCopyNumber, normalCopyNumber, cellularity)
   # Define convenience variables
   num.timepoints = ncol(mutCount)
   num.muts = nrow(mutCount)
@@ -732,10 +733,19 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   # Save a table with the output as a summary
   cluster_assignments = table(most.likely.cluster)
   output = array(NA, c(length(cluster_locations), 3))
-  for (c in 1:length(cluster_locations)) {
-    output[c,1] = c
+  print(cluster_assignments)
+  for (c in 1:num.clusters) {
+    cluster_id = names(cluster_assignments)[c]
+    cluster_id = as.character(c)
+    
+    output[c,1] = as.numeric(cluster_id)
     output[c,2] = cluster_locations[c]
-    output[c,3] = cluster_assignments[names(cluster_assignments)==as.character(c)]
+    # Check if there are mutations assigned to the cluster, i.e. it's in the cluster_assignments table
+    if (cluster_id %in% names(cluster_assignments)) {
+      output[c,3] = cluster_assignments[names(cluster_assignments)==cluster_id]
+    } else {
+      output[c,3] = 0
+    }
   }
   write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
   
