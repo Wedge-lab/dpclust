@@ -81,7 +81,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   if (!is.na(pngFile)) { dev.off() }
 }
 
-plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
+plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL, samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   cbPalette = c("#E69F00", "#999999")
   colnames(density)[1] = "fraction.of.tumour.cells"
   if(is.na(y.max)) { y.max=ceiling(max(polygon.data)) }
@@ -89,6 +89,8 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
   conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data))
   mutationCopyNumber.df = as.data.frame(mutationCopyNumber)
   mutationCopyNumber.df$mutationType = mutationTypes
+  print(head(mutationTypes))
+  print(head(mutationCopyNumber.df))
   p = ggplot() + 
     geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..density.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
     geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 

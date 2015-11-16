@@ -155,7 +155,7 @@ load.cn.data = function(infile) {
 }
 
 #' Function that adds copy number as a series of SNVs into a data set
-add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T) {
+add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflicting.events.only=F) {
   # The subclonal events can be used for clustering
   allowed.cn = c("sHD", "sLOH", "sAmp", "sGain", "sLoss")
   cndata = cndata[cndata$CNA %in% allowed.cn,]
@@ -187,7 +187,7 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T) {
     if (CNA_num_muts > 0) {
       print(cndata[i,])
       print(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity))
-      dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset)
+      dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
     }
   }
   
@@ -267,11 +267,7 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
       
       conflicting_mutcount = 0
       for (i in 1:nrow(cndata)) {
-        conflict_indices = dataset$chromosome[dataset$mutationType=="SNV",1]==cndata$chr[i] & 
-                           dataset$position[dataset$mutationType=="SNV",1] >= cndata$startpos[i] & 
-                           dataset$position[dataset$mutationType=="SNV",1] <= cndata$endpos[i] & 
-                           dataset$subclonal.fraction[dataset$mutationType=="SNV",1] < 0.9 &
-                           dataset$phase[dataset$mutationType=="SNV",1] == "MUT_ON_DELETED"
+        conflict_indices = get.conflicting.indices(dataset, cndata)
 
         # If there are no conflicts, then move on to the next CNA
         if (sum(conflict_indices, na.rm=T) == 0) { 
@@ -279,12 +275,12 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
         }
         
         # There are conflicts, put them in the conficts array
-	if (sum(conflict_indices) > 3) {
-		print(paste("Found", sum(conflict_indices), "conflicts for this segment, but keeping only 1"))
-		keep = which(conflict_indices)[1]
-		conflict_indices[which(conflict_indices)] = FALSE
-		conflict_indices[keep] = TRUE
-	}
+      	if (sum(conflict_indices) > 3) {
+      		print(paste("Found", sum(conflict_indices), "conflicts for this segment, but keeping only 1"))
+      		keep = which(conflict_indices)[1]
+      		conflict_indices[which(conflict_indices)] = FALSE
+      		conflict_indices[keep] = TRUE
+      	}
 
         conflicting_mutcount = conflicting_mutcount + sum(conflict_indices)
         for (i in which(conflict_indices)) {
@@ -303,7 +299,15 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
 }
 
 #' Create a number of pseudo SNVs to represent a CNA and add them to the dataset
-create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset) {
+create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, conflicting.events.only) {
+  # If only conflicts are allowed, then check whether this is a conflicting CNA event. If not, return the dataset
+  if (conflicting.events.only) {
+    conflict_indices = get.conflicting.indices(dataset, cndata.i)
+    if (!(sum(conflict_indices) > 0)) {
+      return(dataset)
+    }
+  }
+  
   num.samples = ncol(dataset$mutCount)
   # Create pseudo SNV carried by 1 copy in 1+1 area, and being subclonal proportionate to the CNA
   tumourCN = 2
@@ -390,6 +394,22 @@ add.snv.cna.conflicts = function(dataset, cndata) {
   }
   dataset$conflict.array = conflict.array
   return(dataset)
+}
+
+#' Returns a list of subclonal SNV indices that are conflicting with a CNA event. This code 
+#' classifies a subclonal SNV has a CCF of < 0.9. This function returns a vector consisting of T/F values.
+#' TODO: Determine whether an SNV is likely to be subclonal in a less arbitrary way.
+get.conflicting.indices = function(dataset, cndata) {
+  if (nrow(cndata) > 1) {
+    warning("Cannot fetch conflicting indices from a multi-row CNA data.frame")
+  }
+  i = 1
+  conflict_indices = dataset$chromosome[dataset$mutationType=="SNV",1]==cndata$chr[i] & 
+    dataset$position[dataset$mutationType=="SNV",1] >= cndata$startpos[i] & 
+    dataset$position[dataset$mutationType=="SNV",1] <= cndata$endpos[i] & 
+    dataset$subclonal.fraction[dataset$mutationType=="SNV",1] < 0.9 &
+    dataset$phase[dataset$mutationType=="SNV",1] == "MUT_ON_DELETED"
+  return(conflict_indices)
 }
 
 # 

@@ -403,6 +403,7 @@ if (ncol(mutCount) > 1) {
       setwd(wd) # Go back to original work directory 
       # Replot the data with cluster locations
       library(ggplot2)
+      print(head(dataset$mutationType))
       plot1D_2(density=density, 
              polygon.data=polygon.data, 
              pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
@@ -412,7 +413,8 @@ if (ncol(mutCount) > 1) {
              no.chrs.bearing.mut=copyNumberAdjustment,
              samplename=samplename,
              cluster.locations=consClustering$cluster.locations,
-             mutation.assignments=consClustering$best.node.assignments)
+             mutation.assignments=consClustering$best.node.assignments,
+             mutationTypes=dataset$mutationType)
       
       library(gridExtra)
       # Plot a table with the assignments

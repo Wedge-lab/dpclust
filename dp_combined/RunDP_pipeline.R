@@ -121,7 +121,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   print("Adding in CN events")
   cndata = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
   #dataset = add.in.cn(dataset, cndata, add.conflicts=T)
-  dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T)
+  dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T, conflicting.events.only=T)
   print(dim(dataset$WTCount))
   
   
