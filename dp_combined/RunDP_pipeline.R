@@ -33,7 +33,7 @@ if (length(args) >= 12) {
 }
 
 # TODO: Hard coded for now
-is.male = T
+is.male = F
 is.vcf = F
 co_cluster_cna = T
 #num_muts_sample = 500 # TODO REMOVE
