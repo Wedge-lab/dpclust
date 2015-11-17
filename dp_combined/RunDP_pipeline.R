@@ -35,6 +35,7 @@ if (length(args) >= 12) {
 # TODO: Hard coded for now
 is.male = T
 is.vcf = F
+co_cluster_cna = T
 #num_muts_sample = 500 # TODO REMOVE
 
 # Check whether a supported analysis_type was supplied
@@ -99,6 +100,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   }
   print(paste("Loading", paste(outdir, "/dataset.RData", sep="")))
 	load(paste(outdir, "/dataset.RData", sep=""))
+  cndata = dataset$cndata
 } else {
   list_of_datafiles = paste(datpath, datafiles, sep="/")
   
@@ -117,27 +119,31 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                       is.vcf=is.vcf,
   		                ref.genome.version="hg19")
 
-  print(dim(dataset$WTCount))
-  print("Adding in CN events")
-  cndata = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
+  if (co_cluster_cna) {
+    print(dim(dataset$WTCount))
+    print("Adding in CN events")
+    cndata = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
   #dataset = add.in.cn(dataset, cndata, add.conflicts=T)
-  dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T, conflicting.events.only=T)
-  print(dim(dataset$WTCount))
-  
-  
-  if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
-    dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=F)
+#   dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T, conflicting.events.only=T)
+#   print(dim(dataset$WTCount))
+  } else {
+    cndata = NULL
   }
+  
+  
+#   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
+#     dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=F)
+#   }
 
-  print(dim(dataset$WTCount))
+#   print(dim(dataset$WTCount))
   # Save the dataset
-  save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+#   save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
 }
 
-if (analysis_type == 'sample_muts') {
-  # If only sampling then quit now. Use this when running parts of a method in parallel
-  q(save="no")
-}
+# if (analysis_type == 'sample_muts') {
+#   # If only sampling then quit now. Use this when running parts of a method in parallel
+#   q(save="no")
+# }
 
 RunDP(analysis_type=analysis_type, 
       dataset=dataset, 
@@ -159,4 +165,5 @@ RunDP(analysis_type=analysis_type,
       init.alpha=0.01, 
       shrinkage.threshold=0.1,
       bin.size=bin.size,
-      muts.sampled=!is.na(num_muts_sample))
+      num_muts_sample=num_muts_sample,
+      cndata=cndata)

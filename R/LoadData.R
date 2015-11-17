@@ -412,6 +412,35 @@ get.conflicting.indices = function(dataset, cndata) {
   return(conflict_indices)
 }
 
+#' Replace the pseudo SNV clusters that represent a CNA event during clustering
+#' by amalgamated assignments for each CNA
+remove_pseudo_snv_cna_clusters = function(dataset) {
+  # Remove the pseudo CNAs
+  pseudo_snv_index = which(dataset$mutationType=="CNA")
+  dataset = remove_mutations(dataset, pseudo_snv_index)
+  
+}
+
+#' Helper function to remove a set of mutations from a dataset by their index
+remove_mutations = function(dataset, mutation_index) {
+  dataset$chromosome = dataset$chromosome[-mutation_index,,drop=F]
+  dataset$position = dataset$position[-mutation_index,,drop=F]
+  dataset$mutCount = dataset$mutCount[-mutation_index,,drop=F]
+  dataset$WTCount = dataset$WTCount[-mutation_index,,drop=F]
+  dataset$totalCopyNumber = dataset$totalCopyNumber[-mutation_index,,drop=F]
+  dataset$copyNumberAdjustment = dataset$copyNumberAdjustment[-mutation_index,,drop=F]
+  dataset$mutation.copy.number = dataset$mutation.copy.number[-mutation_index,,drop=F]
+  dataset$kappa = dataset$kappa[-mutation_index,,drop=F]
+  dataset$subclonal.fraction = dataset$subclonal.fraction[-mutation_index,,drop=F]
+  dataset$non.deleted.muts = dataset$non.deleted.muts[-mutation_index]
+  dataset$phase = dataset$phase[-mutation_index]
+  dataset$mutationType = dataset$mutationType[-mutation_index]
+  if (!is.na(dataset$most.similar.mut)) {
+    dataset$most.similar.mut = dataset$most.similar.mut[-mutation_index]
+  }
+  return(dataset)
+}
+
 # 
 # # REMOVE
 # # TEMP hardcoded test for branching on single sample

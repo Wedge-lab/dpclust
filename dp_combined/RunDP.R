@@ -1,16 +1,31 @@
 # source("DirichletProcessClustering.R")
 # source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, num_muts_sample=NA, cndata=NULL) {
+  # Check if co-clustering of copy number data is in order
+  if (!is.null(cndata)) {
+    dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T, conflicting.events.only=T)
+  } else if (!is.null(dataset$cndata)) {
+    # In case of a rerun, pull out the cndata
+    cndata = dataset$cndata
+  }
+  
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
-  if (muts.sampled) {
+  if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
+    dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=F)
     most.similar.mut = dataset$most.similar.mut
   } else {
     most.similar.mut = NA
   }
-  
+  dataset$cndata = cndata
+  save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+  print(dim(dataset$WTCount))
+
   # Pick the analysis to run
-  if (analysis_type == 'nd_dp') {
+  if (analysis_type == 'sample_muts') {
+    # If only sampling then quit now. Use this when running parts of a method in parallel
+    q(save="no")
+  } else if (analysis_type == 'nd_dp') {
     clustering = DirichletProcessClustering(mutCount=dataset$mutCount, 
                                             WTCount=dataset$WTCount, 
                                             no.iters=no.iters, 
@@ -25,7 +40,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
                                             conc_param=conc_param, 
                                             cluster_conc=cluster_conc,
                     			                  mut.assignment.type=mut.assignment.type,
-							                              most.similar.mut=most.similar.mut)
+							                              most.similar.mut=most.similar.mut,
+							                              mutationTypes=dataset$mutationType)
     
   } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
 	# REMOVE temp CNA branching testing
@@ -115,16 +131,49 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   }
 
   if (analysis_type != 'tree' & analysis_type != 'replot_1d' & analysis_type != 'replot_nd') {
-
+    outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
+    # Dump a checkpoint
+    save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), clustering, samplename, outdir, no.iters, no.iters.burn.in, dataset, cndata)
+    
 	  # Check if mutation sampling has been done, if so, unpack and assign here
   	#if (!is.na(most.similar.mut)) {
   	#  res = unsample_mutations(dataset, clustering)
       #dataset = res$dataset
   #	  clustering = res$clustering
   #	}
+    
+    # If cndata was added, assign individual CNA events to clusters, instead of the pseudo-SNVs
+    if (!is.null(cndata)) {
+      cna_assignments = array(NA, c(nrow(cndata), 2))
+      for (i in 1:nrow(cndata)) {
+#         i=131
+        is_overlapping_snv = dataset$chromosome==cndata[i,]$chr & dataset$position==cndata[i,]$startpos
+        if (any(is_overlapping_snv)) {
+          overlapping_snv_index = which(is_overlapping_snv)
+          assignment_counts = table(clustering$best.node.assignments[overlapping_snv_index])
+          cna_assignments[i,1] = as.numeric(names(assignment_counts)[which.max(assignment_counts)])
+          cna_assignments[i,2] = mean(clustering$best.assignment.likelihoods[overlapping_snv_index])
+        }
+      }
+      colnames(cna_assignments) = c("most.likely.cluster", "assignment.likelyhood")
 
-    # Write final output
-    outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
+      # Remove the pseudo SNVs from the clustering output
+      pseudo_snv_index = which(dataset$mutationType=="CNA")
+      clustering$best.node.assignments = clustering$best.node.assignments[-pseudo_snv_index]
+      clustering$best.assignment.likelihoods = clustering$best.assignment.likelihoods[-pseudo_snv_index]
+
+      # Replace the pseudo SNV clusters with the assigned CNA events
+      dataset = remove_pseudo_snv_cna_clusters(dataset)
+      cna_assignments = data.frame(cndata[,c("chr", "startpos", "endpos", "CNA")], cna_assignments)
+      write.table(cna_assignments, file=paste(outfiles.prefix,"_bestConsensusCNAassignments.bed", sep=""), row.names=F, quote=F, sep="\t")
+    }
+
+    # Write final output of all mutation assignments
+print(dim(dataset$chromosome))
+print(dim(dataset$position))
+print(length(clustering$best.node.assignments))
+print(length(clustering$best.assignment.likelihoods))
+print(length(dataset$mutationType))
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods, dataset$mutationType)
 
     # Add the removed mutations back in - Assuming here that only SNVs have been removed
@@ -143,7 +192,6 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
 
     # Save the consensus mutation assignments
-    save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, samplename, outdir, no.iters, no.iters.burn.in)
     print(head(output))
     colnames(output) = c("chr", "start", "end", "cluster", "likelihood", "mut_type")
     write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")

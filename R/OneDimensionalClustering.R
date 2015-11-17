@@ -7,7 +7,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
   V.h = GS.data$V.h
   pi.h = GS.data$pi.h[,,1]
   
-  hypercube.size = 20
+  hypercube.size = 5
   localOptima = NULL
   peak.indices = NULL
   for(i in (1+hypercube.size):(nrow(density)-hypercube.size)){

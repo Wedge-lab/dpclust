@@ -301,7 +301,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
 }
 
 
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut) {
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes) {
   #
   # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
   # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
@@ -413,7 +413,7 @@ if (ncol(mutCount) > 1) {
              samplename=samplename,
              cluster.locations=consClustering$cluster.locations,
              mutation.assignments=consClustering$best.node.assignments,
-             mutationTypes=dataset$mutationType)
+             mutationTypes=mutationTypes)
       
       library(gridExtra)
       # Plot a table with the assignments
