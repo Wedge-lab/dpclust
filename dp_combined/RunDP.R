@@ -12,7 +12,10 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
-    dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=sample.snvs.only)
+    if (is.na(dataset$full_data)) {
+      dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=sample.snvs.only)
+      most.similar.mut = dataset$most.similar.mut
+    }       
     most.similar.mut = dataset$most.similar.mut
   } else {
     most.similar.mut = NA
