@@ -71,6 +71,14 @@ datafiles = sample2purity[sample2purity$sample==samplename,]$datafile
 subsamples = sample2purity[sample2purity$sample==samplename,]$subsample
 cellularity = sample2purity[sample2purity$sample==samplename,]$cellularity
 
+if ("sex" %in% colnames(sample2purity)) {
+  is.male = sample2purity[sample2purity$sample==samplename,]$sex=="male"
+  cndatafiles = sample2purity[sample2purity$sample==samplename,]$cndatafile
+} else {
+  is.male = T
+  cndatafiles = NA
+}
+
 print("")
 print(paste("Running:", samplename, sep=" "))
 print(paste("Working dir:", outdir, sep=" "))
@@ -121,10 +129,11 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                       is.vcf=is.vcf,
   		                ref.genome.version="hg19")
 
-  if (co_cluster_cna) {
+  if (co_cluster_cna & !is.na(cndatafiles)) {
     print(dim(dataset$WTCount))
+    print(cndatafiles)
     print("Adding in CN events")
-    cndata = load.cn.data("/nfs/users/nfs_c/cgppipe/pancancer/workspace/sd11/pilot_64/trees_branching_copynumber/1e27cc8a-5394-4958-9af6-5ece1fe24516/1e27cc8a-5394-4958-9af6-5ece1fe24516_cnDirichletInput.txt")
+    cndata = load.cn.data(cndatafiles)
   #dataset = add.in.cn(dataset, cndata, add.conflicts=T)
 #   dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T, conflicting.events.only=T)
 #   print(dim(dataset$WTCount))
