@@ -3,25 +3,31 @@
 
 RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, num_muts_sample=NA, cndata=NULL, add.conflicts=F, cna.conflicting.events.only=F, sample.snvs.only=F) {
   # Check if co-clustering of copy number data is in order
-  if (!is.null(cndata)) {
-    dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=add.conflicts, conflicting.events.only=cna.conflicting.events.only)
-  } else if (!is.null(dataset$cndata)) {
+  resave.dataset = F # A boolean that keeps track of whether the dataset should be saved again
+  if (!is.null(dataset$cndata)) {
     # In case of a rerun, pull out the cndata
     cndata = dataset$cndata
+  } else if (!is.null(cndata)) {
+    dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=add.conflicts, conflicting.events.only=cna.conflicting.events.only)
+    resave.dataset = T
   }
   
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
-    if (is.na(dataset$full_data)) {
+    if (is.na(dataset$full.data)) {
       dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=sample.snvs.only)
       most.similar.mut = dataset$most.similar.mut
+      resave.dataset = T
     }       
     most.similar.mut = dataset$most.similar.mut
   } else {
     most.similar.mut = NA
   }
   dataset$cndata = cndata
-  save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+  if (resave.dataset) {
+    # The dataset object was modified, so save it
+    save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+  }
 
   # Pick the analysis to run
   if (analysis_type == 'sample_muts') {
