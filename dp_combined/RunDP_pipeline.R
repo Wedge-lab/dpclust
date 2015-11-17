@@ -33,10 +33,12 @@ if (length(args) >= 12) {
 }
 
 # TODO: Hard coded for now
-is.male = F
+is.male = T
 is.vcf = F
 co_cluster_cna = T
-#num_muts_sample = 500 # TODO REMOVE
+add.conflicts = T # Make the conflicts matrix in a dataset
+cna.conflicting.events.only = T # Add only those CNAs that are conflicting
+sample.snvs.only = F # Perform sampling on just the SNVs and not on CNAs
 
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
@@ -166,4 +168,7 @@ RunDP(analysis_type=analysis_type,
       shrinkage.threshold=0.1,
       bin.size=bin.size,
       num_muts_sample=num_muts_sample,
-      cndata=cndata)
+      cndata=cndata,
+      add.conflicts=add.conflicts,
+      cna.conflicting.events.only=cna.conflicting.events.only,
+      sample.snvs.only=sample.snvs.only)

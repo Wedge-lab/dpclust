@@ -1,10 +1,10 @@
 # source("DirichletProcessClustering.R")
 # source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, num_muts_sample=NA, cndata=NULL) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, num_muts_sample=NA, cndata=NULL, add.conflicts=F, cna.conflicting.events.only=F, sample.snvs.only=F) {
   # Check if co-clustering of copy number data is in order
   if (!is.null(cndata)) {
-    dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=T, conflicting.events.only=T)
+    dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=add.conflicts, conflicting.events.only=cna.conflicting.events.only)
   } else if (!is.null(dataset$cndata)) {
     # In case of a rerun, pull out the cndata
     cndata = dataset$cndata
@@ -12,14 +12,13 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
-    dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=F)
+    dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=sample.snvs.only)
     most.similar.mut = dataset$most.similar.mut
   } else {
     most.similar.mut = NA
   }
   dataset$cndata = cndata
   save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
-  print(dim(dataset$WTCount))
 
   # Pick the analysis to run
   if (analysis_type == 'sample_muts') {
@@ -44,11 +43,6 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 							                              mutationTypes=dataset$mutationType)
     
   } else if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'cons') {
-	# REMOVE temp CNA branching testing
-# 	mutCount = dataset$mutCount
-#   	WTCount = dataset$WTCount
-# 	kappa = dataset$kappa
-# 	conflict_indices = c(which(dataset$position==20734478), which(dataset$position==24377093), which(dataset$position==32866944))
 
     clustering = TreeBasedDP(mutCount=dataset$mutCount,
                              WTCount=dataset$WTCount,
@@ -168,24 +162,18 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     }
 
     # Write final output of all mutation assignments
-print(dim(dataset$chromosome))
-print(dim(dataset$position))
-print(length(clustering$best.node.assignments))
-print(length(clustering$best.assignment.likelihoods))
-print(length(dataset$mutationType))
     output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods, dataset$mutationType)
 
     # Add the removed mutations back in - Assuming here that only SNVs have been removed
-     for (i in dataset$removed_indices) {
-       if (i==1) {
-         output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output)
-       } else if (i >= nrow(output)) {
-         output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"))
-       } else {
-         output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output[i:nrow(output),])
-       }
-     }
-    
+    for (i in dataset$removed_indices) {
+      if (i==1) {
+        output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output)
+      } else if (i >= nrow(output)) {
+        output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"))
+      } else {
+        output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA, "SNV"), output[i:nrow(output),])
+      }
+    }
     
     # Save the indices of the mutations that were not used during the analysis
     write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
