@@ -89,8 +89,7 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
   conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data))
   mutationCopyNumber.df = as.data.frame(mutationCopyNumber)
   mutationCopyNumber.df$mutationType = mutationTypes
-  print(head(mutationTypes))
-  print(head(mutationCopyNumber.df))
+
   p = ggplot() + 
     geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..density.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
     geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 
@@ -114,13 +113,15 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
     for (c in 1:length(clusters)) {
       assignment_counts[c] = sum(mutation.assignments==clusters[c], na.rm=T)
     }
-    non_empty_cluster_ids = cluster.locations[cluster.locations[,1] %in% clusters, 1]
-    non_empty_cluster_locations = cluster.locations[cluster.locations[,1] %in% clusters, 2]
+    dat = as.data.frame(cluster.locations[cluster.locations[,1] %in% clusters, c(1,2)])
+    colnames(dat) = c("non_empty_cluster_ids", "non_empty_cluster_locations")
+    dat$assignment_counts = assignment_counts
+    dat$y.max = y.max
     
     # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
-    p = p + geom_segment(aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) + 
-      geom_text(aes(x=(non_empty_cluster_locations+0.01), y=rep((9/10)*y.max, length(non_empty_cluster_locations)), label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0)) +
-      geom_text(aes(x=(non_empty_cluster_locations+0.01), y=rep((9/10)*y.max-0.35, length(non_empty_cluster_locations)), label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
+    p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) + 
+      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0)) +
+      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-0.35, label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
   }
   
   if (!is.na(pngFile)) { 
@@ -134,6 +135,9 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
 
 #' Plot a table with the assignment counts
 plotAssignmentTable = function(cluster_locations, pngFile) {
+  # TODO: this naming should move upstream, but needs adaptations in various places
+  cluster_locations = as.data.frame(cluster_locations)
+  colnames(cluster_locations) = c("cluster.no", "location", "no.of.mutations")
   cluster_locations = cluster_locations[with(cluster_locations, order(-cluster.no)),]
   cluster_locations$location = round(cluster_locations$location, 2)
   png(filename=pngFile,,width=500,height=500)
