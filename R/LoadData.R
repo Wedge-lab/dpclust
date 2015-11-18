@@ -183,8 +183,8 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     CNA_size = cndata[i,]$endpos/10000 - cndata[i,]$startpos/10000
     CNA_num_muts = ceiling(CNA_size * mut_rate_10kb)
     
-    # Now create the number of mutations required
-    if (CNA_num_muts > 0) {
+    # Now create the number of mutations required, but only if the copy number segment is of large enough size
+    if (CNA_num_muts > 0 & CNA_size > 10000) {
       print(cndata[i,])
       print(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity))
       dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
@@ -243,7 +243,7 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
     dataset$kappa = rbind(dataset$kappa, mutationCopyNumberToMutationBurden(1, tumourCN, cellularity))
     
     index = nrow(dataset$mutCount)
-    print(paste("NEW CNA CCF/MCN", cndata[i,]$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf))
+    #print(paste("NEW CNA CCF/MCN", cndata[i,]$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf))
     # TODO: Setting same CNA CCF across samples does not work for multiple samples!
     dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, rep(dataset$mutation.copy.number[index,1], num.samples))
     dataset$phase = rbind(dataset$phase, rep("unphased", num.samples))
