@@ -1,32 +1,23 @@
 # nD method includes
-#library(MASS)
-#ilibrary(MCMCpack)
-#library(mvtnorm)
-source('subclone_Dirichlet_Gibbs_sampler_nD_binomial.R')
-source("OneDimensionalClustering.R")
+# source('subclone_Dirichlet_Gibbs_sampler_nD_binomial.R')
+# source("OneDimensionalClustering.R")
+# 
+# # Tree based method includes
+# source("Tree_based_DP_Gibbs_sampler.R")
+# source("GetConsensusTrees.R")
+# source("PlotTreeWithIgraph.R")
+# source("AnnotateTree.R")
+# source("InformationCriterions.R")
+# source("RunTreeBasedDPConsensus.R")
+# source("RunTreeBasedDPMCMC.R")
+# 
+# # Shared includes
+# source("interconvertMutationBurdens.R")
+# 
+# library(doParallel)
+# library(doRNG)
 
-# Tree based method includes
-source("Tree_based_DP_Gibbs_sampler.R")
-source("GetConsensusTrees.R")
-source("PlotTreeWithIgraph.R")
-source("AnnotateTree.R")
-source("InformationCriterions.R")
-source("RunTreeBasedDPConsensus.R")
-source("RunTreeBasedDPMCMC.R")
-
-# Shared includes
-source("interconvertMutationBurdens.R")
-
-#library(compiler)
-#mutationCopyNumberToMutationBurden = cmpfun(mutationCopyNumberToMutationBurden)
-
-#library(foreach)
-library(doParallel)
-library(doRNG)
-# library(snowfall)
-#library(snow)
-
-TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL){
+TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,ncol(mutCount)), kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), annotation=vector(mode="character",length=nrow(mutCount)), no.iters=1250, no.iters.burn.in=250, bin.size=NA, resort.mutations=T, outdir=paste(samplename,"_treeBasedDirichletProcessOutputs",sep=""), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, parallel=FALSE, phase=NA, blockid=1, no.of.blocks=NULL, conflict.array=NA){
   #
   # Tree based method that will yield a tree that contains the estimated clone/subclone structure for 
   # the samples given as input.
@@ -116,7 +107,8 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          bin.indices=bin.indices, 
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
-                         remove.branch.frequency=remove.branch.frequency)
+                         remove.branch.frequency=remove.branch.frequency,
+			 conflict.array=conflict.array)
     } else {
       mcmcResults = RunTreeBasedDPMCMC(mutCount=mutCount, 
                          WTCount=WTCount, 
@@ -134,7 +126,8 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          bin.indices=NULL, 
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
-                         remove.branch.frequency=remove.branch.frequency)
+                         remove.branch.frequency=remove.branch.frequency,
+			 conflict.array=conflict.array)
     }
     
     # Set these variables in case both trees and cons need to be run consecutively in one R call
@@ -145,7 +138,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
     
     trees_end_time = Sys.time()
     print(paste("Finished tree.struct.dirichlet in", as.numeric(trees_end_time-trees_start_time,units="secs"), "seconds"))
-    write.table(data.frame(diff=c(difftime(trees_end_time, trees_start_time, units='sec')), unit=c('seconds')), file=paste(outdir,'runtime_trees_',blockid,'.txt', sep=''), quote=F, row.names=F)
+    write.table(data.frame(diff=c(difftime(trees_end_time, trees_start_time, units='sec')), unit=c('seconds')), file=paste(outdir,'/runtime_trees_',blockid,'.txt', sep=''), quote=F, row.names=F)
     
     if(parallel) { stopCluster(clp) }
     
@@ -308,7 +301,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
 }
 
 
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc) {
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut) {
   #
   # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
   # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
@@ -332,20 +325,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                     conc_param=conc_param,
                                     cluster_conc=cluster_conc)
   
-#   GS.data = subclone.dirichlet.gibbs.1d(C=30, 
-#                                      y=c(mutCount), 
-#                                      N=c(mutCount+WTCount), 
-#                                      totalCopyNumber=c(totalCopyNumber),
-#                                      cellularity=cellularity, 
-#                                      normalCopyNumber=array(2,nrow(mutCount)), 
-#                                      no.chrs.bearing.mut = c(copyNumberAdjustment),
-#                                      iter=no.iters)
-
-  #   
-  #   finalStates=GS.data$S.i[noiters,]
-  #   finalMus=GS.data$pi.h[noiters,,]
-  #   finalFittedMus=finalMus[finalStates,]
-  #   
   write.csv(GS.data$S.i,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_states.csv",sep=""))
   write.csv(GS.data$V.h,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""))
   write.csv(GS.data$pi.h,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""))
@@ -356,36 +335,92 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
 #      GS.data$V.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""),row.names=1))
 #      GS.data$pi.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""),row.names=1))
 #      GS.data$alpha = read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""),row.names=1)
-  # nD dataset, plot sample versus sample
-  if (ncol(mutCount) > 1) {
-    for(i in 1:(length(subsamplesrun)-1)){
-      for(j in (i+1):length(subsamplesrun)){
-        imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
-        density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
-                                   GS.data,
-                                   imageFile, 
-                                   post.burn.in.start = no.iters.burn.in, 
-                                   post.burn.in.stop = no.iters, 
-                                   samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
-                                   indices=c(i,j))  
-        save(file=paste(subsamplesrun[i], "_vs_",subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
-      }
+# nD dataset, plot sample versus sample
+if (ncol(mutCount) > 1) {
+  ########################
+  # Plot density and Assign mutations to clusters - nD
+  ########################
+  for(i in 1:(length(subsamplesrun)-1)){
+    for(j in (i+1):length(subsamplesrun)){
+      imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
+      density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
+                                           GS.data,
+                                           imageFile, 
+                                           post.burn.in.start = no.iters.burn.in, 
+                                           post.burn.in.stop = no.iters, 
+                                           samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
+                                           indices=c(i,j))  
+      save(file=paste(output_folder,"/",samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
     }
+  }
+  
+  # Assign mutations to clusters using one of the different assignment methods
+  opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
+  print("Assigning mutations to clusters")
+  if (mut.assignment.type == 1) {
+    consClustering = multiDimensionalClustering(mutation.copy.number=mutation.copy.number, 
+                                                copyNumberAdjustment=copyNumberAdjustment, 
+                                                GS.data=GS.data, 
+                                                density.smooth=0.01, 
+                                                opts=opts)
+  } else if (mut.assignment.type == 2) {
+    consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
+    
+  } else {
+    print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
+    q(save="no", status=1)
+  }
+  return(consClustering)
+    
     # 1D dataset, plot just the single density
   } else {
+    ########################
+    # Plot density and Assign mutations to clusters - 1D
+    ########################
+    # 1D dataset, plot just the single density
     wd = getwd()
     setwd(output_folder)
-    density = Gibbs.subclone.density.est.1d(GS.data, 
+    res = Gibbs.subclone.density.est.1d(GS.data, 
                                             paste(samplename,"_DirichletProcessplot.png", sep=''), 
-					                                  samplename=samplename,
+                                            samplename=samplename,
                                             post.burn.in.start=no.iters.burn.in, 
                                             post.burn.in.stop=no.iters,
-                                            y.max=15, 
+                                            y.max=15,
+					    x.max=NA, 
                                             mutationCopyNumber=mutation.copy.number, 
                                             no.chrs.bearing.mut=copyNumberAdjustment)
-    subclonal.fraction = mutation.copy.number / copyNumberAdjustment
-    subclonal.fraction[is.nan(subclonal.fraction)] = 0
-    consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+    density = res$density
+    polygon.data = res$polygon.data
+    
+    # Assign mutations to clusters using one of the different assignment methods
+    opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
+    print("Assigning mutations to clusters")
+    if (mut.assignment.type == 1) {
+      subclonal.fraction = mutation.copy.number / copyNumberAdjustment
+      subclonal.fraction[is.nan(subclonal.fraction)] = 0
+      consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
+     
+      setwd(wd) # Go back to original work directory 
+      # Replot the data with cluster locations
+      plot1D(density=density, 
+             polygon.data=polygon.data, 
+             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+             density.from=0, 
+             x.max=1.5, 
+             mutationCopyNumber=mutation.copy.number, 
+             no.chrs.bearing.mut=copyNumberAdjustment,
+             samplename=samplename,
+             cluster.locations=consClustering$cluster.locations,
+             mutation.assignments=consClustering$best.node.assignments)
+      
+    } else if (mut.assignment.type == 2) {
+      setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt
+      consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
+      
+    } else {
+      print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
+      q(save="no", status=1)
+    }
     setwd(wd)
     
     return(consClustering)

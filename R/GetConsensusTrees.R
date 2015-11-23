@@ -1,8 +1,8 @@
-source("Tree_based_DP_Gibbs_sampler.R")
-# source("interconvertMutationBurdens.R")
-source("CullTree.R")
-source("PlotConsensusTree.R")
-source("GetConsensusStartPosition.R")
+# source("Tree_based_DP_Gibbs_sampler.R")
+# # source("interconvertMutationBurdens.R")
+# source("CullTree.R")
+# source("PlotConsensusTree.R")
+# source("GetConsensusStartPosition.R")
 
 GetConsensusTrees<-function(trees, node.assignments, mutCount, WTCount, kappa=array(0.5,dim(mutCount)), samplename="sample", subsamplenames=1:ncol(mutCount), no.iters=1250, no.iters.burn.in=250, resort.mutations=T, shrinkage.threshold=0.1, init.alpha=0.01, outdir=getwd(), bin.indices=NULL, strengths=NULL){
   start = Sys.time()
@@ -181,7 +181,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
       new.likelihood = log.f.of.y(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
       # Save the likelihood per mutation in order to calculate the DIC score later
       all.likelihoods = cbind(all.likelihoods, new.likelihood)
-      likelihoods = c(likelihoods,sum(new.likelihood))
+      likelihoods = c(likelihoods,sum(as.numeric(new.likelihood)))
       for (i in 1:no.subsamples) {
         # Save the theta per subsample in a separate data.frame
         all.thetas[[i]] = cbind(all.thetas[[i]], new.consensus.tree[new.consensus.ass,paste("theta.S",i,sep='')])
@@ -210,7 +210,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
 					mut.moved=F
 					rand.inds = sample(no.muts)
 					for(r in rand.inds){
-						old.agreement = sum(pairwise.agreements[r,])
+						old.agreement = sum(as.numeric(pairwise.agreements[r,]))
 						curr.ass = consensus.assignments[r]
 						possible.ass = unique.nodes[unique.nodes != curr.ass]
             
@@ -263,7 +263,7 @@ do_em = function(trees,node.assignments,ancestor.strengths, sibling.strengths, i
         new.likelihood = log.f.of.y(mutCount, mutCount+WTCount, kappa, new.consensus.tree[new.consensus.ass,colnames])
         # Save the likelihood per mutation in order to calculate the DIC score later
         all.likelihoods = cbind(all.likelihoods, new.likelihood)
-				likelihoods = c(likelihoods,sum(new.likelihood))
+				likelihoods = c(likelihoods,sum(as.numeric(new.likelihood)))
         for (i in 1:no.subsamples) {
           # Save the theta per subsample in a separate data.frame
           all.thetas[[i]] = cbind(all.thetas[[i]], new.consensus.tree[new.consensus.ass,paste("theta.S",i,sep='')])
@@ -356,7 +356,7 @@ do_em_layout = function(no.muts, consensus.assignments, pairwise.agreements, new
           # Calculate new agreement by summing the scores for ancestor and siblings
           new.agreement = calc.new.agreement(r, temp.ass, new.ass, desc, anc, identity.strengths, ancestor.strengths, sibling.strengths)
           # Get assignment to same node for this mutation with all others
-          old.agreement = sum(new.pairwise.agreements[[2*(n-1)+above+1]][r,])
+          old.agreement = sum(as.numeric(new.pairwise.agreements[[2*(n-1)+above+1]][r,]))
           
           # When the new agreement is better, move the mutation
           if(new.agreement > old.agreement){
@@ -367,7 +367,7 @@ do_em_layout = function(no.muts, consensus.assignments, pairwise.agreements, new
           }
         }
       }
-      new.agreements[2*(n-1)+above+1] = sum(new.pairwise.agreements[[2*(n-1)+above+1]])
+      new.agreements[2*(n-1)+above+1] = sum(as.numeric(new.pairwise.agreements[[2*(n-1)+above+1]]))
       #don't move a whole node of mutations - not sure whether this should be allowed
       if(length(unique(new.consensus.assignments))<=no.nodes){
         new.agreements[2*(n-1)+above+1] = 0
@@ -459,13 +459,13 @@ calc.curr.agreement = function(consensus.assignments, identity.strengths, ancest
     for(j in unique(consensus.assignments)){
       inds2 = which(consensus.assignments==j)
       if(i==j){
-        current.agreement = current.agreement + sum(identity.strengths[inds1,inds2])
+        current.agreement = current.agreement + sum(as.numeric(identity.strengths[inds1,inds2]))
       }else if(younger.direct.descendants(i,j)){
-        current.agreement = current.agreement + sum(ancestor.strengths[inds1,inds2])
+        current.agreement = current.agreement + sum(as.numeric(ancestor.strengths[inds1,inds2]))
       }else if(younger.direct.descendants(j,i)){
-        current.agreement = current.agreement + sum(ancestor.strengths[inds2,inds1])
+        current.agreement = current.agreement + sum(as.numeric(ancestor.strengths[inds2,inds1]))
       }else{
-        current.agreement = current.agreement + sum(sibling.strengths[inds1,inds2])
+        current.agreement = current.agreement + sum(as.numeric(sibling.strengths[inds1,inds2]))
       }		
     }
   }
@@ -492,10 +492,10 @@ calc.new.agreement = function(r, temp.ass, new.ass, desc, anc, identity.strength
   # Calculates the new agreement when a new assignment is the temp assignment. This is used in order to test
   # whether a possible 
   #
-  return(sum(identity.strengths[r,temp.ass==new.ass]) + 
-    sum(ancestor.strengths[r,temp.ass %in% desc]) + 
-    sum(ancestor.strengths[temp.ass %in% anc,r]) + 
-    sum(sibling.strengths[!(temp.ass %in% anc) & !(temp.ass %in% desc) & temp.ass != new.ass,r]))
+  return(sum(as.numeric(identity.strengths[r,temp.ass==new.ass])) + 
+    sum(as.numeric(ancestor.strengths[r,temp.ass %in% desc])) + 
+    sum(as.numeric(ancestor.strengths[temp.ass %in% anc,r])) + 
+    sum(as.numeric(sibling.strengths[!(temp.ass %in% anc) & !(temp.ass %in% desc) & temp.ass != new.ass,r])))
 }
 
 get.desc.and.anc = function(node, unique.nodes) {

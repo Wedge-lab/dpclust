@@ -1,8 +1,8 @@
-library(LIM)
-#library(Matrix)
-library(vegan)
-source("CullTree.R")
-source("RemoveBranch.R")
+# library(LIM)
+# #library(Matrix)
+# library(vegan)
+# source("CullTree.R")
+# source("RemoveBranch.R")
 
 younger.siblings <- function(curr.node, other.nodes) {
 	# Function to test whether other.nodes are younger siblings of curr.node
@@ -342,11 +342,63 @@ tree.struct.dirichlet.gibbs <- function(y, n, kappa, iter=1000, d=1, plot.lambda
       
       print(paste("Mantel anc=",mant.anc[curr]," sib=",mant.sib[curr]," ide=",mant.ide[curr],sep=""))
     }
+    
+		# Test tree invariants
+		checkInvariants(curr.tree)
 		
 		trees.n[[m]] <- curr.tree	
 	}
 	return(list(trees=trees.n, assignments=node.assignments, alpha=alpha0, lambda=lambda, gamma=gamma, likelihood=complete.likelihood, BIC=BIC, AIC=AIC, DIC=DIC, mant.anc=mant.anc, mant.sib=mant.sib, mant.ide=mant.ide))
 } 
+
+#' Function that checks whether invariants with respect to phi, psi and edge length are holding
+checkInvariants = function(curr.tree) {
+  for (i in 1:nrow(curr.tree)) {
+    # Check whether the phis are as defined
+    lvl = unlist(strsplit(curr.tree$label[i], ":"))
+    if (lvl[length(lvl)] == 1) {
+      # First node of this level, therefore phi ~== psi
+      stat = curr.tree$psi[i]-curr.tree$phi[i]
+      if (stat > 0.001) {
+        print("                             lvl")
+        print("                             PHI DOES NOT HOLD")
+        #print(curr.tree)
+      }
+    } else if(lvl[length(lvl)] != "M") {
+      stat = curr.tree$psi[i]
+      for (j in 1:(as.numeric(lvl[length(lvl)])-1)) {
+        stat = stat * (1-curr.tree$psi[j])
+      }
+      if (stat-curr.tree$phi[i] > 0.001) {
+        print("                             lvl")
+        print("                             PHI DOES NOT HOLD")
+        #print(curr.tree)
+      }
+    }
+    
+    # Check the edge lengths
+    get.ancestors.rec = function(node.label, tree, start=T) { 
+      # Recursively obtain the path from root to this node recursively, excluding the given node
+      if(node.label=="M:") { 
+        # Stop once the root is reached
+        return(node.label) 
+      } else if (start) {
+        return(get.ancestors.rec(tree[tree$label==node.label,]$ancestor, tree, start=F))
+      } else { 
+        return(c(node.label, get.ancestors.rec(tree[tree$label==node.label,]$ancestor, tree, start=F)))
+      } 
+    }
+    # Obtain the ancestral path to the root
+    anc = get.ancestors.rec(curr.tree$label[i], curr.tree)
+    # 
+    stat = curr.tree$nu[i]*curr.tree$phi[i]*prod(sapply(anc, function(label) { curr.tree[curr.tree$label==label,]$phi*(1-curr.tree[curr.tree$label==label,]$nu) }))
+    if (stat - curr.tree$edge.length[i] > 0.001) {
+      print(paste("                                ", curr.tree[i,]))
+      print("                             EDGE.LENGTH DOES NOT HOLD")
+      #print(curr.tree)
+    }
+  }
+}
 
 find.node <- function(u, tree, lambda, depth, alpha0, gamma, conflicts = array(1,nrow(tree))) {
 	# Subroutine to find the node of the tree partition that holds the random datum u on (0,1]

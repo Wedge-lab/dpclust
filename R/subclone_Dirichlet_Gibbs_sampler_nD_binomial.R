@@ -1,6 +1,7 @@
-library(lattice)
-library(KernSmooth)
-source("interconvertMutationBurdens.R")
+# library(lattice)
+# library(KernSmooth)
+# source("interconvertMutationBurdens.R")
+# source("PlotDensities.R")
 
 subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,dim(mutCount)), normalCopyNumber=array(2,dim(mutCount)), copyNumberAdjustment = array(1,dim(mutCount)),C=30, cellularity=rep(1,ncol(mutCount)),iter=1000,conc_param=1,cluster_conc=10) {
   # y is a p-by-q matrix of the number of reads reporting each variant (p=number of mutations,q=number of timepoints / related samples)
@@ -161,95 +162,6 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,
   return(list(S.i=S.i, V.h=V.h, pi.h=pi.h, mutBurdens=mutBurdens, alpha=alpha, y1=mutCount, N1=mutCount+WTCount))
 }
 
-subclone.dirichlet.gibbs.1d <- function(C=30, y, N, totalCopyNumber=array(1,length(y)),cellularity=1, normalCopyNumber=array(2,length(y)) , no.chrs.bearing.mut = array(1,length(y)),iter=1000) {
-  # y is a vector of the number of reads reporting each variant
-  # N is a vector of the number of reads in total across the base in question (in the same order as Y obviously!)
-  # C is the maximum number of clusters in the Dirichlet process
-  # iter is the number of iterations of the Gibbs sampler
-  
-  num.muts <- length(y)
-  print(paste("num.muts=",num.muts,sep=""))
-  
-  # Hyperparameters for alpha
-  A <- B <- 0.01
-  
-  # Set up data formats for recording iterations
-  pi.h <- matrix(NA, nrow=iter, ncol=C)
-  V.h <- matrix(1, nrow=iter, ncol=C)
-  S.i <- matrix(NA, nrow=iter, ncol=num.muts)
-  Pr.S <- matrix(NA, nrow=num.muts, ncol=C)
-  alpha <- rep(NA, iter)	
-  mutBurdens <- array(NA, c(iter, C,num.muts))
-  
-  mutCopyNum = mutationBurdenToMutationCopyNumber(y/N,totalCopyNumber,cellularity,normalCopyNumber) / no.chrs.bearing.mut
-  lower=min(mutCopyNum)
-  upper=max(mutCopyNum)
-  difference=upper-lower
-  lower=lower-difference/10
-  upper=upper+difference/10
-  # randomise starting positions of clusters
-  pi.h[1,]=runif(C,lower,upper)
-  for(c in 1:C){
-    mutBurdens[1,c,]=mutationCopyNumberToMutationBurden(pi.h[1,c]*no.chrs.bearing.mut,totalCopyNumber,cellularity,normalCopyNumber)
-  }	
-  
-  V.h[1,] <- c(rep(0.5,C-1), 1)
-  S.i[1,] <- c(1, rep(0,num.muts-1))
-  alpha[1] <- 1
-  V.h[1:iter, C] <- rep(1, iter)
-  
-  for (m in 2:iter) {
-    if (m / 100 == round(m/100)) {print(m)}
-    
-    # Update cluster allocation for each individual mutation
-    for (k in 1:num.muts) {			
-      #use log-space to avoid problems with very high counts
-      Pr.S[k,1] <- log(V.h[m-1,1]) + y[k]*log(mutBurdens[m-1,1,k]) + (N[k]-y[k])*log(1-mutBurdens[m-1,1,k])
-      Pr.S[k,2:C] <- sapply(2:C, function(V, obs.y, obs.N, pi, curr.k, j) {log(V[j]) + sum(log(1-V[1:(j-1)])) + obs.y[curr.k]*log(pi[j]) + (obs.N[curr.k] - obs.y[curr.k])*log(1-pi[j])}, V=V.h[m-1,], pi=mutBurdens[m-1,,k], obs.y=y, obs.N = N, curr.k=k)
-      
-      if(sum(is.na(Pr.S[k,]))>0){
-        print("err1")
-        print(Pr.S[k,])
-        print(V.h[m-1,])
-        print(pi.h[m-1,])
-      }
-      Pr.S[k,] = Pr.S[k,] - max(Pr.S[k,],na.rm=T)
-      Pr.S[k,]=exp(Pr.S[k,])
-      if(sum(is.na(Pr.S[k,]))>0){
-        print("err2")
-        print(Pr.S[k,])
-      }
-      Pr.S[k,] <- Pr.S[k,] / sum(Pr.S[k,],na.rm=T)
-      if(sum(is.na(Pr.S[k,]))>0){
-        print("err3")
-        print(Pr.S[k,])
-      }			
-      Pr.S[k,is.na(Pr.S[k,])] = 0
-    }
-    
-    S.i[m,] <- sapply(1:num.muts, function(Pr, k) {sum(rmultinom(1,1,Pr[k,]) * (1:length(Pr[k,])))}, Pr=Pr.S)
-    
-    # Update stick-breaking weights
-    V.h[m,1:(C-1)]  <- sapply(1:(C-1), function(S, curr.m, curr.alpha, h) {rbeta(1, 1+sum(S[curr.m,] == h), curr.alpha+sum(S[curr.m,] > h))}, S=S.i, curr.m=m, curr.alpha=alpha[m-1])
-    V.h[m,c(V.h[m,1:(C-1)] == 1,FALSE)] <- 0.999 # Need to prevent one stick from taking all the remaining weight
-    
-    # Update location of subclones / clusters
-    countsPerCopyNum=N*mutationCopyNumberToMutationBurden(1,totalCopyNumber,cellularity,normalCopyNumber)*no.chrs.bearing.mut
-    
-    #190512 randomise unused pi.h
-    pi.h[m,]=runif(C,lower,upper)
-    
-    mutBurdens[m,,]=mutBurdens[m-1,,]
-    for(c in unique(S.i[m,])){
-      pi.h[m,c] = rgamma(1,shape=sum(y[S.i[m,]==c]),rate=sum(countsPerCopyNum[S.i[m,]==c]))
-      mutBurdens[m,c,]=mutationCopyNumberToMutationBurden(pi.h[m,c]*no.chrs.bearing.mut,totalCopyNumber,cellularity,normalCopyNumber)
-    }
-    
-    # Update alpha
-    alpha[m] <- rgamma(1, shape=C+A-1, rate=B-sum(log(1-V.h[m,1:(C-1)]))) 
-  }
-  return(list(S.i=S.i, V.h=V.h, pi.h=pi.h, alpha=alpha, y1=y, N1=N))
-}
 
 Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth = 0.1, post.burn.in.start = 3000, post.burn.in.stop = 10000, samplenames = c("sample 1","sample 2"), indices = NA) {
   print(paste("density.smooth=",density.smooth,sep=""))
@@ -357,77 +269,19 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   }else{
     median.density=apply(post.ints, MARGIN=1, FUN=median)
   }
+ 
+  # Create the plots both with and without mutations 
+  plotnD(xvals=xvals, 
+         yvals=yvals, 
+         zvals=median.density, 
+         subclonal.fraction_x=burden[,1], 
+         subclonal.fraction_y=burden[,2], 
+         pngFile=pngFile, 
+         samplename_x=samplenames[1], 
+         samplename_y=samplenames[2], 
+         max.plotted.value=NA)
   
-  #	png(filename=pngFile,width=1500,height=1000)
-  #	#filled.contour(xx[1,],xx[2,],median.density,plot.axes={ axis(1); axis(2); points(burden,pch=".",cex=4)},xlab="mutation copy number sample 1",ylab="mutation copy number sample 2")
-  #	filled.contour(xvals,yvals,median.density,plot.axes={ axis(1); axis(2); points(burden,pch=".",cex=4)},xlab="mutation copy number sample 1",ylab="mutation copy number sample 2")	
-  #	dev.off()
-  
-  print("Creating density plot1")
-  colours=colorRampPalette(c("white","red"))
-  #for plotting with axes scaled equally
-  png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)
-  #	fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-  #		panel = function(...) { 
-  #			panel.levelplot(...) 
-  #        }
-  #    )
-  range=list(c(floor(min(burden[,1])*10)-1,ceiling(max(burden[,1])*10)+1)/10, c(floor(min(burden[,2])*10)-1,ceiling(max(burden[,2])*10)+1)/10)
-  image.wid = 500 * (range[[1]][2] - range[[1]][1])
-  image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-                panel = function(...) { 
-                  panel.levelplot(...)
-                  panel.abline(h = 0:floor(max(burden[,2])))
-                  panel.abline(v = 0:floor(max(burden[,1])))
-                }
-  )    
-  print(fig)
-  dev.off()
-
-  png(filename=gsub(".png","_withMutations.png",pngFile),width=1500,height=1000)
-  #	fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-  #		panel = function(...) { 
-  #			panel.levelplot(...) 
-  #			lpoints(burden,pch=".",cex=1,col="black") 
-  #        }
-  #    )
-  range=list(c(floor(min(burden[,1])*10)-1,ceiling(max(burden[,1])*10)+1)/10, c(floor(min(burden[,2])*10)-1,ceiling(max(burden[,2])*10)+1)/10)
-  image.wid = 500 * (range[[1]][2] - range[[1]][1])
-  image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplenames[1],cex=2),ylab=list(label=samplenames[2],cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-                panel = function(...) { 
-                  panel.levelplot(...)
-                  panel.abline(h = 0:floor(max(burden[,2])))
-                  panel.abline(v = 0:floor(max(burden[,1])))
-                  #070913
-                  if(nrow(burden>=500)){
-                    lpoints(burden,pch=".",cex=1,col="black")
-                  }else if(nrow(burden>=100)){
-                    lpoints(burden,pch=".",cex=2,col="black")
-                  }else{
-                    lpoints(burden,pch=".",cex=4,col="black")
-                  }
-                }
-  )
-  
-  print(fig)
-  dev.off()
-  
-  #par(mar=c(5,5,1,1))
-  #png(filename=gsub(".png","_trellis_largeLabels.png",pngFile),width=1500,height=1000)
-  #fig=levelplot(median.density,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab="sample 1",ylab="sample 2",cex.axis=2,cex.lab=2,
-  #	panel = function(...) { 
-  #		panel.levelplot(...) 
-  #		lpoints(burden,pch=".",cex=4,col="black") 
-  #    }
-  #)
-  #print(fig)
-  #dev.off()
-
-  #levelplot sometimes fails, so save the values and plot afterwards	
-  #write.csv(xx[1,],gsub(".png","_xvals.csv",pngFile))
-  #write.csv(xx[2,],gsub(".png","_yvals.csv",pngFile))
+  # Save the data of the plot to replot lateron for figure fine tuning
   write.csv(xvals,gsub(".png","_xvals.csv",pngFile))
   write.csv(yvals,gsub(".png","_yvals.csv",pngFile))	
   write.csv(median.density,gsub(".png","_zvals.csv",pngFile))
@@ -435,27 +289,91 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   return(list(fraction.of.tumour.cells=burden, median.density=median.density, xvals=xvals, yvals=yvals))
 }
 
-Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
+# Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
+#   print(paste("density.smooth=",density.smooth,sep=""))
+#   png(filename=pngFile,,width=1500,height=1000)
+#   # GS.data is the list output from the above function
+#   # density.smooth is the smoothing factor used in R's density() function
+#   # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
+#   
+#   if(is.null(mutationCopyNumber)){
+#     print("No mutationCopyNumber. Using mutation burden")
+#     y <- GS.data$y1
+#     N <- GS.data$N1
+#     mutationCopyNumber = y/N
+#   }
+#   
+#   if(!is.null(no.chrs.bearing.mut)){
+#     mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
+#   }
+#   
+#   V.h.cols <- GS.data$V.h # weights
+#   pi.h.cols <- GS.data$pi.h[,,1] # discreteMutationCopyNumbers
+#   wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
+#   wts[,1] <- V.h.cols[,1]
+#   wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
+#   for (i in 3:dim(wts)[2]) {wts[,i] <- apply(1-V.h.cols[,1:(i-1)], MARGIN=1, FUN=prod) * V.h.cols[,i]}
+#   
+#   post.ints <- matrix(NA, ncol=post.burn.in.stop - post.burn.in.start + 1, nrow=512)
+#   
+#   if (is.na(x.max)) {
+#     x.max = ceiling(max(mutationCopyNumber)*12)/10
+#   }
+#   
+#   xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
+#  
+#   for (i in post.burn.in.start : post.burn.in.stop) {
+#     post.ints[,i - post.burn.in.start + 1] <- density(c(pi.h.cols[i-1,]), weights=c(wts[i,]) / sum(c(wts[i,])), adjust=density.smooth, from=density.from, to=x.max)$y
+#   }
+#   
+#   polygon.data = c(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.975), rev(apply(post.ints, MARGIN=1, FUN=quantile, probs=0.025)))
+#   if(is.na(y.max)){
+#     y.max=ceiling(max(polygon.data)/10)*10
+#   }
+#   
+#   yy = apply(post.ints, MARGIN=1, FUN=quantile, probs=0.5)
+#   density = cbind(xx, yy)
+#   
+#   plot1D(density, 
+#          polygon.data, 
+#          pngFile=pngFile, 
+#          density.from=0, 
+#          y.max=y.max, 
+#          x.max=x.max, 
+#          mutationCopyNumber=mutationCopyNumber, 
+#          no.chrs.bearing.mut=no.chrs.bearing.mut,
+#          samplename=samplename)
+#   
+#   
+#   print(paste("highest density is at ",xx[which.max(yy)],sep=""))
+#   write.table(density,gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
+#   write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
+#   
+#   return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
+# }
+
+Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
   print(paste("density.smooth=",density.smooth,sep=""))
   png(filename=pngFile,,width=1500,height=1000)
   # GS.data is the list output from the above function
   # density.smooth is the smoothing factor used in R's density() function
   # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
-  
-  xlabel = "mutation copy number"
+  xlabel = "mutation_copy_number" 
   if(is.null(mutationCopyNumber)){
     print("No mutationCopyNumber. Using mutation burden")
     y <- GS.data$y1
     N <- GS.data$N1
     mutationCopyNumber = y/N
-    print("MutCopyNr")
-    print(mutationCopyNumber)
-    xlabel = "mutation burden"
+    xlabel = "mutation_burden"
   }
+  
+  # Save the original MCN to give to the plotter below. If MCN and chroms.bearing.muts are both submitted MCN was
+  # scaled twice (once just below and once in the plotter) giving rise to wrong figures.
+  mutationCopyNumber.original = mutationCopyNumber
   
   if(!is.null(no.chrs.bearing.mut)){
     mutationCopyNumber = mutationCopyNumber / no.chrs.bearing.mut
-    xlabel = "fraction of tumour cells"
+    xlabel = "fraction_of_cells"
   }
   
   V.h.cols <- GS.data$V.h # weights
@@ -467,7 +385,9 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
   
   post.ints <- matrix(NA, ncol=post.burn.in.stop - post.burn.in.start + 1, nrow=512)
   
-  x.max = ceiling(max(mutationCopyNumber)*12)/10
+  if (is.na(x.max)) {
+    x.max = ceiling(max(mutationCopyNumber)*12)/10
+  }
   
   xx <- density(c(pi.h.cols[post.burn.in.start-1,]), weights=c(wts[post.burn.in.start,]) / sum(c(wts[post.burn.in.start,])), adjust=density.smooth, from=density.from, to=x.max)$x
   
@@ -480,20 +400,185 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
     y.max=ceiling(max(polygon.data)/10)*10
   }
   
-  par(mar = c(5,6,4,1)+0.1)
-  hist(mutationCopyNumber, breaks=seq(-0.1, x.max, 0.025), col="lightgrey",freq=FALSE, xlab=xlabel,main="", ylim=c(0,y.max),cex.axis=2,cex.lab=2)
-  polygon(c(xx, rev(xx)), polygon.data, border="plum4", col=cm.colors(1,alpha=0.3))
-  
   yy = apply(post.ints, MARGIN=1, FUN=quantile, probs=0.5)
+  density = cbind(xx, yy)
   
-  lines(xx, yy, col="plum4", lwd=3)
- 
-  title(samplename, cex.main=3)
- 
-  dev.off()
+  print(head(polygon.data))
+  
+  plot1D(density, 
+         polygon.data, 
+         pngFile=pngFile, 
+         density.from=0, 
+         y.max=y.max, 
+         x.max=x.max, 
+         mutationCopyNumber=mutationCopyNumber.original, 
+         no.chrs.bearing.mut=no.chrs.bearing.mut,
+         samplename=samplename)
+  
+  
   print(paste("highest density is at ",xx[which.max(yy)],sep=""))
-  write.table(cbind(xx,yy),gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
+  write.table(density,gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)
   write.table(polygon.data,gsub(".png","polygonData.txt",pngFile),sep="\t",row.names=F,quote=F)
   
-  return(data.frame(fraction.of.tumour.cells=xx, median.density=yy))
+  return(list(density=data.frame(fraction.of.tumour.cells=xx, median.density=yy), polygon.data=polygon.data))
+}
+
+Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1, post.burn.in.start = 200, post.burn.in.stop = 1000, max.burden=NA, resolution=NA) {
+  #
+  # Use this when assigning mutations to clusters by using multiDimensional clustering. 
+  # It returns density values across the grid and a confidence interval that are used
+  # by the multi D clustering for determining where a mutation should be assigned.
+  #
+  print(paste("density.smooth=",density.smooth,sep=""))
+  
+  V.h.cols <- GS.data$V.h
+  if("pi.h" %in% names(GS.data)){
+    pi.h.cols <- GS.data$pi.h
+  }else{
+    pi.h.cols <- GS.data$theta$mu
+  }
+  C = dim(pi.h.cols)[2]
+  
+  wts <- matrix(NA, nrow=dim(V.h.cols)[1], ncol=dim(V.h.cols)[2])
+  wts[,1] <- V.h.cols[,1]
+  wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
+  for (i in 3:dim(wts)[2]) {wts[,i] <- apply(1-V.h.cols[,1:(i-1)], MARGIN=1, FUN=prod) * V.h.cols[,i]}
+  
+  #print(paste("wts=",wts[1000,],sep=""))
+  #n-D kernel smoother
+  library(ks)
+  #library(KernSmooth)
+  
+  num.timepoints = NCOL(burden)
+  print(paste("num.timepoints=",num.timepoints,sep=""))
+  gridsize=rep(64,num.timepoints)
+  range = array(NA,c(num.timepoints,2))
+  for(n in 1:num.timepoints){
+    range[n,] = c(floor(min(burden[,1])*10)-2,ceiling(max(burden[,1])*10)+2)/10
+    #don't calculate density for outliers (should only be applied when burden is subclonal fraction)
+    if(!is.na(max.burden) && range[n,2] > max.burden){
+      range[n,2] = max.burden
+    }
+    #avoid trying to create arrays that are too large and disallowed (and will be very slow)
+    if(is.na(resolution)){
+      if(num.timepoints>=6|num.timepoints==5){
+        if(range[n,2]-range[n,1]>3){
+          grid.resolution=5
+        }else if(range[n,2]-range[n,1]>1.5){
+          grid.resolution=10
+        }else{
+          grid.resolution=20
+        }
+      }else if(num.timepoints==4){
+        if(range[n,2]-range[n,1]>8){
+          grid.resolution=5
+        }else if(range[n,2]-range[n,1]>3){
+          grid.resolution=10
+        }else if(range[n,2]-range[n,1]>1.5){
+          grid.resolution=20
+        }else{
+          grid.resolution=40
+        }                       
+      }else{
+        if(range[n,2]-range[n,1]>20){
+          grid.resolution=5                       
+        }else if(range[n,2]-range[n,1]>8){
+          grid.resolution=10
+        }else if(range[n,2]-range[n,1]>3){
+          grid.resolution=25
+        }else{
+          grid.resolution=50
+        }
+      }
+    }else{
+      grid.resolution = resolution
+    }
+    
+    gridsize[n]=round(grid.resolution*(range[n,2]-range[n,1]))+1
+  }
+  #if added 150512
+  sampledIters = post.burn.in.start : post.burn.in.stop
+  #don't use the intitial state
+  sampledIters = sampledIters[sampledIters!=1]            
+  if(length(sampledIters) > 1000){
+    post.ints <- array(NA, c(gridsize, 1000))
+    sampledIters=floor(post.burn.in.start + (1:1000) * (post.burn.in.stop - post.burn.in.start)/1000)                       
+  }else{
+    post.ints <- array(NA, c(gridsize, length(sampledIters)))
+  }
+  
+  no.clusters=ncol(V.h.cols)
+  no.eval.points = prod(gridsize)
+  
+  if(num.timepoints>=4){
+    print("creating evaluation.points")
+    evaluation.points = array(NA,c(no.eval.points,num.timepoints))
+    evaluation.points[,1] = rep(seq(range[1,1],range[1,2],(range[1,2]-range[1,1])/(gridsize[1]-1)),times = prod(gridsize[2:num.timepoints]))                
+    for(i in 2:num.timepoints){
+      if(i==num.timepoints){
+        evaluation.points[,i] = rep(seq(range[i,1],range[i,2],(range[i,2]-range[i,1])/(gridsize[i]-1)),each = prod(gridsize[1:(i-1)]))
+      }else{
+        evaluation.points[,i] = rep(seq(range[i,1],range[i,2],(range[i,2]-range[i,1])/(gridsize[i]-1)),each = prod(gridsize[1:(i-1)]),times = prod(gridsize[(i+1):num.timepoints]))
+      }
+    }
+    #evaluation.points = list()
+    #for(i in 1:num.timepoints){
+    #       evaluation.points[[i]] = seq(range[i,1],range[i,2],(range[i,2]-range[i,1])/(gridsize[i]-1))
+    #}
+  }
+  
+  for(i in 1:length(sampledIters)){
+    print(sampledIters[i])
+    if(num.timepoints>=4){
+      #use weights
+      d=kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,eval.points = evaluation.points,w=C*wts[sampledIters[i],])                   
+    }else{
+      #use weights
+      d=kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,gridsize=gridsize,xmin=range[,1],xmax=range[,2],w=C*wts[sampledIters[i],])
+    }
+    if(i==1){       
+      eval.points = d$eval.points
+    }
+    post.ints[((i-1)*no.eval.points+1):(i*no.eval.points)]=d$estimate
+  }
+  #save(post.ints,file="DEBUG_post.ints.RData")
+  
+  
+  print("calculating median and 95% CI")
+  median.density = array(NA,gridsize)
+  lower.CI = array(NA,gridsize)
+  
+  print("arrays created")
+  
+  #median.density=apply(post.ints, MARGIN=1:num.timepoints, FUN=median)
+  ##lower.CI=apply(post.ints, MARGIN=1:num.timepoints, FUN=quantile, probs = 0.025)
+  ##upper.CI=apply(post.ints, MARGIN=1:num.timepoints, FUN=quantile, probs = 0.975)       
+  ##return(list(range=range,gridsize=gridsize,median.density=median.density, lower.CI=lower.CI, upper.CI= upper.CI))
+  ##just do one-tailed test, we're not interested in the upper threshold
+  #lower.CI=apply(post.ints, MARGIN=1:num.timepoints, FUN=quantile, probs = 0.05)
+  
+  #try to reduce memory requirements
+  #median.vector = vector(mode="numeric",length=prod(gridsize))
+  #lower.CI.vector = vector(mode="numeric",length=prod(gridsize))
+  no.samples = length(sampledIters)
+  for(i in 1:prod(gridsize)){
+    indices = (i-1) %% gridsize[1] + 1
+    for(j in 2:num.timepoints){
+      new.index = (i-1) %/% prod(gridsize[1:(j-1)]) + 1
+      new.index = (new.index - 1) %% gridsize[j] + 1
+      indices = c(indices,new.index)
+    }
+    #print(indices)
+    #print(dim(post.ints))
+    #print(cbind(array(rep(indices,each=no.samples),c(no.samples,num.timepoints)),sampledIters))
+    
+    median.density[array(indices,c(1,num.timepoints))] = median(post.ints[cbind(array(rep(indices,each=no.samples),c(no.samples,num.timepoints)),1:no.samples)])
+    lower.CI[array(indices,c(1,num.timepoints))] = quantile(post.ints[cbind(array(rep(indices,each=no.samples),c(no.samples,num.timepoints)),1:no.samples)],probs=0.05)
+    if(i %% 1000 ==0){
+      print(paste(i," of ",prod(gridsize),sep=""))
+    }
+  }
+  print("finished calculating median and 95% CI")
+  
+  return(list(range=range,gridsize=gridsize,median.density=median.density, lower.CI=lower.CI))    
 }
