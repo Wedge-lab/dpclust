@@ -184,7 +184,7 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     CNA_num_muts = ceiling(CNA_size * mut_rate_10kb)
     
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
-    if (CNA_num_muts > 0 & CNA_size > 10000) {
+    if (CNA_num_muts > 0 & CNA_size > 100) {
       print(cndata[i,])
       print(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity))
       dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
