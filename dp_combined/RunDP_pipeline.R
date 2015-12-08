@@ -41,14 +41,14 @@ cna.conflicting.events.only = T # Add only those CNAs that are conflicting
 sample.snvs.only = F # Perform sampling on just the SNVs and not on CNAs
 
 # Check whether a supported analysis_type was supplied
-supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts')
+supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts', 'reassign_muts_1d')
 if (!(analysis_type %in% supported_commands)) {
   print(paste("Type of analysis", analysis_type, "unknown."))
   print(paste(c("Specify either ", supported_commands)), sep=" ")
   q(save="no", status=1)
 }
 # Check whether the mut.assignment.type is supported
-supported_mut.assignment.methods = c(1,2)
+supported_mut.assignment.methods = c(1,2,3)
 if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
   print(paste("Type of mutation assignment method", mut.assignment.type, "unknown."))
   print(paste(c("Specify either ", supported_mut.assignment.methods)), sep=" ")

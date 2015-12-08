@@ -2,27 +2,22 @@
 oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in) {
   no.muts = length(subclonal.fraction)
   normal.copy.number = rep(2,no.muts)
+  post.burn.in.start = no.iters.burn.in
   
   S.i = GS.data$S.i
   V.h = GS.data$V.h
   pi.h = GS.data$pi.h[,,1]
   
-  hypercube.size = 5
-  localOptima = NULL
-  peak.indices = NULL
-  for(i in (1+hypercube.size):(nrow(density)-hypercube.size)){
-    if(density$median.density[i] == max(density$median.density[(i-hypercube.size):(i+hypercube.size)])){
-      localOptima = c(localOptima,density$fraction.of.tumour.cells[i])
-      peak.indices = c(peak.indices,i)
-    }
-  }
+  # Obtain local optima and peak indices
+  res = getLocalOptima(density, hypercube.size=5)
+  localOptima = res$localOptima
+  peak.indices = res$peak.indices
+  write.table(localOptima,paste(samplename,"_localOptima.txt",sep=""), quote=F, sep="\t")
   
   print("localOptima")
   print(localOptima)
   
-  write.table(localOptima,paste(samplename,"_localOptima.txt",sep=""),quote=F,sep="\t")
-  
-  #ASSIGN mutations to clusters
+  # Assign mutations to clusters
   no.optima = length(localOptima)
   if(no.optima>1){  
     boundary = array(NA,no.optima-1)
@@ -697,4 +692,128 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   dev.off()
   
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood))
+}
+
+#' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
+#' This for now only works with a single timepoint
+mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copyNumberAdjustment, tumourCopyNumber, normalCopyNumber, cellularity) {
+  save(file="temp.RData", clustering_density, mutCount, WTCount, copyNumberAdjustment, tumourCopyNumber, normalCopyNumber, cellularity)
+  # Define convenience variables
+  num.timepoints = ncol(mutCount)
+  num.muts = nrow(mutCount)
+  
+  if (num.timepoints > 1) {
+    warning("Assigment of mutations through binomial only implemented for a single timepoint")
+    q(save="no")
+  }
+  
+  # Obtain peak locations whtin the given clustering density
+  res = getLocalOptima(clustering_density, hypercube.size=5)
+  cluster_locations = res$localOptima
+  
+  # Strip out clusters with a small density
+  cluster_density = getClusterDensity(clustering_density, cluster_locations, min.window.density=1)
+  # Take all clusters with at least 1% of the density
+  cluster_locations = cluster_locations[cluster_density > 0.01]
+  num.clusters = length(cluster_locations)
+  print(cluster_locations)
+  
+  # Calculate log likelihoods for each mutation to be part of each cluster location
+  assignment_ll = array(NA, c(num.muts, num.clusters))
+  for (t in 1:num.timepoints) {
+    for (c in 1:num.clusters) {
+      mutBurdens = mutationCopyNumberToMutationBurden(cluster_locations[c] * copyNumberAdjustment[,t], tumourCopyNumber[,t], cellularity[t], normalCopyNumber[,t])
+      assignment_ll[,c] = sapply(1:num.muts, function(k, mc, wt, mb) {  mc[k]*log(mb[k]) + wt[k]*log(1-mb[k]) }, mc=mutCount[,t], wt=WTCount[,t], mb=mutBurdens)
+    }
+  }
+
+  # Convert ll to prob
+  assignment_probs = assignment_ll
+  assignment_probs[is.na(assignment_probs)] = 0
+  assignment_probs = t(apply(assignment_probs, 1, function(assignment_probs_k) { assignment_probs_k - max(assignment_probs_k) }))
+  assignment_probs = exp(assignment_probs)
+  assignment_probs = matrix(assignment_probs / rowSums(assignment_probs), ncol=num.clusters)
+
+  # Hard assign mutations
+  most.likely.cluster = sapply(1:num.muts, function(k, assignment_probs) { which.max(assignment_probs[k,]) }, assignment_probs=assignment_probs)
+  assignment.likelihood = sapply(1:num.muts, function(k, assignment_probs, most.likely.cluster) { assignment_probs[k, most.likely.cluster[k]] }, assignment_probs=assignment_probs, most.likely.cluster=most.likely.cluster)
+
+  # Save a table with the output as a summary
+  cluster_assignments = table(most.likely.cluster)
+  output = array(NA, c(length(cluster_locations), 3))
+  print(cluster_assignments)
+  for (c in 1:num.clusters) {
+    cluster_id = names(cluster_assignments)[c]
+    cluster_id = as.character(c)
+    
+    output[c,1] = as.numeric(cluster_id)
+    output[c,2] = cluster_locations[c]
+    # Check if there are mutations assigned to the cluster, i.e. it's in the cluster_assignments table
+    if (cluster_id %in% names(cluster_assignments)) {
+      output[c,3] = cluster_assignments[names(cluster_assignments)==cluster_id]
+    } else {
+      output[c,3] = 0
+    }
+  }
+  write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
+  
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=assignment_probs, cluster.locations=cbind(1:num.clusters, cluster_locations)))
+}
+
+#' Function that fetches the local optima from a density function call output
+#' @return A list containing two fields: localOptima, the location of a peak and peak.indices, the index of the peak within a hypercube
+getLocalOptima = function(cluster_density, hypercube.size=20) {
+  localOptima = NULL
+  peak.indices = NULL
+  for (i in (1+hypercube.size):(nrow(cluster_density)-hypercube.size)) {
+    if (cluster_density$median.density[i] == max(cluster_density$median.density[(i-hypercube.size):(i+hypercube.size)])) {
+      localOptima = c(localOptima, cluster_density$fraction.of.tumour.cells[i])
+      peak.indices = c(peak.indices, i)
+    }
+  }
+  return(list(localOptima=localOptima, peak.indices=peak.indices))
+}
+
+#' Obtain the mean density of each cluster. This function takes the cluster_locations and for
+#' each cluster it walks from the cluster peak along CCF space until the median density
+#' drops below the supplied minimum in both directions. After obtaining the CCF space that a
+#' cluster takes up we calculate the mean density in that space. Finally across all cluster
+#' densities we normalise to obtain the fraction of total density that each cluster represents
+#' @return A vector with for each cluster the fraction of density
+getClusterDensity = function(clustering_density, cluster_locations, min.window.density) {
+  cluster_density = array(NA, length(cluster_locations))
+  for (c in 1:length(cluster_locations)) {
+    cluster_location = cluster_locations[c]
+    x.cluster = which.min(abs(clustering_density$fraction.of.tumour.cells-cluster_location))
+    # Obtain the left most x.axis point of the cluster
+    run = T
+    i = x.cluster
+    while (run) {
+      if (i!=0 && clustering_density[i,]$median.density > min.window.density) {
+        i = i-1
+      } else {
+        run = F
+      }
+    }
+    x.cluster.min = i
+    
+    # Obtain the right most x.axis point of the cluster
+    run = T
+    i = x.cluster
+    while (run) {
+      if (i!=(nrow(clustering_density)+1) && clustering_density[i,]$median.density > min.window.density) {
+        i = i+1
+      } else {
+        run = F
+      }
+    }
+    x.cluster.max = i
+    
+    # Take the average density
+    cluster_density[c] = mean(clustering_density[x.cluster.min:x.cluster.max,]$median.density)
+  }
+  
+  # Normalise the densities across the clusters
+  cluster_density = cluster_density/sum(cluster_density)
+  return(cluster_density)
 }
