@@ -85,9 +85,10 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   not.there.cna = apply(copyNumberAdjustment, 1, function(x) { sum(is.na(x))>0 })
   not.there.kappa = apply(kappa, 1, function(x) { sum(is.na(x))>0 })
   # Remove those mutations that have no coverage. These cause for trouble lateron.
-  not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0) })
-  not.coverage.10 = apply(WTCount+mutCount, 1, function(x) { any(x<10) })
-  not.coverage.mut.3 = apply(mutCount, 1, function(x) { any(x<3) })
+  not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
+  not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
+  not.coverage.10 = apply(WTCount+mutCount, 1, function(x) { any(x<10 | is.na(x)) })
+  not.coverage.mut.3 = apply(mutCount, 1, function(x) { any(x<3 | is.na(x)) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
   if (is.male) {
     not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
@@ -95,10 +96,12 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
     not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% c(1:22, "X")) })
   }
 
-  cov.mean = mean(colMeans(WTCount+mutCount))
-  cov.std = mean(apply((WTCount+mutCount), 2, sd))
+  coverage = matrix(WTCount[!(not.there.wt & not.there.mut),] + mutCount[!(not.there.wt & not.there.mut),], ncol=no.subsamples)
+  cov.mean = mean(colMeans(coverage))
+  cov.std = mean(apply((coverage), 2, sd))
 
   too.high.coverage = apply(WTCount+mutCount, 1, function(x) { any(x > cov.mean+6*cov.std)})
+  too.high.coverage[is.na(too.high.coverage)] = FALSE # Above leaves NA when either mutCount or WTCount is NA
 
   print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
   print(paste("Removed", sum(not.there.mut),"with missing mutCount", sep=" "))
