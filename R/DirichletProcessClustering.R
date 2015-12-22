@@ -403,26 +403,6 @@ if (ncol(mutCount) > 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
       subclonal.fraction[is.nan(subclonal.fraction)] = 0
       consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
-     
-      setwd(wd) # Go back to original work directory 
-      # Replot the data with cluster locations
-      library(ggplot2)
-      plot1D_2(density=density, 
-             polygon.data=polygon.data, 
-             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
-             density.from=0, 
-             x.max=1.5, 
-             mutationCopyNumber=mutation.copy.number, 
-             no.chrs.bearing.mut=copyNumberAdjustment,
-             samplename=samplename,
-             cluster.locations=consClustering$cluster.locations,
-             mutation.assignments=consClustering$best.node.assignments,
-             mutationTypes=mutationTypes)
-      
-      library(gridExtra)
-      # Plot a table with the assignments
-      plotAssignmentTable(cluster_locations=consClustering$cluster.locations, 
-                          pngFile=paste(output_folder, "/", samplename, "_mutation_assignments.png", sep=""))
       
     } else if (mut.assignment.type == 2) {
       setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt
@@ -441,25 +421,43 @@ if (ncol(mutCount) > 1) {
       colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
       write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
       
-      setwd(wd) # Go back to original work directory 
-      # Replot the data with cluster locations
-      plot1D(density=density, 
+    } else {
+      warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
+      q(save="no", status=1)
+    }
+
+    # Make a second set of figures with the mutation assignments showing
+    # Replot the data with cluster locations
+    plot1D(density=density, 
+           polygon.data=polygon.data, 
+           pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+           density.from=0, 
+           x.max=1.5, 
+           mutationCopyNumber=mutation.copy.number, 
+           no.chrs.bearing.mut=copyNumberAdjustment,
+           samplename=samplename,
+           cluster.locations=consClustering$cluster.locations,
+           mutation.assignments=consClustering$best.node.assignments)
+    
+    library(ggplot2)
+    plot1D_2(density=density, 
              polygon.data=polygon.data, 
-             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
              density.from=0, 
              x.max=1.5, 
              mutationCopyNumber=mutation.copy.number, 
              no.chrs.bearing.mut=copyNumberAdjustment,
              samplename=samplename,
              cluster.locations=consClustering$cluster.locations,
-             mutation.assignments=consClustering$best.node.assignments)
-      
-    } else {
-      warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
-      q(save="no", status=1)
-    }
-    setwd(wd)
+             mutation.assignments=consClustering$best.node.assignments,
+             mutationTypes=mutationTypes)
     
+    library(gridExtra)
+    # Plot a table with the assignments
+    plotAssignmentTable(cluster_locations=consClustering$cluster.locations, 
+                        pngFile=paste(output_folder, "/", samplename, "_mutation_assignments.png", sep=""))
+    
+    setwd(wd)
     return(consClustering)
   }
   

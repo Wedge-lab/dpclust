@@ -82,7 +82,8 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
 }
 
 plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL, samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
-  cbPalette = c("#E69F00", "#999999")
+  # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
+  cbPalette = c("#999999", "#E69F00")
   colnames(density)[1] = "fraction.of.tumour.cells"
   if(is.na(y.max)) { y.max=ceiling(max(polygon.data)) }
   
@@ -113,7 +114,7 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
     for (c in 1:length(clusters)) {
       assignment_counts[c] = sum(mutation.assignments==clusters[c], na.rm=T)
     }
-    dat = as.data.frame(cluster.locations[cluster.locations[,1] %in% clusters, c(1,2)])
+    dat = data.frame(cluster.locations[cluster.locations[,1] %in% clusters, c(1,2), drop=FALSE])
     colnames(dat) = c("non_empty_cluster_ids", "non_empty_cluster_locations")
     dat$assignment_counts = assignment_counts
     dat$y.max = y.max

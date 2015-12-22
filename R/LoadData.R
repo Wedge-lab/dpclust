@@ -130,7 +130,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   mutationCopyNumber = as.matrix(mutationCopyNumber[select,])
   subclonalFraction = as.matrix(subclonalFraction[select,])
   phasing = as.data.frame(phasing[select,])
-  mutationType = rep("SNV", nrow(mutCount))
+  mutationType = factor(rep("SNV", nrow(mutCount)), levels=c("SNV", "CNA"))
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
 
   # These are required when this dataset is subsampled
