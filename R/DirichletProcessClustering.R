@@ -426,6 +426,14 @@ if (ncol(mutCount) > 1) {
       q(save="no", status=1)
     }
 
+    print(head(consClustering$best.node.assignments))
+    print("")
+    print(consClustering$cluster.locations)
+    print("")
+    print(head(consClustering$all.likelihoods))
+    print("")
+    print(head(consClustering$best.assignment.likelihoods))
+    
     # Make a second set of figures with the mutation assignments showing
     # Replot the data with cluster locations
     plot1D(density=density, 
