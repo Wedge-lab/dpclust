@@ -1,14 +1,26 @@
 # source("DirichletProcessClustering.R")
 # source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, num_muts_sample=NA, cndata=NULL, add.conflicts=F, cna.conflicting.events.only=F, sample.snvs.only=F) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, num_muts_sample=NA, cndata=NULL, add.conflicts=F, cna.conflicting.events.only=F, sample.snvs.only=F, mutphasing=NULL) {
   # Check if co-clustering of copy number data is in order
-  resave.dataset = F # A boolean that keeps track of whether the dataset should be saved again
+  resave.dataset = F # A boolean that keeps track of whether the dataset should be saved again. Set this to TRUE if the dataset changes.
   if (!is.null(dataset$cndata)) {
     # In case of a rerun, pull out the cndata
     cndata = dataset$cndata
   } else if (!is.null(cndata)) {
     dataset = add.in.cn.as.snv.cluster(dataset, cndata, add.conflicts=add.conflicts, conflicting.events.only=cna.conflicting.events.only)
+    resave.dataset = T
+  }
+  
+  # Check for mutationphasing info
+  print("Before mutphasing inclusion")
+  print(mutphasing)
+  if (!is.null(dataset$mutphasing)) {
+    print("first")
+    mutphasing = dataset$mutphasing
+  } else if (!is.null(mutphasing)) {
+    print("second")
+    dataset = add.mutphasing(dataset, mutphasing, add.conflicts=add.conflicts)
     resave.dataset = T
   }
   

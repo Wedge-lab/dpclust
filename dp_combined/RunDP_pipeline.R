@@ -36,7 +36,7 @@ if (length(args) >= 12) {
 is.male = T
 is.vcf = F
 co_cluster_cna = F
-add.conflicts = F # Make the conflicts matrix in a dataset
+add.conflicts = T # Make the conflicts matrix in a dataset - Flag pertains to both copy number and mut2mut phasing
 cna.conflicting.events.only = F # Add only those CNAs that are conflicting
 sample.snvs.only = F # Perform sampling on just the SNVs and not on CNAs
 
@@ -79,6 +79,12 @@ if ("sex" %in% colnames(sample2purity)) {
   cndatafiles = NA
 }
 
+if ("mutphasing" %in% colnames(sample2purity)) {
+  mutphasingfiles = sample2purity[sample2purity$sample==samplename,]$mutphasing
+} else {
+  mutphasingfiles = NA
+}
+
 print("")
 print(paste("Running:", samplename, sep=" "))
 print(paste("Working dir:", outdir, sep=" "))
@@ -111,6 +117,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   print(paste("Loading", paste(outdir, "/dataset.RData", sep="")))
 	load(paste(outdir, "/dataset.RData", sep=""))
   cndata = dataset$cndata
+  mutphasing = dataset$mutphasing
 } else {
   list_of_datafiles = paste(datpath, datafiles, sep="/")
   
@@ -139,6 +146,16 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
 #   print(dim(dataset$WTCount))
   } else {
     cndata = NULL
+  }
+
+  if (!is.na(mutphasingfiles)) {
+    print("Loading mutation phasing info")
+    mutphasing = NULL
+    for (infile in mutphasingfiles) {
+      mutphasing = rbind(mutphasing, read.table(infile, header=T, stringsAsFactors=F))
+    }
+  } else {
+    mutphasing = NULL
   }
   
   
@@ -180,4 +197,5 @@ RunDP(analysis_type=analysis_type,
       cndata=cndata,
       add.conflicts=add.conflicts,
       cna.conflicting.events.only=cna.conflicting.events.only,
-      sample.snvs.only=sample.snvs.only)
+      sample.snvs.only=sample.snvs.only,
+      mutphasing=mutphasing)

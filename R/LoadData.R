@@ -12,7 +12,7 @@
 #' @param no.chrs.bearing.mut String, the column that contains the number of chromosomes not bearing any mutations
 #' @param mutation.copy.number String, colname with mutation copy number estimates
 #' @param subclonal.fraction String, colname of the column that contains the subclonal fraction (or CCF) estimate for each mutation
-#' @param phase String, colname of the phasing info column
+#' @param phase String, colname of the copy number to mutation phasing info column
 #' @param is.male Optional boolean that represents the sex, set to TRUE if male, FALSE if female. This information is used to decide whether to include X chromosome mutations
 #' @param is.vcf Optional boolean parameter whether the files to be read in are in VCF format
 #' @param ref.genome.version Optional string that represents the reference genome, required when reading in VCF files
@@ -144,7 +144,8 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
               subclonal.fraction=subclonalFraction, removed_indices=removed_indices,
               chromosome.not.filtered=chromosome.not.filtered, mut.position.not.filtered=mut.position.not.filtered,
 	            sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut, 
-              mutationType=mutationType, conflict.array=NA, cellularity=cellularity, phase=phasing))
+              mutationType=mutationType, conflict.array=NA, cellularity=cellularity, phase=phasing,
+              mutphasing=NULL))
 }
 
 #' Load the CN input for a single sample (for now)
@@ -441,28 +442,39 @@ remove_mutations = function(dataset, mutation_index) {
   return(dataset)
 }
 
-# 
-# # REMOVE
-# # TEMP hardcoded test for branching on single sample
-# CNA = 0.27
-# cellularity = 0.78
-# 
-# # Adding in one CNA event
-# conflict.array = array(1,c(nrow(mutCount)+1, nrow(mutCount)+1))
-# j = nrow(mutCount)+1
-# N = mean(WTCount+mutCount) * 1000
-# mutCount = rbind(mutCount, rep(round(N * CNA * cellularity / 2), ncol(mutCount)))
-# WTCount = rbind(WTCount, N-mutCount[j,])
-# # This CNA is 1+0, so set total CN to 1 and no.chrs.bearing.mut to 1 as well, although this CNA is subclonal
-# kappa = rbind(kappa, rep(mutationCopyNumberToMutationBurden(1, 1, cellularity) * 1, ncol(kappa)))
-# for (i in conflict_indices) {
-#   conflict.array[j,i] = 2
-#   conflict.array[i,j] = 1024 #equivalent to 10 mutations
-# }
-# 
-# 
-# 
-# # # do after clustering: removing the inserted mutation
-# # mutCount = mutCount[1:nrow(mutCount)-1,]
-# # WTCount = WTCount[1:nrow(WTCount)-1,]
-# # kappa = kappa[1:nrow(kappa)-1,]
+#' Add mutation phasing information to a dataset
+add.mutphasing = function(dataset, mutphasing, add.conflicts=F) {
+  dataset$mutphasing = mutphasing
+  
+  if (add.conflicts & sum(mutphasing$phasing=="anti-phased") > 0) {
+    anti.phased = mutphasing[mutphasing$phasing=="anti-phased",]
+    
+    if (is.na(dataset$conflict.array)) {
+      dataset$conflict.array = array(1, c(nrow(dataset$mutCount), nrow(dataset$mutCount)))
+    }
+    
+    for (i in 1:nrow(anti.phased)) {
+      print("Adding phasing conflict:")
+      print(anti.phased[i,])
+      
+      # Work out index of both mutations
+      k = which(dataset$chromosome==anti.phased$Chr[i] & dataset$position==anti.phased$Pos1[i])
+      l = which(dataset$chromosome==anti.phased$Chr[i] & dataset$position==anti.phased$Pos2[i])
+      
+      # Check that only one hit
+      if (length(k) > 1 | length(l) > 1) {
+        warning("Mutation occurring more than once in add.mutphasing")
+      }
+            
+      # Check that the conflict array is synchronised
+      if (k > nrow(dataset$conflict.array) | l > nrow(dataset$conflict.array)) {
+        warning("Conflict array and mutation data not synchronised in add.mutphasing")
+      }
+      
+      # Assign higher conflict status to both
+      dataset$conflict.array[k,l] = dataset$conflict.array[k,l] + 1
+      dataset$conflict.array[l,k] = dataset$conflict.array[l,k] + 1
+    }
+  }
+  return(dataset)
+}
