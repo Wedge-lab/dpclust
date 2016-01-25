@@ -35,7 +35,7 @@ if (length(args) >= 12) {
 # TODO: Hard coded for now
 is.male = T
 is.vcf = F
-co_cluster_cna = F
+co_cluster_cna = T
 add.conflicts = T # Make the conflicts matrix in a dataset - Flag pertains to both copy number and mut2mut phasing
 cna.conflicting.events.only = F # Add only those CNAs that are conflicting
 sample.snvs.only = F # Perform sampling on just the SNVs and not on CNAs
@@ -120,6 +120,7 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
   mutphasing = dataset$mutphasing
 } else {
   list_of_datafiles = paste(datpath, datafiles, sep="/")
+  cndatafiles = paste(datpath, cndatafiles, sep="")
   
 	dataset = load.data(list_of_datafiles, 
                       cellularity=cellularity, 
