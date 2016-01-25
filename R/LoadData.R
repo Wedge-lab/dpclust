@@ -165,6 +165,10 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   dups = cndata[cndata$CNA=="sLOH",]$startpos # These are added in twice, remove the sLoss marking
   cndata = cndata[cndata$startpos %in% dups & cndata$CNA=="sLoss",]
   
+  # No more CNAs left, return original dataset
+  if (nrow(cndata)==0) {
+    return(dataset)
+  }
   num.samples = ncol(dataset$mutCount)
   
   # Take average depth as template for these CNAs disguised as fictional SNVs
