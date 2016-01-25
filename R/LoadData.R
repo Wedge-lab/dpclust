@@ -191,7 +191,7 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
     if (CNA_num_muts > 0 & CNA_size > 100) {
       print(cndata[i,])
-      print(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity))
+      print(head(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity), 25))
       dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
     }
   }
@@ -334,21 +334,21 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   dataset$copyNumberAdjustment = rbind(dataset$copyNumberAdjustment, matrix(rep(ncbm, num.samples*num_muts), ncol=num.samples))
   dataset$mutation.copy.number = rbind(dataset$mutation.copy.number, matrix(rep(mcn, num.samples), ncol=num.samples))
   dataset$kappa = rbind(dataset$kappa, matrix(rep(mutationCopyNumberToMutationBurden(1, tumourCN, cellularity), num.samples*num_muts), ncol=num.samples))
-  
+
   index = which(dataset$position==cndata.i$startpos)
-  print(paste("NEW CNA CCF/MCN", cndata.i$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf))
+  print(head(paste("NEW CNA CCF/MCN", cndata.i$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf), 25))
   # TODO: Setting same CNA CCF across samples does not work for multiple samples!
   dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, matrix(rep(dataset$mutation.copy.number[index,1], num.samples), ncol=num.samples))
   dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
-  
+
   new_phase = as.data.frame(matrix(rep("unphased", num.samples), ncol=num.samples))
   colnames(new_phase) = colnames(dataset$phase)
   dataset$phase = rbind(dataset$phase, new_phase)
-  
+
   # Setting mutation type of all SNVs and making each CNA most similar to itself
   dataset$mutationType = c(dataset$mutationType, rep("CNA", num_muts))
   dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
-  
+
   return(dataset)
 }
 
