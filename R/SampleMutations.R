@@ -9,9 +9,13 @@ sample_mutations = function(dataset, num_muts_sample) {
     return(dataset)
   }
   
-  #attach(dataset)
-  
   print(paste("Sampling mutations:", num_muts_sample))
+  
+  if (nrow(dataset$mutCount) < floor(1.5*num_muts_sample)) {
+    print("Num muts smaller than 1.5*threshold, not performing sampling")
+    return(dataset)
+  }
+  
   # Store the original mutations
   full_data = list(chromosome=dataset$chromosome, position=dataset$position, WTCount=dataset$WTCount, mutCount=dataset$mutCount,
                    totalCopyNumber=dataset$totalCopyNumber, copyNumberAdjustment=dataset$copyNumberAdjustment,
@@ -20,11 +24,9 @@ sample_mutations = function(dataset, num_muts_sample) {
                    chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
                    sampling.selection=NA, full.data=NA, most.similar.mut=NA)
   
-  # Do the sampling
-  selection = sample(1:nrow(dataset$chromosome))[1:num_muts_sample]
-  selection = sort(selection)
-  print(length(selection))
-  print(head(dataset$kappa))
+  # Sample mutations randomly
+  selection= do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
+  print(paste0("Subsampled number of mutations: ", length(selection)))
   
   # Select all the data from the various matrices
   chromosome = as.matrix(dataset$chromosome[selection,])
@@ -37,7 +39,6 @@ sample_mutations = function(dataset, num_muts_sample) {
   kappa = as.matrix(dataset$kappa[selection,])
   mutation.copy.number = as.matrix(dataset$mutation.copy.number[selection,])
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
-  removed_indices = as.matrix(dataset$removed_indices[selection])
   
   # for each muation not sampled, find the most similar mutation that was sampled
   most.similar.mut = rep(1, nrow(full_data$chromosome))
@@ -63,7 +64,7 @@ sample_mutations = function(dataset, num_muts_sample) {
   return(list(chromosome=chromosome, position=position, WTCount=WTCount, mutCount=mutCount, 
               totalCopyNumber=totalCopyNumber, copyNumberAdjustment=copyNumberAdjustment, 
               non.deleted.muts=non.deleted.muts, kappa=kappa, mutation.copy.number=mutation.copy.number, 
-              subclonal.fraction=subclonal.fraction, removed_indices=removed_indices,
+              subclonal.fraction=subclonal.fraction, removed_indices=dataset$removed_indices,
               chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
               sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut))
 }
@@ -81,3 +82,105 @@ unsample_mutations = function(dataset, clustering_result) {
   return(list(dataset=dataset, clustering=clustering))
 }
 
+#' Uniformly sample mutations
+#' @param num_muts The total number of mutations in the dataset
+#' @param num_muts_sample The number of mutations to sample
+#' @return A vector with indices of mutations to select
+#' @author sd11
+do_uniform_sampling = function(num_muts, num_muts_sample) {
+  selection = sample(1:num_muts)[1:num_muts_sample]
+  selection = sort(selection)
+  return(selection)
+}
+
+#' Sample bins in CCF space, then sample mutations from each bin - This does not work very well
+#' as it often finds incorrect clusters due to the uneven sampling from both sides of the clonal
+#' cluster. Seems to become worse with larger clonal peaks
+do_ccf_bin_sampling = function(dat, num_muts_sample, max_bin_selection, bin_size, max_ccf_bin=NA) {
+  selection = c()
+  # dat contains CCF
+  min_ccf = min(dat)
+  if (is.na(max_ccf_bin)) {
+    max_ccf = max(dat)
+  } else {
+    max_ccf = max_ccf_bin
+  }
+  bins = cut(dat[,1], seq(min_ccf, max_ccf, bin_size))
+  bin_counts = table(bins)
+  
+  # If the number of mutations to sample is larger than what is available in the bins, return all mutations
+  if (sum(bin_counts) <= num_muts_sample) {
+    print("do_ccf_bin_sampling: Number of mutations available smaller than number to sample, returning all")
+    return(1:nrow(dat))
+  }
+  
+  bin_selection = sample(1:length(bin_counts), num_muts_sample, replace=T)
+  bin_selection = table(bin_selection)
+  
+  # If a bin has more selections than is allowed, redistribute some selections to other bins
+  bins_over_max = c()
+  if (any(bin_selection > max_bin_selection)) {
+    # Resample the number of mutations each of the bins is over the threshold
+    bins_over_max = which(bin_selection > max_bin_selection)
+    if (length(bins_over_max) > 0) {
+      resamples = c()
+      for (i in bins_over_max) {
+        num_to_resample = bin_selection[i] - max_bin_selection
+        # Remove the bins that are over the max so we don't accidentally select them again
+        bin_ids = 1:length(bin_counts)[-bins_over_max]
+        resamples = c(resamples, sample(bin_ids, num_to_resample))
+        # Set the selection to the allowed max
+        bin_selection[i] = max_bin_selection
+      }
+    }
+    
+    # Add the resamples to the table
+    for (selection in resamples) {
+      bin_selection[selection] = bin_selection[selection] + 1
+    }
+  }
+  
+  # Check if any bin has been selected more often then there are mutations in it
+  # redistribute selections if this is the case
+  num_to_resample = 0
+  bin_oversampled = T
+  max.iters = 10
+  iter = 1
+  print("Redistributing selections from oversampled bins")
+  while (bin_oversampled && iter<=max.iters) {
+    print(iter)
+    for (i in names(bin_selection)) {
+      if (bin_selection[i] > bin_counts[as.numeric(i)]) {
+        num_to_resample = num_to_resample + (bin_selection[i] - bin_counts[as.numeric(i)])
+        bins_over_max = c(bins_over_max, as.numeric(i))
+        # Set selection to total number of mutations in bin
+        bin_selection[i] = bin_counts[as.numeric(i)]
+      }
+    }
+    if (num_to_resample > 0) {
+      bin_ids = (1:length(bin_counts))[-bins_over_max]
+      resamples = sample(bin_ids, num_to_resample, replace=T)
+      # Add the resamples to the table
+      for (selection in resamples) {
+        bin_selection[selection] = bin_selection[selection] + 1
+      }
+    } else {
+      bin_oversampled = F
+    }
+    num_to_resample = 0
+    iter = iter + 1
+  }
+  
+  print("Bin counts")
+  print(rbind(bin_counts, bin_selection))
+  
+  selection = c()
+  # Select the determined number of mutations from each bin
+  for (index in as.numeric(names(bin_selection))) {
+    bin_name = names(bin_counts)[index]
+    num_sample_bin = bin_selection[index]
+    selection = c(selection, sample(which(bins==bin_name), num_sample_bin))
+  }
+  
+  return(sort(selection))
+}

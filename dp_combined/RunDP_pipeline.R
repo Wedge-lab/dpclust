@@ -10,7 +10,7 @@ analysis_type = toString(args[7]) # String that represents the analysis that is 
 parallel = as.logical(args[8]) # Supply true or false whether to run parts of the method in parallel
 no.of.threads = as.integer(args[9]) # Integer that determines how many threads to use when running parts in parallel
 mut.assignment.type = as.integer(args[10]) # Integer that determines which mutation assignment method is to be used in 1d/nd cases
-num_muts_sample = as.integer(args[11]) # 2500 Integer that determines how many mutations to sample
+num_muts_sample = as.integer(args[11]) # Integer that determines how many mutations to sample
 
 # Optional arguments
 if (length(args) >= 12) {
@@ -35,6 +35,8 @@ if (length(args) >= 12) {
 # TODO: Hard coded for now
 is.male = T
 is.vcf = F
+assign_sampled_muts = F
+set.seed(123)
 
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts', 'reassign_muts_1d')
@@ -114,8 +116,6 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                       is.vcf=is.vcf,
   		                ref.genome.version="hg19")
 
-  print(num_muts_sample)
-  print(class(num_muts_sample))
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
     dataset = sample_mutations(dataset, num_muts_sample)
   }
@@ -149,4 +149,5 @@ RunDP(analysis_type=analysis_type,
       init.alpha=0.01, 
       shrinkage.threshold=0.1,
       bin.size=bin.size,
-      muts.sampled=!is.na(num_muts_sample))
+      muts.sampled=!is.na(num_muts_sample),
+      assign_sampled_muts=assign_sampled_muts)

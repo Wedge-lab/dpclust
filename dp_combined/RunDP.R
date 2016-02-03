@@ -1,7 +1,7 @@
 # source("DirichletProcessClustering.R")
 # source("PlotDensities.R")
 
-RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F) {
+RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.iters.burn.in, outdir, conc_param, cluster_conc, resort.mutations, parallel, blockid, no.of.blocks, mut.assignment.type, annotation=vector(mode="character",length=nrow(dataset$mutCount)), init.alpha=0.01, shrinkage.threshold=0.1, remove.node.frequency=NA, remove.branch.frequency=NA, bin.size=NA, muts.sampled=F, assign_sampled_muts=T) {
   # Obtain the mutations that were not sampled, as these must be assigned to clusters separately
   if (muts.sampled) {
     most.similar.mut = dataset$most.similar.mut
@@ -207,7 +207,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
       writeStandardFinalOutput(clustering=consClustering, 
                                dataset=dataset, 
                                most.similar.mut=most.similar.mut,
-                               outfiles.prefix=paste(full_outdir, samplename, "_reassign_option_3", sep=""))
+                               outfiles.prefix=paste(full_outdir, samplename, "_reassign_option_3", sep=""),
+                               assign_sampled_muts=assign_sampled_muts)
       
     } else {
       print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
@@ -230,7 +231,8 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
     writeStandardFinalOutput(clustering=clustering, 
                              dataset=dataset,
                              most.similar.mut=most.similar.mut,
-                             outfiles.prefix=paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep=""))
+                             outfiles.prefix=paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep=""),
+                             assign_sampled_muts=assign_sampled_muts)
 
     # If tree based analysis, also save the tree
     if (analysis_type != 'nd_dp') {
@@ -243,26 +245,30 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 #' clustering: A clustering result
 #' dataset: The dataset that went into clustering
 #' outfiles.prefix: A prefix for the filenames
-writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix) {
-  # Check if mutation sampling has been done, if so, unpack and assign here
-  if (!is.na(most.similar.mut)) {
-    res = unsample_mutations(dataset, clustering)
-    dataset = res$dataset
-    clustering = res$clustering
-  }
+writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, assign_sampled_muts=T) {
+#   # Check if mutation sampling has been done, if so, unpack and assign here
+#   if (!is.na(most.similar.mut) && assign_sampled_muts) {
+#     res = unsample_mutations(dataset, clustering)
+#     dataset = res$dataset
+#     clustering = res$clustering
+#   }
   
   # Write final output
   #outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
   output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
   
   # Add the removed mutations back in
-  for (i in dataset$removed_indices) {
-    if (i==1) {
-      output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
-    } else if (i >= nrow(output)) {
-      output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
-    } else {
-      output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+  print("Removed indices")
+  print(head(dataset$removed_indices))
+  if (length(dataset$removed_indices) > 0) {
+    for (i in dataset$removed_indices) {
+      if (i==1) {
+        output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
+      } else if (i >= nrow(output)) {
+        output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
+      } else {
+        output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+      }
     }
   }
   

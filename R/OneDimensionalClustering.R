@@ -9,7 +9,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
   pi.h = GS.data$pi.h[,,1]
   
   # Obtain local optima and peak indices
-  res = getLocalOptima(density)
+  res = getLocalOptima(density, hypercube.size=5)
   localOptima = res$localOptima
   peak.indices = res$peak.indices
   write.table(localOptima,paste(samplename,"_localOptima.txt",sep=""), quote=F, sep="\t")
