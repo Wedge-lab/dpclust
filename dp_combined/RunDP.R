@@ -204,11 +204,13 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
       
       
       # TODO: Save consensus assignments and create a table in png
+      write_tree = analysis_type != 'nd_dp'
       writeStandardFinalOutput(clustering=consClustering, 
                                dataset=dataset, 
                                most.similar.mut=most.similar.mut,
                                outfiles.prefix=paste(full_outdir, samplename, "_reassign_option_3", sep=""),
-                               assign_sampled_muts=assign_sampled_muts)
+                               assign_sampled_muts=assign_sampled_muts,
+			       write_tree=write_tree)
       
     } else {
       print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
@@ -229,7 +231,7 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
   if (all(!analysis_type %in% c('tree', 'replot_1d', 'replot_nd', 'reassign_muts_1d'))) {
 
     write_tree = analysis_type != 'nd_dp'
-#     outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
+    outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
 #     produceMutAssignmentOutput(dataset=dataset, 
 #                                clustering=clustering, 
 #                                outfiles.prefix=outfiles.prefix, 
