@@ -26,11 +26,6 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
   # * tree : A random walk that creates a series of random trees
   # * cons : The random trees are summarised in a new series of consensus trees. The best consensus tree is selected as the resulting tree. Cons can handle input from multiple parallel trees calls.
   #
-  
-  # Set the seed for each block
-  seeds = c(123,321,213,231,456,654,465,645,789,987,978,798)
-  set.seed(seeds[blockid])
-  
   start_time = Sys.time()
   
   if(!file.exists(outdir)){
@@ -310,8 +305,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   # The nD method will yield a series of figures in which each sample is plotted against each other sample. 
   # The 1D method yields a density plot for just the single sample.
   #
-  set.seed(123)
-  
   print(dim(mutCount))
   if(!file.exists(output_folder)){
     dir.create(output_folder)

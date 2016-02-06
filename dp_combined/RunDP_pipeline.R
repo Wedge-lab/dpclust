@@ -32,11 +32,14 @@ if (length(args) >= 12) {
   no.of.blocks = 1
 }
 
+# Set the seed. If it's a block run we use the blockid to select a different seed
+seeds = c(123,321,213,231,456,654,465,645,789,987,978,798)
+set.seed(seeds[blockid])
+
 # TODO: Hard coded for now
 is.male = T
 is.vcf = F
 assign_sampled_muts = F
-set.seed(123)
 min.depth = 20
 min.mutreads = 5
 
@@ -86,7 +89,7 @@ if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'con
     outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
 } else if (analysis_type == 'nd_dp') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
+  outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin_seed963", sep="")
 } 
 
 # Create the output directory
