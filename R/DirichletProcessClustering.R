@@ -430,9 +430,9 @@ if (ncol(mutCount) > 1) {
                                                  normalCopyNumber=array(2, dim(mutCount)),
                                                  cellularity=cellularity)
       
-      all.likelihoods = consClustering$all.likelihoods
-      colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
-      write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
+#       all.likelihoods = consClustering$all.assignment.likelihoods
+#       colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
+#       write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
       
       setwd(wd) # Go back to original work directory 
       # Replot the data with cluster locations

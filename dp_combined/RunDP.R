@@ -256,12 +256,20 @@ RunDP <- function(analysis_type, dataset, samplename, subsamples, no.iters, no.i
 #' dataset: The dataset that went into clustering
 #' outfiles.prefix: A prefix for the filenames
 writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, assign_sampled_muts=T, write_tree=F) { #, most.similar.mut=NA, write_tree=F
-#   # Check if mutation sampling has been done, if so, unpack and assign here
-#   if (!is.na(most.similar.mut) && assign_sampled_muts) {
-#     res = unsample_mutations(dataset, clustering)
-#     dataset = res$dataset
-#     clustering = res$clustering
-#   }
+  
+  # Write out the mutation-cluster probabilities before spiking removed mutations back in
+  if (!is.null(clustering$all.assignment.likelihoods) & !is.na(clustering$all.assignment.likelihoods)) {
+    output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$all.assignment.likelihoods, clustering$best.node.assignments)
+    colnames(output) = c("chr", "start", "end", paste("prob.cluster", 1:ncol(clustering$all.assignment.likelihoods)), "most.likely.cluster")
+    write.table(output, file=paste(outfiles.prefix, "_mutation_cluster_likelihoods.txt", sep=""), quote=F, row.names=F, sep="\t")
+  }
+  
+  # Check if mutation sampling has been done, if so, unpack and assign here
+  if (!is.na(most.similar.mut) && assign_sampled_muts) {
+    res = unsample_mutations(dataset, clustering)
+    dataset = res$dataset
+    clustering = res$clustering
+  }
   
   # Write final output
   #outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
@@ -290,7 +298,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   print(head(output))
   colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
   write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
-
+  
   # If tree based analysis, also save the tree
   if (write_tree) {
     write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
