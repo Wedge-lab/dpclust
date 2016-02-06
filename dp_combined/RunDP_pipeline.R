@@ -37,6 +37,8 @@ is.male = T
 is.vcf = F
 assign_sampled_muts = F
 set.seed(123)
+min.depth = 20
+min.mutreads = 5
 
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts', 'reassign_muts_1d')
@@ -114,7 +116,9 @@ if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
                       subclonal.fraction="subclonal.fraction", 
   		                is.male=is.male,
                       is.vcf=is.vcf,
-  		                ref.genome.version="hg19")
+  		                ref.genome.version="hg19",
+  		                min.depth=min.depth,
+  		                min.mutreads=min.mutreads)
 
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
     dataset = sample_mutations(dataset, num_muts_sample)

@@ -15,10 +15,12 @@
 #' @param is.male Optional boolean that represents the sex, set to TRUE if male, FALSE if female. This information is used to decide whether to include X chromosome mutations
 #' @param is.vcf Optional boolean parameter whether the files to be read in are in VCF format
 #' @param ref.genome.version Optional string that represents the reference genome, required when reading in VCF files
+#' @param min.depth Optional minimum depth requirement for a mutation to be included
+#' @param min.mutreads Optional minimum number of reads supporting the mutant allele for a mutation to be included
 #' @author sdentro
 #' @return A list of tables, one for each type of information
 # REMOVED datpath, samplename, data_file_suffix num_muts_sample=NA, 
-load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male=T, is.vcf=F, ref.genome.version="hg19") {
+load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male=T, is.vcf=F, ref.genome.version="hg19", min.depth=1, min.mutreads=1) {
   data=list()
   
   if (!is.vcf) {
@@ -39,13 +41,13 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
-  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male))
+  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male, min.depth, min.mutreads))
 }
   
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
 #' @noRD
-load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male) {
+load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, is.male, min.depth, min.mutreads) {
   no.subsamples = length(list_of_tables)
   no.muts = nrow(list_of_tables[[1]])
   
@@ -87,8 +89,8 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   # Remove those mutations that have no coverage. These cause for trouble lateron.
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
-  not.coverage.10 = apply(WTCount+mutCount, 1, function(x) { any(x<10 | is.na(x)) })
-  not.coverage.mut.3 = apply(mutCount, 1, function(x) { any(x<3 | is.na(x)) })
+  not.coverage.threshold.depth = apply(WTCount+mutCount, 1, function(x) { any(x<min.depth | is.na(x)) })
+  not.coverage.threshold.mutreads = apply(mutCount, 1, function(x) { any(x<min.mutreads | is.na(x)) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
   if (is.male) {
     not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
@@ -109,13 +111,13 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   print(paste("Removed", sum(not.there.cna),"with missing copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.there.kappa),"with missing kappa", sep=" "))
   print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
-  print(paste("Removed", sum(not.coverage.10), "with less than 10 reads coverage", sep=" "))
-  print(paste("Removed", sum(not.coverage.mut.3), "with less than 3 supporting reads", sep=" "))
+  print(paste("Removed", sum(not.coverage.threshold.depth), "with less than", min.depth, "reads coverage", sep=" "))
+  print(paste("Removed", sum(not.coverage.threshold.mutreads), "with less than", min.mutreads, "supporting reads", sep=" "))
   print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.on.supported.chrom), "on not supported genomic regions", sep=" "))
   print(paste("Removed", sum(too.high.coverage), "mutations with coverage over",cov.mean+6*cov.std, sep=" "))
 
-  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage | not.coverage.10 | not.coverage.mut.3)
+  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage | not.coverage.threshold.depth | not.coverage.threshold.mutreads)
   
   # Keep indices of removed mutations to 'spike in' lateron when constructing the output
   removed_indices = which(!select)
