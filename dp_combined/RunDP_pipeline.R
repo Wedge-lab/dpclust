@@ -89,7 +89,7 @@ if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'con
     outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
 } else if (analysis_type == 'nd_dp') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin_seed963", sep="")
+  outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
 } 
 
 # Create the output directory
