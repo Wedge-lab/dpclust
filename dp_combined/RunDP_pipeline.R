@@ -36,6 +36,8 @@ if (length(args) >= 12) {
 is.male = T
 is.vcf = F
 
+set.seed(123)
+
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts', 'reassign_muts_1d')
 if (!(analysis_type %in% supported_commands)) {
