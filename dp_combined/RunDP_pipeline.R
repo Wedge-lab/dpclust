@@ -40,8 +40,8 @@ set.seed(seeds[blockid])
 is.male = T
 is.vcf = F
 assign_sampled_muts = F
-min.depth = 20
-min.mutreads = 5
+min.depth = 3
+min.mutreads = 3
 
 # Check whether a supported analysis_type was supplied
 supported_commands = c('nd_dp', "tree_dp", 'tree', 'cons', 'replot_1d', 'replot_nd', 'sample_muts', 'reassign_muts_1d')
@@ -89,7 +89,7 @@ if (analysis_type == "tree_dp" | analysis_type == 'tree' | analysis_type == 'con
     outdir = paste(outdir, "_",bin.size, "binsize", sep="")
   }
 } else if (analysis_type == 'nd_dp') {
-  outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin", sep="")
+  outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_",no.iters.burn.in,"burnin_", num_muts_sample,"unisampledmuts_seed", seeds[blockid], sep="")
 } 
 
 # Create the output directory

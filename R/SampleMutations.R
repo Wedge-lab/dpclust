@@ -24,8 +24,21 @@ sample_mutations = function(dataset, num_muts_sample) {
                    chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
                    sampling.selection=NA, full.data=NA, most.similar.mut=NA)
   
-  # Sample mutations randomly
-  selection= do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
+  # Perform sampling of mutations per bin - 1/5th of the total
+  #selection_bins = do_ccf_bin_sampling(dataset$subclonal.fraction, floor(num_muts_sample/5), 250, 0.05, max_ccf_bin=1.5)
+  #
+  #if (length(selection_bins) < num_muts_sample) {
+  #  # Sample remaining mutations randomly
+  #  num_to_sample_extra = num_muts_sample-length(selection_bins)
+  #  selection_random = do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
+  #  # Remove mutations already selected through bin sampling
+  #  selection_random = selection_random[!(selection_random %in% selection_bins)]
+  #  selection = sort(c(selection_bins, selection_random[1:num_to_sample_extra]))
+  #} else {
+  #  selection = selection_bins
+  #}
+  selection = do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
+  
   print(paste0("Subsampled number of mutations: ", length(selection)))
   
   # Select all the data from the various matrices
@@ -159,7 +172,7 @@ do_ccf_bin_sampling = function(dat, num_muts_sample, max_bin_selection, bin_size
     }
     if (num_to_resample > 0) {
       bin_ids = (1:length(bin_counts))[-bins_over_max]
-      resamples = sample(bin_ids, num_to_resample, replace=T)
+      resamples = sample(bin_ids, num_to_resample, replace=T, prob=bin_counts[bin_ids]/sum(bin_counts[bin_ids]))
       # Add the resamples to the table
       for (selection in resamples) {
         bin_selection[selection] = bin_selection[selection] + 1
