@@ -2,8 +2,9 @@
 #' dataset object is kept within the returned dataset with label full.data
 #' 
 #' Note: Resampling an already sampled dataset will not work and returns the original
+#' @param min_sampling_factor num_muts_sample*min_sampling_factor is the minimum number of mutations to have before sampling is applied. Use this multiplier to make sure we're not just sampling out a very low fraction of mutations (Default: 1.5)
 #' @return A dataset object with only the sampled mutations and a full.data field that contains the original dataset
-sample_mutations = function(dataset, num_muts_sample) {
+sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5) {
   # Check if sampling already was done
   if (!is.na(dataset$sampling.selection)) {
     return(dataset)
@@ -11,8 +12,8 @@ sample_mutations = function(dataset, num_muts_sample) {
   
   print(paste("Sampling mutations:", num_muts_sample))
   
-  if (nrow(dataset$mutCount) < floor(1.5*num_muts_sample)) {
-    print("Num muts smaller than 1.5*threshold, not performing sampling")
+  if (nrow(dataset$mutCount) < floor(min_sampling_factor*num_muts_sample)) {
+    print(paste("Num muts smaller than", min_sampling_factor, "*threshold, not performing sampling", sep=""))
     return(dataset)
   }
   
