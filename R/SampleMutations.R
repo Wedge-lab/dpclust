@@ -3,8 +3,9 @@
 #' 
 #' Note: Resampling an already sampled dataset will not work and returns the original
 #' @param min_sampling_factor num_muts_sample*min_sampling_factor is the minimum number of mutations to have before sampling is applied. Use this multiplier to make sure we're not just sampling out a very low fraction of mutations (Default: 1.5)
+#' @param sampling_method Integer selecting a sampling method. 1 is uniform sampling, 2 is a hybrid of uniform and bin sampling
 #' @return A dataset object with only the sampled mutations and a full.data field that contains the original dataset
-sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5) {
+sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, sampling_method=1) {
   # Check if sampling already was done
   if (!is.na(dataset$sampling.selection)) {
     return(dataset)
@@ -25,21 +26,31 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5) {
                    chromosome.not.filtered=dataset$chromosome.not.filtered, mut.position.not.filtered=dataset$mut.position.not.filtered,
                    sampling.selection=NA, full.data=NA, most.similar.mut=NA)
   
-  # Perform sampling of mutations per bin - 1/5th of the total
-  #selection_bins = do_ccf_bin_sampling(dataset$subclonal.fraction, floor(num_muts_sample/5), 250, 0.05, max_ccf_bin=1.5)
-  #
-  #if (length(selection_bins) < num_muts_sample) {
-  #  # Sample remaining mutations randomly
-  #  num_to_sample_extra = num_muts_sample-length(selection_bins)
-  #  selection_random = do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
-  #  # Remove mutations already selected through bin sampling
-  #  selection_random = selection_random[!(selection_random %in% selection_bins)]
-  #  selection = sort(c(selection_bins, selection_random[1:num_to_sample_extra]))
-  #} else {
-  #  selection = selection_bins
-  #}
-  selection = do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
-  
+  if (sampling_method==1) {
+    # Perform regular uniform sampling
+    selection = do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
+  } else if (sampling_method==2) {
+    # Perform sampling of mutations per bin - 1/5th of the total
+    selection_bins = do_ccf_bin_sampling(dataset$subclonal.fraction, floor(num_muts_sample/5), 250, 0.05, max_ccf_bin=0.9)
+    
+    if (length(selection_bins) < num_muts_sample) {
+      # Sample remaining mutations randomly
+      num_to_sample_extra = num_muts_sample-length(selection_bins)
+      selection_random = do_uniform_sampling(nrow(dataset$chromosome), num_muts_sample)
+      # Remove mutations already selected through bin sampling
+      selection_random = selection_random[!(selection_random %in% selection_bins)]
+      selection = sort(c(selection_bins, selection_random[1:num_to_sample_extra]))
+    } else {
+      selection = selection_bins
+    }
+  } else if (sampling_method==3) {
+    # Take only subclonal mutations
+    # NOTE: this only works for a single sample
+    selection = which(dataset$subclonal.fraction[,1] < 0.9)
+  } else {
+    print("Unsupported sampling method supplied. No sampling performed.")
+    return(dataset)
+  }
   print(paste0("Subsampled number of mutations: ", length(selection)))
   
   # Select all the data from the various matrices
