@@ -81,18 +81,38 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   if (!is.na(pngFile)) { dev.off() }
 }
 
-plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL, samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
+#' ggplot2 based density figure that can show CNA-pseudo-SNVs separately. Currently this figure only can plot the CCF space.
+#' 
+#' @param density Density as returned by Gibbs.subclone.density.est.1d.
+#' @param polygon.data Polygon data as returned by Gibbs.subclone.density.est.1d.
+#' @param mutationCopyNumber Mutation copy number matrix to be used to construct the CCF space.
+#' @param no.chrs.bearing.mut Multiplicity matrix to be used to construct the CCF space.
+#' @param pngFile Filename of the PNG file to be created. If NA is supplied the figure is returned (Default: NA).
+#' @param density.from Legacy parameter that is no longer used (Default: 0).
+#' @param x.max Max value on the x-axis to be plotted (Default: NA, then determined based on the data).
+#' @param y.max Max value on the y-axis to be plotted (Default: NA, then determined based on the data).
+#' @param y Legacy parameter that is used in the original figure to be able to plot different spaces. This value should be the number of supporting variant reads. It has no effect here. (Default: NULL).
+#' @param N Legacy parameter that is used in the original figure to be able to plot different spaces. This value should be the total number of reads. It has no effect here. (Default: NULL).
+#' @param samplename Name of the sample to be put on top of the figure.
+#' @param CALR Legacy parameter that is no longer used.
+#' @param cluster.locations Locations of where clusters were found. A vectical line is plotted for each cluster.
+#' @param mutation.assignments
+#' @param mutationTypes
+#' @author sd11
+plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, samplename="", CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
   cbPalette = c("#999999", "#E69F00")
   colnames(density)[1] = "fraction.of.tumour.cells"
   if(is.na(y.max)) { y.max=ceiling(max(polygon.data)) }
   
   conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data))
-  mutationCopyNumber.df = as.data.frame(mutationCopyNumber)
-  mutationCopyNumber.df$mutationType = mutationTypes
+  ccf.df = as.data.frame(mutationCopyNumber / no.chrs.bearing.mut)
+  ccf.df$mutationType = mutationTypes
+  
+  if(is.na(x.max)) { x.max=ceiling(max(ccf.df)) }
 
   p = ggplot() + 
-    geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..count.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
+    geom_histogram(data=ccf.df, mapping=aes(x=V1, y=..count.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
     geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 
     geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="black") +
     xlab("Fraction of Tumour Cells") + 
@@ -126,7 +146,7 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
   }
   
   if (!is.na(pngFile)) { 
-    png(filename=pngFile,,width=1500,height=1000) 
+    png(filename=pngFile,width=1500,height=1000) 
     print(p)  
     dev.off()
   } else {
