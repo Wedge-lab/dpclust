@@ -92,7 +92,7 @@ plot1D_2 = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA,
   mutationCopyNumber.df$mutationType = mutationTypes
 
   p = ggplot() + 
-    geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..density.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
+    geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..count.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
     geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 
     geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="black") +
     xlab("Fraction of Tumour Cells") + 
