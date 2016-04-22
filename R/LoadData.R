@@ -60,7 +60,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   non.deleted.muts = vector(mode="logical",length=nrow(list_of_tables[[1]]))
   mutationCopyNumber = matrix(NA,no.muts,no.subsamples)
   subclonalFraction = matrix(NA,no.muts,no.subsamples)
-  phasing = data.frame(matrix(NA,no.muts,no.subsamples))
+  phasing = matrix(NA,no.muts,no.subsamples)
   for(s in 1:length(list_of_tables)){
     chromosome[,s] = list_of_tables[[s]][,Chromosome]
     mut.position[,s] = as.numeric(list_of_tables[[s]][,position])
@@ -172,11 +172,16 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   num.samples = ncol(dataset$mutCount)
   
   # Take average depth as template for these CNAs disguised as fictional SNVs
-  N = round(mean(dataset$WTCount+dataset$mutCount)*3)
+  # N = round(mean(dataset$WTCount+dataset$mutCount)*3)
   
   # Calculate the average mutation rate per 10kb
-  hum_genome_size = 323483
-  mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
+#  hum_genome_size = 323483
+#  mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
+  
+  read_length = 150
+  coverage = mean(dataset$WTCount + dataset$mutCount)
+  # Scale the coverage up to make sure we can put down a mutation at low CCF
+  N = coverage*3
   
   # For each copy number event simulate a mutation cluster
   for (i in 1:nrow(cndata)) {
@@ -186,12 +191,17 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     
     # Calculate the size of this segment in kb and the number of muts it needs to be represented by
     CNA_size = cndata[i,]$endpos/10000 - cndata[i,]$startpos/10000
-    CNA_num_muts = ceiling(CNA_size * mut_rate_10kb)
+    #CNA_num_muts = ceiling(CNA_size * mut_rate_10kb)
+    # Get number of reads supporting this CNA event
+    num_reads = coverage / read_length * CNA_size
+    # Obtain the number of mutations based on the number of reads and the coverage
+    
+    CNA_num_muts = num_reads / N
     
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
     if (CNA_num_muts > 0 & CNA_size > 100) {
       print(cndata[i,])
-      print(head(paste(nrow(dataset$mutCount), CNA_size, mut_rate_10kb, CNA_num_muts, N, conf, cellularity), 25))
+      print(head(paste(nrow(dataset$mutCount), CNA_size, CNA_num_muts, N, conf, cellularity), 25))
       dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
     }
   }
@@ -255,7 +265,7 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
     dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
   }
   # Setting mutation type of all CNAs and making each CNA most similar to itself
-  dataset$mutationType = c(dataset$mutationType, rep("CNA", nrow(cndata)))
+  dataset$mutationType = factor(c(as.character(dataset$mutationType), rep("CNA", nrow(cndata))), levels=c("SNV", "CNA"))
   dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
   
   if (add.conflicts) {
@@ -341,8 +351,12 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, matrix(rep(dataset$mutation.copy.number[index,1], num.samples), ncol=num.samples))
   dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
 
-  new_phase = as.data.frame(matrix(rep("unphased", num.samples), ncol=num.samples))
+  new_phase = matrix(rep(NA, num.samples), ncol=num.samples)
+  for (i in 1:num.samples) {
+    new_phase[,i] = "unphased"
+  }
   colnames(new_phase) = colnames(dataset$phase)
+  print(head(dataset$phase))
   dataset$phase = rbind(dataset$phase, new_phase)
 
   # Setting mutation type of all SNVs and making each CNA most similar to itself
