@@ -172,16 +172,16 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   num.samples = ncol(dataset$mutCount)
   
   # Take average depth as template for these CNAs disguised as fictional SNVs
-  # N = round(mean(dataset$WTCount+dataset$mutCount)*3)
-  
+  N = round(mean(dataset$WTCount+dataset$mutCount)*3)
+
   # Calculate the average mutation rate per 10kb
-#  hum_genome_size = 323483
-#  mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
+  hum_genome_size = 323483
+  mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
   
-  read_length = 150
-  coverage = mean(dataset$WTCount + dataset$mutCount)
-  # Scale the coverage up to make sure we can put down a mutation at low CCF
-  N = coverage*3
+  # read_length = 150
+  # coverage = mean(dataset$WTCount + dataset$mutCount)
+  # # Scale the coverage up to make sure we can put down a mutation at low CCF
+  # N = coverage*3
   
   # For each copy number event simulate a mutation cluster
   for (i in 1:nrow(cndata)) {
@@ -191,12 +191,11 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     
     # Calculate the size of this segment in kb and the number of muts it needs to be represented by
     CNA_size = cndata[i,]$endpos/10000 - cndata[i,]$startpos/10000
-    #CNA_num_muts = ceiling(CNA_size * mut_rate_10kb)
+    CNA_num_muts = ceiling(CNA_size * mut_rate_10kb) / conf
     # Get number of reads supporting this CNA event
-    num_reads = coverage / read_length * CNA_size
-    # Obtain the number of mutations based on the number of reads and the coverage
-    
-    CNA_num_muts = num_reads / N
+    # num_reads = (coverage * CNA_size) / read_length 
+    # # Obtain the number of mutations based on the number of reads and the coverage
+    # CNA_num_muts = num_reads / N
     
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
     if (CNA_num_muts > 0 & CNA_size > 100) {
@@ -360,7 +359,7 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   dataset$phase = rbind(dataset$phase, new_phase)
 
   # Setting mutation type of all SNVs and making each CNA most similar to itself
-  dataset$mutationType = c(dataset$mutationType, rep("CNA", num_muts))
+  dataset$mutationType = factor(c(as.character(dataset$mutationType), rep("CNA", num_muts)), levels=c("SNV", "CNA"))
   dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
 
   return(dataset)

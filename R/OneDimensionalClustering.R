@@ -80,7 +80,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     cluster_locations = NA
   }
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cluster_locations, all.likelihoods=mutation.preferences))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cluster_locations, all.assignment.likelihoods=mutation.preferences))
 }
 
 
@@ -428,7 +428,7 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   write.table(cbind(1:length(table(most.likely.cluster)), table(most.likely.cluster), all.node.positions[[best.BIC.index]]), paste(outdir, "/", samplename, "_optimaInfo.txt", sep=""), col.names=c("cluster.no", "no.muts.in.cluster", paste(samplename,subsamplenames,sep="")), sep="\t", quote=F, row.names=F)
   cluster.locations = cbind(1:length(most.likely.cluster), all.node.positions[[best.BIC.index]], most.likely.cluster)
 
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=all.likelihoods[[best.BIC.index]], cluster.locations=cluster.locations, all.likelihoods=NA))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=all.likelihoods[[best.BIC.index]], cluster.locations=cluster.locations, all.assignment.likelihoods=NA))
 }
 
 multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment, GS.data, density.smooth, opts) {
@@ -701,7 +701,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   }       
   dev.off()
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=mutation.preferences, cluster.locations=cbind(1:length(localOptima), localOptima)))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=mutation.preferences, cluster.locations=cbind(1:length(localOptima), localOptima)))
 }
 
 #' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
@@ -766,7 +766,7 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   }
   write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.likelihoods=assignment_probs, cluster.locations=output))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=assignment_probs, cluster.locations=output))
 }
 
 #' Function that fetches the local optima from a density function call output

@@ -142,7 +142,7 @@ plotAssignmentTable = function(cluster_locations, pngFile) {
   cluster_locations = cluster_locations[with(cluster_locations, order(-cluster.no)),]
   cluster_locations$location = round(cluster_locations$location, 2)
   png(filename=pngFile,,width=500,height=500)
-  grid.table(cluster_locations, show.rownames=F)
+  grid.table(cluster_locations) #, show.rownames=F
   dev.off()
 }
 
