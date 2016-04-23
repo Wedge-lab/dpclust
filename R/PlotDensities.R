@@ -111,8 +111,8 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
   ccf.df = as.data.frame(mutationCopyNumber / no.chrs.bearing.mut)
   ccf.df$mutationType = mutationTypes
   
-  if(is.na(y.max)) { y.max=max(conf.interval$y) }
-  if(is.na(x.max)) { x.max=ceiling(max(ccf.df)) }
+  if (is.na(y.max)) { y.max=max(conf.interval$y) }
+  if (is.na(x.max)) { x.max=ceiling(max(ccf.df)) }
 
   p = ggplot() + 
     geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
@@ -126,7 +126,8 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
     theme(axis.text=element_text(size=14), 
           axis.title=element_text(size=16),
           strip.text.x=element_text(size=16)) +
-    scale_fill_manual(values=cbPalette)
+    scale_fill_manual(values=cbPalette) +
+    scale_colour_discrete(drop=F, limits=levels(ccf.df$mutationTypes))
   
   # If cluster locations are provided, add them as a vertical line with nr of mutations mentioned
   if(!is.null(cluster.locations) & !is.null(mutation.assignments)) {
