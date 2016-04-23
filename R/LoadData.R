@@ -156,14 +156,15 @@ load.cn.data = function(infile) {
 }
 
 #' Function that adds copy number as a series of SNVs into a data set
-add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflicting.events.only=F, add.clonal.events=F) {
+add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflicting.events.only=F, num.clonal.events.to.add=0, min.cna.size=10) {
   # If clonal events are to be added, make a selection. For now this just takes the largest event
-  if (add.clonal.events) {
+  if (num.clonal.events.to.add > 0) {
     # Save the largest clonal event to add to the CNAs
     allowed.cn = c("cHD", "cLOH", "cAmp", "cGain", "cLoss")
     cndata_clonal = cndata[cndata$CNA %in% allowed.cn,]
-    largest_event = which.max(cndata_clonal[,4]-cndata_clonal[,3])
-    cndata_clonal = cndata_clonal[largest_event,, drop=F]
+    cn_sorted = sort((cndata_clonal[,4]-cndata_clonal[,3]), index.return=T,  decreasing=T)
+    cn_selected = cn_sorted$ix[1:num.clonal.events.to.add]
+    cndata_clonal = cndata_clonal[cn_selected,, drop=F]
   }
   
   # The subclonal events can be used for clustering
@@ -171,13 +172,13 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   cndata = cndata[cndata$CNA %in% allowed.cn,]
   
   # Append the clonal events
-  if (add.clonal.events) {
+  if (num.clonal.events.to.add) {
     cndata = rbind(cndata, cndata_clonal)
   }
   
   # Remove duplicates
   dups = cndata[cndata$CNA=="sLOH",]$startpos # These are added in twice, remove the sLoss marking
-  cndata = cndata[cndata$startpos %in% dups & cndata$CNA=="sLoss",]
+  cndata = cndata[!(cndata$startpos %in% dups & cndata$CNA=="sLOH"),]
   
   # No more CNAs left, return original dataset
   if (nrow(cndata)==0) {
@@ -192,29 +193,20 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   hum_genome_size = 323483
   mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
   
-  # read_length = 150
-  # coverage = mean(dataset$WTCount + dataset$mutCount)
-  # # Scale the coverage up to make sure we can put down a mutation at low CCF
-  # N = coverage*3
-  
   # For each copy number event simulate a mutation cluster
   for (i in 1:nrow(cndata)) {
     print(paste("CNA",i))
-    # Confidence is used to downweigh the depth of this CNA to mimick uncertainty
-    conf = cndata[i,]$SDfrac_A*100+1
+    print(cndata[i,])
+    # Confidence is used to downweigh the depth of this CNA to mimick uncertainty. 
+    # If its a clonal event then there is no SD defined, so set confidence to 1, which means no downscaling is performed
+    conf = ifelse(!is.na(cndata[i,]$SDfrac_A), cndata[i,]$SDfrac_A*100+1, 1)
     
     # Calculate the size of this segment in kb and the number of muts it needs to be represented by
-    CNA_size = cndata[i,]$endpos/10000 - cndata[i,]$startpos/10000
+    CNA_size = cndata[i,]$endpos/100000 - cndata[i,]$startpos/100000
     CNA_num_muts = ceiling(CNA_size * mut_rate_10kb) / conf
-    # Get number of reads supporting this CNA event
-    # num_reads = (coverage * CNA_size) / read_length 
-    # # Obtain the number of mutations based on the number of reads and the coverage
-    # CNA_num_muts = num_reads / N
     
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
-    if (CNA_num_muts > 0 & CNA_size > 100) {
-      print(cndata[i,])
-      print(head(paste(nrow(dataset$mutCount), CNA_size, CNA_num_muts, N, conf, cellularity), 25))
+    if (CNA_num_muts > 0 & CNA_size > min.cna.size) {
       dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
     }
   }
