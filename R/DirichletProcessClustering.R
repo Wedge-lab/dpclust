@@ -447,7 +447,6 @@ if (ncol(mutCount) > 1) {
            cluster.locations=consClustering$cluster.locations,
            mutation.assignments=consClustering$best.node.assignments)
     
-    library(ggplot2)
     plot1D_2(density=density, 
              polygon.data=polygon.data, 
              pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
@@ -459,11 +458,6 @@ if (ncol(mutCount) > 1) {
              cluster.locations=consClustering$cluster.locations,
              mutation.assignments=consClustering$best.node.assignments,
              mutationTypes=mutationTypes)
-    
-    library(gridExtra)
-    # Plot a table with the assignments
-    plotAssignmentTable(cluster_locations=consClustering$cluster.locations, 
-                        pngFile=paste(output_folder, "/", samplename, "_mutation_assignments.png", sep=""))
     
     setwd(wd)
     return(consClustering)

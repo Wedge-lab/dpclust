@@ -156,10 +156,24 @@ load.cn.data = function(infile) {
 }
 
 #' Function that adds copy number as a series of SNVs into a data set
-add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflicting.events.only=F) {
+add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflicting.events.only=F, add.clonal.events=F) {
+  # If clonal events are to be added, make a selection. For now this just takes the largest event
+  if (add.clonal.events) {
+    # Save the largest clonal event to add to the CNAs
+    allowed.cn = c("cHD", "cLOH", "cAmp", "cGain", "cLoss")
+    cndata_clonal = cndata[cndata$CNA %in% allowed.cn,]
+    largest_event = which.max(cndata_clonal[,4]-cndata_clonal[,3])
+    cndata_clonal = cndata_clonal[largest_event,, drop=F]
+  }
+  
   # The subclonal events can be used for clustering
   allowed.cn = c("sHD", "sLOH", "sAmp", "sGain", "sLoss")
   cndata = cndata[cndata$CNA %in% allowed.cn,]
+  
+  # Append the clonal events
+  if (add.clonal.events) {
+    cndata = rbind(cndata, cndata_clonal)
+  }
   
   # Remove duplicates
   dups = cndata[cndata$CNA=="sLOH",]$startpos # These are added in twice, remove the sLoss marking

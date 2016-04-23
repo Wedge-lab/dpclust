@@ -446,7 +446,7 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
   
   #print(paste("wts=",wts[1000,],sep=""))
   #n-D kernel smoother
-  library(ks)
+  #library(ks)
   #library(KernSmooth)
   
   num.timepoints = NCOL(burden)

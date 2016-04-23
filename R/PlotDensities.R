@@ -103,16 +103,19 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
   # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
   cbPalette = c("#999999", "#E69F00")
   colnames(density)[1] = "fraction.of.tumour.cells"
-  if(is.na(y.max)) { y.max=ceiling(max(polygon.data)) }
   
   conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data))
+  # conf.interval$x = conf.interval$x / sum(density$median.density)
+  conf.interval$y = conf.interval$y / sum(density$median.density)
+  density$median.density = density$median.density / sum(density$median.density)
   ccf.df = as.data.frame(mutationCopyNumber / no.chrs.bearing.mut)
   ccf.df$mutationType = mutationTypes
   
+  if(is.na(y.max)) { y.max=max(conf.interval$y) }
   if(is.na(x.max)) { x.max=ceiling(max(ccf.df)) }
 
   p = ggplot() + 
-    geom_histogram(data=ccf.df, mapping=aes(x=V1, y=..count.., fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
+    geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
     geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 
     geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="black") +
     xlab("Fraction of Tumour Cells") + 
@@ -142,7 +145,7 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
     # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
     p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) + 
       geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0)) +
-      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-0.35, label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
+      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/10)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
   }
   
   if (!is.na(pngFile)) { 
@@ -155,14 +158,29 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
 }
 
 #' Plot a table with the assignment counts
-plotAssignmentTable = function(cluster_locations, pngFile) {
+#' @param cluster_locations Cluster table with cluster number, cluster location and number of mutations as columns.
+#' @param pngFile Output file to save the image.
+#' @param cndata Optional CNA data table. This must be the table from after assigning CNA events to clusters (Default: NA).
+#' @author sd11
+plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA) {
   # TODO: this naming should move upstream, but needs adaptations in various places
   cluster_locations = as.data.frame(cluster_locations)
   colnames(cluster_locations) = c("cluster.no", "location", "no.of.mutations")
   cluster_locations = cluster_locations[with(cluster_locations, order(-cluster.no)),]
   cluster_locations$location = round(cluster_locations$location, 2)
-  png(filename=pngFile,,width=500,height=500)
-  grid.table(cluster_locations) #, show.rownames=F
+  
+  # Add in the CNAs if they are available
+  if (!is.na(cndata)) {
+    cluster_locations$no.of.cnas = 0
+    for (cluster.no in unique(cluster_locations$cluster.no)) {
+      cndata_cluster = cndata[cndata$cluster_assignment==cluster.no,]
+      cndata_cluster = cndata_cluster[unique(cndata_cluster$startpos),]
+      cluster_locations[cluster_locations$cluster.no==cluster.no, "no.of.cnas"] = nrow(cndata_cluster)
+    }
+  }
+  
+  png(filename=pngFile,width=500,height=500)
+  grid.table(cluster_locations, rows=NULL)
   dev.off()
 }
 

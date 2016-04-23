@@ -15,5 +15,7 @@ Depends:
   KernSmooth,
   ks,
   lattice,
-  VariantAnnotation
+  VariantAnnotation,
+  ggplot2,
+  gridExtra
 LazyLoad: yes
