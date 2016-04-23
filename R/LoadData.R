@@ -229,11 +229,6 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
   dups = cndata[cndata$CNA=="sLOH",]$startpos # These are added in twice, remove the sLoss marking
   cndata = cndata[cndata$startpos %in% dups & cndata$CNA=="sLoss",]
 
-  if (sum(duplicated(cndata$startpos)) > 0) {
-	  print("After removing sLOH/sLoss duplicates, still found these:")
-  	  print(cndata[duplicated(cndata$startpos),])
-  }
-  
   num.samples = ncol(dataset$mutCount)
   
   # Take average depth as template for these CNAs disguised as fictional SNVs, but make the CNA weigh as much as 100 SNVs, to be downscaled below due to uncertainty
@@ -361,7 +356,6 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
     new_phase[,i] = "unphased"
   }
   colnames(new_phase) = colnames(dataset$phase)
-  print(head(dataset$phase))
   dataset$phase = rbind(dataset$phase, new_phase)
 
   # Setting mutation type of all SNVs and making each CNA most similar to itself
