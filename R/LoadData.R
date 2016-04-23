@@ -162,8 +162,13 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     # Save the largest clonal event to add to the CNAs
     allowed.cn = c("cHD", "cLOH", "cAmp", "cGain", "cLoss")
     cndata_clonal = cndata[cndata$CNA %in% allowed.cn,]
-    cn_sorted = sort((cndata_clonal[,4]-cndata_clonal[,3]), index.return=T,  decreasing=T)
-    cn_selected = cn_sorted$ix[1:num.clonal.events.to.add]
+    
+    if (num.clonal.events.to.add < nrow(cndata_clonal)) {
+      cn_sorted = sort((cndata_clonal[,4]-cndata_clonal[,3]), index.return=T,  decreasing=T)
+      cn_selected = cn_sorted$ix[1:num.clonal.events.to.add]
+    } else {
+      cn_selected = 1:nrow(cndata_clonal)
+    }
     cndata_clonal = cndata_clonal[cn_selected,, drop=F]
   }
   

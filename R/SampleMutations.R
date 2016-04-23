@@ -6,7 +6,7 @@
 #' @param sample.snvs.only: A boolean whether only SNVs should be sampled. If set to TRUE other mutation types will be 
 #' left alone, when set to FALSE they too will be downsampled
 #' @return A dataset object with only the sampled mutations and a full.data field that contains the original dataset
-sample_mutations = function(dataset, num_muts_sample, sample.snvs.only=T) {
+sample_mutations = function(dataset, num_muts_sample, sample.snvs.only=T, remove.snvs=F) {
   # Check if sampling already was done
   if (!is.na(dataset$sampling.selection)) {
     return(dataset)
@@ -23,11 +23,20 @@ sample_mutations = function(dataset, num_muts_sample, sample.snvs.only=T) {
                    conflict.array=dataset$conflict.array, phase=dataset$phase)
   
   # Do the sampling - only sample SNVs, leave the CNAs in there (if available)
-  if (sample.snvs.only) {
-    selection = sample(1:length(dataset$chromosome[dataset$mutationType=="SNV"]))[1:num_muts_sample]
+  if (sample.snvs.only & !remove.snvs) {
+    selection = sample(1:length(dataset$chromosome[dataset$mutationType=="SNV"]), size=num_muts_sample)
     selection = c(selection, which(dataset$mutationType=="CNA"))
+  } else if (remove.snvs) {
+    print("Removing all SNVs")
+    # Remove SNVs and sample CNAs
+    if (num_muts_sample < sum(dataset$mutationType=="CNA")) {
+      selection = sample(which(dataset$mutationType=="CNA"), size=num_muts_sample)
+    } else {
+      # Not enough CNAs to downsample
+      selection = which(dataset$mutationType=="CNA")
+    }
   } else {
-    selection = sample(1:nrow(dataset$chromosome))[1:num_muts_sample]
+    selection = sample(1:nrow(dataset$chromosome), size=num_muts_sample)
   }
   selection = sort(selection)
   print(length(selection))
