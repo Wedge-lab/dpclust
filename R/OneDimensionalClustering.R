@@ -68,7 +68,8 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     cluster_locations[,2] = localOptima
     cluster_locations[,3] = cluster_assignment_counts
     # Clear clusters with no mutations assigned
-    cluster_locations = cluster_locations[cluster_locations[,3] > 0, ]
+    cluster_locations = cluster_locations[cluster_locations[,3] > 0,,drop=F]
+    print(cluster_locations)
     write.table(cluster_locations, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)		
     
     # Obtain likelyhood of most likely cluster assignments
