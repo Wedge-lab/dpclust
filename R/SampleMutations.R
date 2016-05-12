@@ -24,8 +24,13 @@ sample_mutations = function(dataset, num_muts_sample, sample.snvs.only=T, remove
   
   # Do the sampling - only sample SNVs, leave the CNAs in there (if available)
   if (sample.snvs.only & !remove.snvs) {
-    selection = sample(1:length(dataset$chromosome[dataset$mutationType=="SNV"]), size=num_muts_sample)
-    selection = c(selection, which(dataset$mutationType=="CNA"))
+    if (num_muts_sample < sum(dataset$mutationType=="SNV")) {
+      selection = sample(1:length(dataset$chromosome[dataset$mutationType=="SNV"]), size=num_muts_sample)
+      selection = c(selection, which(dataset$mutationType=="CNA"))
+    } else {
+      # Not enough SNVs, so just return all of them
+      selection = which(dataset$mutationType=="SNV")
+    }
   } else if (remove.snvs) {
     print("Removing all SNVs")
     # Remove SNVs and sample CNAs
@@ -36,7 +41,11 @@ sample_mutations = function(dataset, num_muts_sample, sample.snvs.only=T, remove
       selection = which(dataset$mutationType=="CNA")
     }
   } else {
-    selection = sample(1:nrow(dataset$chromosome), size=num_muts_sample)
+    if (num_muts_sample < length(dataset$mutationType)) {
+      selection = sample(1:nrow(dataset$chromosome), size=num_muts_sample)
+    } else {
+      selection = 1:length(dataset$mutationType)
+    }
   }
   selection = sort(selection)
   print(length(selection))
