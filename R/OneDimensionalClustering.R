@@ -208,16 +208,13 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   }
   
   print("Opening devices for plotting")
-  #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/histograms_",samplename,".pdf",sep=""),height=4,width=4*no.subsamples)
   pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_histograms.pdf",sep=""),height=4,width=4*no.subsamples)
   hist.device=dev.cur()
   par(mfrow=c(2,no.subsamples))   
-  #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/densities_",samplename,".pdf",sep=""),height=4,width=4*no.subsamples)
   pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_densities.pdf",sep=""),height=4,width=4*no.subsamples)
   density.device=dev.cur()        
   par(mfrow=c(2,no.subsamples))
   if(no.subsamples>1){
-    #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/consensus_scatter_",samplename,".pdf",sep=""),height=4,width=no.subsamples*(no.subsamples-1)*2)
     pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_consensus_scatter.pdf",sep=""),height=4,width=no.subsamples*(no.subsamples-1)*2)
     scatter.device=dev.cur()
     par(mfrow=c(1,no.subsamples*(no.subsamples-1)/2))
@@ -306,15 +303,6 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
         }
       }
       
-#       new.likelihood = 0
-#       for(i in 1:no.muts){
-#         lfoy = log.f.of.y(mutCount[i,], mutCount[i,] + WTCount[i,], rep(1,ncol(mutCount)), node.position[consensus.assignments[i],])
-#         if(!is.nan(lfoy)){
-#           new.likelihood <- new.likelihood + lfoy
-#         }
-#       }
-#       likelihoods = c(likelihoods,new.likelihood)
-      
       all.likelihoods[[no.nodes+1]] = calc.new.likelihood2(mutCount, mutCount+WTCount, matrix(1, nrow=nrow(mutCount), ncol=ncol(mutCount)), node.position[consensus.assignments,])
       likelihoods = c(likelihoods, sum(all.likelihoods[[no.nodes+1]]))     
       
@@ -357,11 +345,6 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   print("likelihoods and BIC")
   print(cbind(likelihoods,BIC))
   print(paste("best BIC index=",best.BIC.index,sep=""))
-  #for(s in 1:no.subsamples){
-  #       write.table(cbind(data[,c(2,3,4,5,6,9,10,11)],all.consensus.assignments[[best.BIC.index]]),paste("/lustre/scratch109/sanger/dw9/2D_Dirichlet_Process/Lucy_heterogeneity/",samplename,subsamplenames[s],"_muts_withDPAssignments.txt",sep=""),col.names = c(names(data)[c(2,3,4,5,6,9,10,11)],"DirichletProcessCluster"),sep="\t",quote=F,row.names=F)
-  #}
-  #write a single file
-  #write.table(cbind(data[,c(2,3,4,5,6,9,10,11)],subclonal.fraction,all.consensus.assignments[[best.BIC.index]]),paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/",samplename,"_muts_withDPAssignments_23Jan2013.txt",sep=""),col.names = c(names(data)[c(2,3,4,5,6,9,10,11)],colnames(subclonal.fraction),"DirichletProcessCluster"),sep="\t",quote=F,row.names=F)
   
   #
   # Following code commented out because the input for it is not (yet) available. For example of input, see:
@@ -371,7 +354,6 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   
   if(no.subsamples>1){
     consensus.assignments = all.consensus.assignments[[best.BIC.index]]
-    #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters//best_scatter_",samplename,"_23Jan2014.pdf",sep=""),height=4,width=4)
     pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_bestScatter.pdf",sep=""),height=4,width=4)
     
     #its hard to distinguish more than 8 different colours
