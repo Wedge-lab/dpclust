@@ -110,13 +110,22 @@ sample_mutations = function(dataset, num_muts_sample, sample.snvs.only=T, remove
 
 #' Unsample a sampled dataset and expand clustering results with the mutations that were not used during clustering.
 #' Mutations are assigned to the same cluster as the most similar mutation is assigned to
+#' @dataset A dataset object in which mutations have been sampled
+#' @clustering_result A clustering result object based on the downsampled mutations
 #' @return A list containing the unsampled dataset and the clustering object with the unused mutations included
 unsample_mutations = function(dataset, clustering_result) {
-  best.node.assignments = rep(1, nrow(dataset$full.data$chromosome))
-  best.assignment.likelihoods = rep(1, nrow(dataset$full.data$chromosome))
+  # Update the cluster summary table with the new assignment counts
   best.node.assignments = clustering_result$best.node.assignments[dataset$most.similar.mut]
-  best.assignment.likelihoods = clustering_result$best.assignment.likelihoods[dataset$most.similar.mut]
-  clustering = list(best.node.assignments=best.node.assignments, best.assignment.likelihoods=best.assignment.likelihoods)
+  cluster.locations = clustering_result$cluster.locations
+  new_assignment_counts = table(best.node.assignments)
+  for (cluster in names(new_assignment_counts)) {
+    cluster.locations[cluster.locations[,1]==as.numeric(cluster), 3] = new_assignment_counts[cluster]
+  }
+  
+  clustering = list(all.assignment.likelihoods=clustering_result$all.assignment.likelihoods,
+                    best.node.assignments=best.node.assignments, 
+                    best.assignment.likelihoods=clustering_result$best.assignment.likelihoods[dataset$most.similar.mut],
+                    cluster.locations=cluster.locations)
   return(list(dataset=dataset$full.data, clustering=clustering))
 }
 
