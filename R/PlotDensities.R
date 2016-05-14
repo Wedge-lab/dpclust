@@ -101,31 +101,30 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
 #' @author sd11
 plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, samplename="", CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
-  cbPalette = c("#999999", "#E69F00")
+  cbPalette = c("lightgray", "gray")
   colnames(density)[1] = "fraction.of.tumour.cells"
   
-  conf.interval = data.frame(x=c(density[,1], rev(density[,1])), y=as.vector(polygon.data))
-  # conf.interval$x = conf.interval$x / sum(density$median.density)
-  conf.interval$y = conf.interval$y / sum(density$median.density)
+  conf.interval = data.frame(x=density[,1], ymax=(polygon.data[1:512] / sum(density$median.density)), ymin=(rev(polygon.data[513:1024]) / sum(density$median.density)))
   density$median.density = density$median.density / sum(density$median.density)
   ccf.df = as.data.frame(mutationCopyNumber / no.chrs.bearing.mut)
   ccf.df$mutationType = mutationTypes
   
-  if (is.na(y.max)) { y.max=max(conf.interval$y) }
+  if (is.na(y.max)) { y.max=max(conf.interval$ymax) }
   if (is.na(x.max)) { x.max=ceiling(max(ccf.df)) }
-
-  p = ggplot() + 
-    geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType), binwidth=0.025, position="stack", alpha=0.8, colour="black") + 
-    geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightgrey', alpha=0.7) + 
-    geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="black") +
-    xlab("Fraction of Tumour Cells") + 
-    ylab("Density") + 
-    ggtitle(samplename) + 
+  
+  p = ggplot() +
+    geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType, alpha=0.3), binwidth=0.025, position="stack", alpha=0.8, colour="black") +
+    geom_ribbon(data=conf.interval, mapping=aes(x=x,ymin=ymin,ymax=ymax), fill=cm.colors(1, alpha=0.3)) +
+    geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="plum4") +
+    xlab("Fraction of Tumour Cells") +
+    ylab("Density") +
+    ggtitle(samplename) +
     theme_bw() +
     xlim(0, x.max) +
-    theme(axis.text=element_text(size=14), 
-          axis.title=element_text(size=16),
-          strip.text.x=element_text(size=16)) +
+    theme(axis.text=element_text(size=rel(1.5)),
+          axis.title=element_text(size=rel(2)),
+          strip.text.x=element_text(size=rel(1.5)),
+          plot.title=element_text(size=rel(2))) +
     scale_fill_manual(values=cbPalette) +
     scale_colour_discrete(drop=F, limits=levels(ccf.df$mutationTypes))
   
@@ -142,15 +141,15 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
     colnames(dat) = c("non_empty_cluster_ids", "non_empty_cluster_locations")
     dat$assignment_counts = assignment_counts
     dat$y.max = y.max
-    
+
     # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
-    p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) + 
+    p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) +
       geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0)) +
-      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/10)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
+      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/20)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
   }
   
-  if (!is.na(pngFile)) { 
-    png(filename=pngFile,width=1500,height=1000) 
+  if (!is.na(pngFile)) {
+    png(filename=pngFile,width=1500,height=1000)
     print(p)  
     dev.off()
   } else {
