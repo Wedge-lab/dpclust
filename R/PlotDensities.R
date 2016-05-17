@@ -249,8 +249,6 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
     }
   }
   
-  # First plot without mutations
-  #png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)       
   image.wid = 500 * (range[[1]][2] - range[[1]][1])
   image.ht = 500 * (range[[2]][2] - range[[2]][1])
   fig=levelplot(zvals,
@@ -267,28 +265,4 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
   )    
   print(fig)
   dev.off()
-  
-  # # Second plot with mutations
-  # png(filename=gsub(".png","_withMutations.png",pngFile),width=1500,height=1000)
-  # image.wid = 500 * (range[[1]][2] - range[[1]][1])
-  # image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  # fig=levelplot(zvals,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplename_x,cex=2),ylab=list(label=samplename_y,cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-  #               panel = function(...) { 
-  #                 panel.levelplot(...)
-  #                 panel.abline(h = 0:floor(max(plot.data[,2])))
-  #                 panel.abline(v = 0:floor(max(plot.data[,1])))                   
-  #                 lpoints(plot.data,pch=".",cex=6,col="black") 
-  #                 # Left over from previous code: differentiate between how well mutations are covered
-  #                 #if(nrow(burden>=500)){
-  #                 #  lpoints(burden,pch=".",cex=1,col="black")
-  #                 #}else if(nrow(burden>=100)){
-  #                 #  lpoints(burden,pch=".",cex=2,col="black")
-  #                 #}else{
-  #                 #  lpoints(burden,pch=".",cex=4,col="black")
-  #                 #}
-  #               }
-  # )
-  # print(fig)
-  # dev.off()
-      
 }
