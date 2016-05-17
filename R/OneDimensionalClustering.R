@@ -650,12 +650,19 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     out = cbind(mutation.preferences,most.likely.cluster)
     names(out) = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
     
-    write.table(cbind(quantiles[,,2],colSums(mutation.preferences),table(factor(most.likely.cluster,levels = 1:no.optima))),paste(new_output_folder,"/",samplename,"_optimaInfo_",density.smooth,".txt",sep=""),col.names = c(paste(samplename,subsamples,sep=""),"estimated.no.of.mutations","no.of.mutations.assigned"),row.names=F,sep="\t",quote=F)
+    cluster.locations = cbind(1:ncol(mutation.preferences), quantiles[,,2], colSums(mutation.preferences), table(factor(most.likely.cluster,levels = 1:no.optima)))
+    write.table(cluster.locations,
+                paste(new_output_folder,"/",samplename,"_optimaInfo_",density.smooth,".txt",sep=""),
+                col.names = c("cluster.no", paste(samplename, subsamples, sep=""), "estimated.no.of.mutations", "no.of.mutations.assigned"),
+                row.names=F,
+                sep="\t",
+                quote=F)
     
     write.table(out,paste(new_output_folder,"/",samplename,"_DP_and cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
     write.table(CIs,paste(new_output_folder,"/",samplename,"_confInts_",density.smooth,".txt",sep=""),col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),row.names=F,sep="\t",quote=F)
   }else{
     most.likely.cluster = rep(1,no.muts)
+    warning("No local optima found")
   }
   
   
@@ -685,8 +692,13 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     }
   }       
   dev.off()
+
+  # Remove the estimated number of SNVs per cluster from the cluster locations table  
+  cluster.locations = as.data.frame(cluster.locations[,c(1:(length(subsamples)+1),ncol(cluster.locations))])
+  # Report only the clusters that have mutations assigned
+  cluster.locations = cluster.locations[cluster.locations[,ncol(cluster.locations)] > 0,]
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=mutation.preferences, cluster.locations=cbind(1:length(localOptima), localOptima)))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=mutation.preferences, cluster.locations=cluster.locations))
 }
 
 #' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation

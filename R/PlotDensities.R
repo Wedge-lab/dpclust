@@ -161,21 +161,27 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
 #' @param cluster_locations Cluster table with cluster number, cluster location and number of mutations as columns.
 #' @param pngFile Output file to save the image.
 #' @param cndata Optional CNA data table. This must be the table from after assigning CNA events to clusters (Default: NA).
+#' @param num_samples Optional parameter representing the number of samples that have been clustered (Default: 1)
 #' @author sd11
-plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA) {
-  # TODO: this naming should move upstream, but needs adaptations in various places
+plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA, num_samples=1) {
+  # Set the naming for the figure
   cluster_locations = as.data.frame(cluster_locations)
-  colnames(cluster_locations) = c("cluster.no", "location", "no.of.mutations")
-  cluster_locations = cluster_locations[with(cluster_locations, order(-cluster.no)),]
-  cluster_locations$location = round(cluster_locations$location, 2)
+  colnames(cluster_locations) = c("Cluster", "Location", rep("", num_samples-1), "Num SNVs")
+  # Order by ascending cluster number
+  cluster_locations = cluster_locations[with(cluster_locations, order(-Cluster)),]
+  
+  for (i in 1:num_samples) {
+    # First column is the cluster number, so take i+1
+    cluster_locations[,i+1] = round(cluster_locations[,i+1], 2)
+  }
   
   # Add in the CNAs if they are available
   if (!is.na(cndata)) {
     cluster_locations$no.of.cnas = 0
-    for (cluster.no in unique(cluster_locations$cluster.no)) {
+    for (cluster.no in unique(cluster_locations$Cluster)) {
       cndata_cluster = cndata[cndata$cluster_assignment==cluster.no,]
       cndata_cluster = cndata_cluster[unique(cndata_cluster$startpos),]
-      cluster_locations[cluster_locations$cluster.no==cluster.no, "no.of.cnas"] = nrow(cndata_cluster)
+      cluster_locations[cluster_locations$Cluster==cluster.no, "Num CNAs"] = nrow(cndata_cluster)
     }
   }
   
@@ -184,7 +190,7 @@ plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA) {
   dev.off()
 }
 
-plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_y, pngFile, samplename_x, samplename_y, max.plotted.value=NA) {
+plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_y, pngFile, samplename_x, samplename_y, max.plotted.value=NA, cluster.locations=NULL, plot_mutations=F) {
   #  
   # Create a 2D density plot for the nD clustering.
   #   xvals:                Density coordinates of the x-axis
@@ -218,41 +224,71 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
     plot.data = plot.data[plot.data[,1]<=max.plotted.value & plot.data[,2]<=max.plotted.value,]
   }
   
+  if (!is.null(cluster.locations) & !plot_mutations) {
+    # Plot the cluster locations on top of the density
+    panel_function = function(...) { 
+      panel.levelplot(...)
+      panel.abline(h = 0:floor(max(plot.data[,2])))
+      panel.abline(v = 0:floor(max(plot.data[,1])))
+      lpoints(cluster.locations, pch=".", cex=6, col="black")
+    }
+  } else if (plot_mutations) {
+    # Plot the mutations overlayed on top of the density
+    panel_function = function(...) { 
+      panel.levelplot(...)
+      panel.abline(h = 0:floor(max(plot.data[,2])))
+      panel.abline(v = 0:floor(max(plot.data[,1])))                   
+      lpoints(plot.data, pch=".", cex=6, col="black") 
+    }
+  } else {
+    # No overlay to be plotted
+    panel_function = function(...) { 
+      panel.levelplot(...)
+      panel.abline(h = 0:floor(max(plot.data[,2])))
+      panel.abline(v = 0:floor(max(plot.data[,1])))
+    }
+  }
+  
   # First plot without mutations
-  png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)       
+  #png(filename=gsub(".png","_withoutMutations.png",pngFile),width=1500,height=1000)       
   image.wid = 500 * (range[[1]][2] - range[[1]][1])
   image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  fig=levelplot(zvals,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplename_x,cex=2),ylab=list(label=samplename_y,cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-                panel = function(...) { 
-                  panel.levelplot(...)
-                  panel.abline(h = 0:floor(max(plot.data[,2])))
-                  panel.abline(v = 0:floor(max(plot.data[,1])))
-                }
+  fig=levelplot(zvals,
+                row.values=xvals,
+                column.values=yvals,
+                xlim=range[[1]],
+                ylim=range[[2]],
+                xlab=list(label=samplename_x,cex=2),
+                ylab=list(label=samplename_y,cex=2),
+                scales=list(x=list(cex=1.5),y=list(cex=1.5)),
+                col.regions=colours,
+                colorkey=F,
+                panel = panel_function
   )    
   print(fig)
   dev.off()
   
-  # Second plot with mutations
-  png(filename=gsub(".png","_withMutations.png",pngFile),width=1500,height=1000)
-  image.wid = 500 * (range[[1]][2] - range[[1]][1])
-  image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  fig=levelplot(zvals,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplename_x,cex=2),ylab=list(label=samplename_y,cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
-                panel = function(...) { 
-                  panel.levelplot(...)
-                  panel.abline(h = 0:floor(max(plot.data[,2])))
-                  panel.abline(v = 0:floor(max(plot.data[,1])))                   
-                  lpoints(plot.data,pch=".",cex=6,col="black") 
-                  # Left over from previous code: differentiate between how well mutations are covered
-                  #if(nrow(burden>=500)){
-                  #  lpoints(burden,pch=".",cex=1,col="black")
-                  #}else if(nrow(burden>=100)){
-                  #  lpoints(burden,pch=".",cex=2,col="black")
-                  #}else{
-                  #  lpoints(burden,pch=".",cex=4,col="black")
-                  #}
-                }
-  )
-  print(fig)
-  dev.off()
+  # # Second plot with mutations
+  # png(filename=gsub(".png","_withMutations.png",pngFile),width=1500,height=1000)
+  # image.wid = 500 * (range[[1]][2] - range[[1]][1])
+  # image.ht = 500 * (range[[2]][2] - range[[2]][1])
+  # fig=levelplot(zvals,row.values=xvals,column.values=yvals,xlim=range[[1]],ylim=range[[2]],xlab=list(label=samplename_x,cex=2),ylab=list(label=samplename_y,cex=2),scales=list(x=list(cex=1.5),y=list(cex=1.5)),col.regions=colours,colorkey=F,
+  #               panel = function(...) { 
+  #                 panel.levelplot(...)
+  #                 panel.abline(h = 0:floor(max(plot.data[,2])))
+  #                 panel.abline(v = 0:floor(max(plot.data[,1])))                   
+  #                 lpoints(plot.data,pch=".",cex=6,col="black") 
+  #                 # Left over from previous code: differentiate between how well mutations are covered
+  #                 #if(nrow(burden>=500)){
+  #                 #  lpoints(burden,pch=".",cex=1,col="black")
+  #                 #}else if(nrow(burden>=100)){
+  #                 #  lpoints(burden,pch=".",cex=2,col="black")
+  #                 #}else{
+  #                 #  lpoints(burden,pch=".",cex=4,col="black")
+  #                 #}
+  #               }
+  # )
+  # print(fig)
+  # dev.off()
       
 }
