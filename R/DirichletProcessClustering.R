@@ -103,7 +103,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
                          remove.branch.frequency=remove.branch.frequency,
-			 conflict.array=conflict.array)
+                         conflict.array=conflict.array)
     } else {
       mcmcResults = RunTreeBasedDPMCMC(mutCount=mutCount, 
                          WTCount=WTCount, 
@@ -122,7 +122,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
                          blockid=blockid,
                          remove.node.frequency=remove.node.frequency,
                          remove.branch.frequency=remove.branch.frequency,
-			 conflict.array=conflict.array)
+                         conflict.array=conflict.array)
     }
     
     # Set these variables in case both trees and cons need to be run consecutively in one R call
@@ -208,7 +208,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
     child.parent.strengths = as.matrix(Reduce('+', child.parent.strengths_all))
     strengths = list(ancestor.strengths=ancestor.strengths, sibling.strengths=sibling.strengths, identity.strengths=identity.strengths)
 
-    # Add the previously removed mutations back into these matrices and save them to disk
+    # Save the matrices
     write.strengths.table(ancestor.strengths, removed_indices, paste("ancestor.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
     write.strengths.table(sibling.strengths, removed_indices, paste("sibling.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
     write.strengths.table(identity.strengths, removed_indices, paste("identity.strengths_",samplename,"_",no.iters,"iters_combined.txt",sep=""))
@@ -296,7 +296,7 @@ TreeBasedDP<-function(mutCount, WTCount, removed_indices=c(), cellularity=rep(1,
 }
 
 
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut) {
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes) {
   #
   # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
   # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
@@ -396,19 +396,6 @@ if (ncol(mutCount) > 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
       subclonal.fraction[is.nan(subclonal.fraction)] = 0
       consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
-     
-      setwd(wd) # Go back to original work directory 
-      # Replot the data with cluster locations
-      plot1D(density=density, 
-             polygon.data=polygon.data, 
-             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
-             density.from=0, 
-             x.max=1.5, 
-             mutationCopyNumber=mutation.copy.number, 
-             no.chrs.bearing.mut=copyNumberAdjustment,
-             samplename=samplename,
-             cluster.locations=consClustering$cluster.locations,
-             mutation.assignments=consClustering$best.node.assignments)
       
     } else if (mut.assignment.type == 2) {
       setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt
@@ -427,25 +414,45 @@ if (ncol(mutCount) > 1) {
 #       colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
 #       write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
       
-      setwd(wd) # Go back to original work directory 
-      # Replot the data with cluster locations
-      plot1D(density=density, 
+    } else {
+      warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
+      q(save="no", status=1)
+    }
+
+    print(head(consClustering$best.node.assignments))
+    print("")
+    print(consClustering$cluster.locations)
+    print("")
+    print(head(consClustering$all.likelihoods))
+    print("")
+    print(head(consClustering$best.assignment.likelihoods))
+    
+    # Make a second set of figures with the mutation assignments showing
+    # Replot the data with cluster locations
+    plot1D(density=density, 
+           polygon.data=polygon.data, 
+           pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+           density.from=0, 
+           x.max=1.5, 
+           mutationCopyNumber=mutation.copy.number, 
+           no.chrs.bearing.mut=copyNumberAdjustment,
+           samplename=samplename,
+           cluster.locations=consClustering$cluster.locations,
+           mutation.assignments=consClustering$best.node.assignments)
+    
+    plot1D_2(density=density, 
              polygon.data=polygon.data, 
-             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+             pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
              density.from=0, 
              x.max=1.5, 
              mutationCopyNumber=mutation.copy.number, 
              no.chrs.bearing.mut=copyNumberAdjustment,
              samplename=samplename,
              cluster.locations=consClustering$cluster.locations,
-             mutation.assignments=consClustering$best.node.assignments)
-      
-    } else {
-      warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
-      q(save="no", status=1)
-    }
-    setwd(wd)
+             mutation.assignments=consClustering$best.node.assignments,
+             mutationTypes=mutationTypes)
     
+    setwd(wd)
     return(consClustering)
   }
   
@@ -469,8 +476,8 @@ add.muts.back.in = function(dat, removed_indices, def.value=0) {
   #
   for (i in removed_indices) { 
     if (i >= ncol(dat)) {
-	dat = cbind(dat, rep(def.value, nrow(dat)))
-	dat = rbind(dat, rep(def.value, ncol(dat)))
+      	dat = cbind(dat, rep(def.value, nrow(dat)))
+      	dat = rbind(dat, rep(def.value, ncol(dat)))
     } else {
         dat = cbind(dat[,1:(i-1)], rep(def.value, nrow(dat)), dat[,i:ncol(dat)])
         dat = rbind(dat[1:(i-1),], rep(def.value, ncol(dat)), dat[i:nrow(dat),])

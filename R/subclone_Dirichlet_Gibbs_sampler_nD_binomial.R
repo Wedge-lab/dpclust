@@ -237,14 +237,13 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   no.clusters=ncol(V.h.cols)
   #for (i in post.burn.in.start : post.burn.in.stop) {
   for(i in 1:length(sampledIters)){
-    density.data=array(NA,c(0,num.timepoints))
-    for(j in 1:no.clusters){
-      #density.data=rbind(density.data,t(array(pi.h.cols[i,j,],c(num.timepoints,round(no.density.points*wts[i,j])))))
-      
-      #density.data=rbind(density.data,t(array(pi.h.cols[sampledIters[i],j,],c(num.timepoints,round(no.density.points*wts[sampledIters[i],j])))))
-      #180512 use pi.h from previous generation
-      density.data=rbind(density.data,t(array(pi.h.cols[sampledIters[i]-1,j,],c(num.timepoints,round(no.density.points*wts[sampledIters[i],j])))))
-    }
+    if (i %% 100 ==0) { print(paste(i, "/", length(sampledIters))) }
+
+    density.data = lapply(1:no.clusters, function(j) {
+      t(array(pi.h.cols[sampledIters[i]-1,j,], c(num.timepoints,round(no.density.points*wts[sampledIters[i],j]))))
+    })
+    density.data = do.call(rbind, density.data)
+    
     if(i==1){
       write.csv(density.data,gsub(".png",paste("_densityData",i,".csv",sep=""),pngFile))
     }
@@ -276,10 +275,21 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
          zvals=median.density, 
          subclonal.fraction_x=burden[,1], 
          subclonal.fraction_y=burden[,2], 
-         pngFile=pngFile, 
+         pngFile=gsub(".png","_withoutMutations.png", pngFile), 
          samplename_x=samplenames[1], 
          samplename_y=samplenames[2], 
          max.plotted.value=NA)
+  
+  plotnD(xvals=xvals, 
+         yvals=yvals, 
+         zvals=median.density, 
+         subclonal.fraction_x=burden[,1], 
+         subclonal.fraction_y=burden[,2], 
+         pngFile=gsub(".png","_withMutations.png", pngFile), 
+         samplename_x=samplenames[1], 
+         samplename_y=samplenames[2], 
+         max.plotted.value=NA,
+         plot_mutations=T)
   
   # Save the data of the plot to replot lateron for figure fine tuning
   write.csv(xvals,gsub(".png","_xvals.csv",pngFile))
@@ -446,7 +456,7 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
   
   #print(paste("wts=",wts[1000,],sep=""))
   #n-D kernel smoother
-  library(ks)
+  #library(ks)
   #library(KernSmooth)
   
   num.timepoints = NCOL(burden)
@@ -528,7 +538,6 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
   }
   
   for(i in 1:length(sampledIters)){
-    print(sampledIters[i])
     if(num.timepoints>=4){
       #use weights
       d=kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,eval.points = evaluation.points,w=C*wts[sampledIters[i],])                   
@@ -580,5 +589,5 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
   }
   print("finished calculating median and 95% CI")
   
-  return(list(range=range,gridsize=gridsize,median.density=median.density, lower.CI=lower.CI))    
+  return(list(range=range, gridsize=gridsize, median.density=median.density, lower.CI=lower.CI))    
 }
