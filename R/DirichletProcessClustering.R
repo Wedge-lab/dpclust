@@ -310,46 +310,50 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
 #      GS.data$V.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""),row.names=1))
 #      GS.data$pi.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""),row.names=1))
 #      GS.data$alpha = read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""),row.names=1)
-# nD dataset, plot sample versus sample
-if (ncol(mutCount) > 1) {
-  ########################
-  # Plot density and Assign mutations to clusters - nD
-  ########################
-  for(i in 1:(length(subsamplesrun)-1)){
-    for(j in (i+1):length(subsamplesrun)){
-      imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
-      density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
-                                           GS.data,
-                                           imageFile, 
-                                           post.burn.in.start = no.iters.burn.in, 
-                                           post.burn.in.stop = no.iters, 
-                                           samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
-                                           indices=c(i,j))  
-      save(file=paste(output_folder,"/",samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
+  # nD dataset, plot sample versus sample
+  if (ncol(mutCount) > 1) {
+    ########################
+    # Plot density and Assign mutations to clusters - nD
+    ########################
+    for (i in 1:(length(subsamplesrun)-1)) {
+      for (j in (i+1):length(subsamplesrun)) {
+        print("image")
+        print(i)
+        print(j)
+        imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
+        print(imageFile)
+        density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
+                                             GS.data,
+                                             imageFile, 
+                                             post.burn.in.start = no.iters.burn.in, 
+                                             post.burn.in.stop = no.iters, 
+                                             samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
+                                             indices=c(i,j))  
+        save(file=paste(output_folder,"/",samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep=""), GS.data, density)
+      }
     }
-  }
-  
-  # Assign mutations to clusters using one of the different assignment methods
-  opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
-  print("Assigning mutations to clusters")
-  if (mut.assignment.type == 1) {
-    consClustering = multiDimensionalClustering(mutation.copy.number=mutation.copy.number, 
-                                                copyNumberAdjustment=copyNumberAdjustment, 
-                                                GS.data=GS.data, 
-                                                density.smooth=0.01, 
-                                                opts=opts)
-  } else if (mut.assignment.type == 2) {
-    consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
     
-  } else if (mut.assignment.type == 3) {  
-    warning("binom mut assignment not implemented for multiple timepoints")
-    q(save="no", status=1)
+    # Assign mutations to clusters using one of the different assignment methods
+    opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
+    print("Assigning mutations to clusters")
+    if (mut.assignment.type == 1) {
+      consClustering = multiDimensionalClustering(mutation.copy.number=mutation.copy.number, 
+                                                  copyNumberAdjustment=copyNumberAdjustment, 
+                                                  GS.data=GS.data, 
+                                                  density.smooth=0.01, 
+                                                  opts=opts)
+    } else if (mut.assignment.type == 2) {
+      consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
+      
+    } else if (mut.assignment.type == 3) {  
+      warning("binom mut assignment not implemented for multiple timepoints")
+      q(save="no", status=1)
     
-  } else {
-    warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
-    q(save="no", status=1)
-  }
-  return(consClustering)
+    } else {
+      warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
+      q(save="no", status=1)
+    }
+    return(consClustering)
     
     # 1D dataset, plot just the single density
   } else {

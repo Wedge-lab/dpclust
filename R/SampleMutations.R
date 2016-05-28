@@ -100,7 +100,8 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
   # for each muation not sampled, find the most similar mutation that was sampled
   # TODO: add in code that at least selects the conflicting SNVs to help find branching trees
   most.similar.mut = rep(1, nrow(full_data$chromosome))
-  for (i in 1:length(full_data$chromosome)) { #[full_data$mutationType=="SNV"]
+  
+  for (i in 1:nrow(full_data$chromosome)) { #[full_data$mutationType=="SNV"]
     if (i %in% selection) {
       # Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
       most.similar.mut[i] = which(selection==i)

@@ -241,7 +241,7 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
       panel.levelplot(...)
       panel.abline(h = 0:floor(max(plot.data[,2])))
       panel.abline(v = 0:floor(max(plot.data[,1])))                   
-      lpoints(plot.data, pch=".", cex=6, col="black") 
+      lpoints(plot.data, pch=".", cex=4, col="black") 
     }
   } else {
     # No overlay to be plotted
@@ -252,9 +252,10 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
     }
   }
   
+  png(filename=pngFile, width=1500, height=1000) 
   image.wid = 500 * (range[[1]][2] - range[[1]][1])
   image.ht = 500 * (range[[2]][2] - range[[2]][1])
-  fig=levelplot(zvals,
+  fig = levelplot(zvals,
                 row.values=xvals,
                 column.values=yvals,
                 xlim=range[[1]],
@@ -264,7 +265,7 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
                 scales=list(x=list(cex=1.5),y=list(cex=1.5)),
                 col.regions=colours,
                 colorkey=F,
-                panel = panel_function
+                panel=panel_function
   )    
   print(fig)
   dev.off()
