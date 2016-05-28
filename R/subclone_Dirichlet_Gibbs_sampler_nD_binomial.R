@@ -16,120 +16,82 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,
   # Hyperparameters for alpha
   #A <- B <- 0.01
   #strong prior on alpha
-  A=1
-  B=conc_param
+  A = 1
+  B = conc_param
   
   # Set up data formats for recording iterations
-  ## Nr iterations dim not used - sd11
-  pi.h <- array(NA, c(iter, C,num.timepoints))
-  #mutBurdens <- array(NA, c(iter, C,num.timepoints,num.muts))
-  #080214 reduce memory burden. It's not necessary to save all mutBurdens, because they can be derived from pi.h
-  mutBurdens <- array(NA, c(C,num.timepoints,num.muts))
+  pi.h = array(NA, c(iter, C,num.timepoints))
+  mutBurdens = array(NA, c(C,num.timepoints,num.muts))
   
-  V.h <- matrix(1, nrow=iter, ncol=C)
-  S.i <- matrix(NA, nrow=iter, ncol=num.muts)
-  Pr.S <- matrix(NA, nrow=num.muts, ncol=C)
-  alpha <- rep(NA, iter)
-  
-  # Initialise (now randomised - see below)
-  #pi.h[1,,]<-array(rep(seq(0.1, 1, 0.9/(C-1)),num.timepoints),c(C,num.timepoints))
+  V.h = matrix(1, nrow=iter, ncol=C)
+  S.i = matrix(NA, nrow=iter, ncol=num.muts)
+  Pr.S = matrix(NA, nrow=num.muts, ncol=C)
+  alpha = rep(NA, iter)
   
   lower = array(NA,num.timepoints)
   upper = array(NA,num.timepoints)
   
   mutCopyNum = array(NA,c(num.muts,num.timepoints))
-  for(t in 1:num.timepoints){  
+  for (t in 1:num.timepoints) {  
     mutCopyNum[,t] = mutationBurdenToMutationCopyNumber(mutCount[,t]/(mutCount[,t]+WTCount[,t]),totalCopyNumber[,t] ,cellularity[t],normalCopyNumber[,t]) / copyNumberAdjustment[,t]
-    lower[t]=min(mutCopyNum[,t])
-    upper[t]=max(mutCopyNum[,t])
+    lower[t] = min(mutCopyNum[,t])
+    upper[t] = max(mutCopyNum[,t])
     difference = upper[t]-lower[t]
-    lower[t]=lower[t]-difference/10
-    upper[t]=upper[t]+difference/10
-    # 190512- randomise starting positions of clusters
+    lower[t] = lower[t]-difference/10
+    upper[t] = upper[t]+difference/10
+    # Randomise starting positions of clusters
     pi.h[1,,t]=runif(C,lower[t],upper[t])
     for(c in 1:C){
-      #mutBurdens[1,c,t,]=mutationCopyNumberToMutationBurden(pi.h[1,c,t],totalCopyNumber[,t],cellularity[t])
-      #mutBurdens[1,c,t,]=mutationCopyNumberToMutationBurden(pi.h[1,c,t] * copyNumberAdjustment[,t], totalCopyNumber[,t], cellularity[t]) 
-      #080214
       mutBurdens[c,t,]=mutationCopyNumberToMutationBurden(pi.h[1,c,t] * copyNumberAdjustment[,t], totalCopyNumber[,t], cellularity[t],normalCopyNumber[,t]) 
     }
-    #mutBurdens[1,,t]=mutationCopyNumberToMutationBurden(pi.h[1,,t],totalCopyNumber[t,],cellularity[t])
   }	
-  V.h[1,] <- c(rep(0.5,C-1), 1)
-  S.i[1,] <- c(1, rep(0,num.muts-1))
-  alpha[1] <- 1
-  V.h[1:iter, C] <- rep(1, iter)
+  V.h[1,] = c(rep(0.5,C-1), 1)
+  S.i[1,] = c(1, rep(0,num.muts-1))
+  alpha[1] = 1
+  V.h[1:iter, C] = rep(1, iter)
   
   for (m in 2:iter) {
-    if(m %% 100 == 0){print(m)}
+    if (m %% 100 == 0){ print(m) }
     
     # Update cluster allocation for each individual mutation
     for (k in 1:num.muts) {			
-      #use log-space to avoid problems with very high counts
+      # use log-space to avoid problems with very high counts
       Pr.S[k,1] <- log(V.h[m-1,1])
       Pr.S[k,2:C] = sapply(2:C, FUN=function(j, V) { log(V[j]) + sum(log(1-V[1:(j-1)])) }, V=V.h[m-1,])
       
       
       for(t in 1:num.timepoints){
         for(c in 1:C){
-          #Pr.S[k,c] <- Pr.S[k,c] + mutCount[k,t]*log(mutBurdens[m-1,c,t,k]) + WTCount[k,t]*log(1-mutBurdens[m-1,c,t,k])
-          #080214
           Pr.S[k,c] <- Pr.S[k,c] + mutCount[k,t]*log(mutBurdens[c,t,k]) + WTCount[k,t]*log(1-mutBurdens[c,t,k])
         }
         # It would be faster to use apply here, but it is returning values with small difference as compared to the above code. The scaling below 
         # blows these differences up to significant impact.
         #         Pr.S2[k,] <- Pr.S2[k,] + sapply(1:C, FUN=function(c, t, k, mutCount, mutBurdens, WTCount) { mutCount[k,t]*log(mutBurdens[c,t,k]) + WTCount[k,t]*log(1-mutBurdens[c,t,k]) }, t=t,k=k,mutCount=mutCount,mutBurdens=mutBurdens,WTCount=WTCount)
-        
-#         if(sum(is.na(Pr.S[k,]))>0){
-#           print("err1")
-#           print(Pr.S[k,])
-#           print(V.h[m-1,])
-#           print(pi.h[m-1,])
-#         }
-#         Pr.S[k,] = Pr.S[k,] - max(Pr.S[k,],na.rm=T)
-#         Pr.S[k,]=exp(Pr.S[k,])
-#         if(sum(is.na(Pr.S[k,]))>0){
-#           print("err2")
-#           print(Pr.S[k,])
-#         }
-#         Pr.S[k,] <- Pr.S[k,] / sum(Pr.S[k,],na.rm=T)
-#         if(sum(is.na(Pr.S[k,]))>0){
-#           print("err3")
-#           print(Pr.S[k,])
-#         }			
-#         Pr.S[k,is.na(Pr.S[k,])] = 0
-        
       }			
       Pr.S[k,is.na(Pr.S[k,])] = 0
       Pr.S[k,] = Pr.S[k,] - max(Pr.S[k,])
-      Pr.S[k,]=exp(Pr.S[k,])
-      Pr.S[k,] <- Pr.S[k,] / sum(Pr.S[k,])				
+      Pr.S[k,] = exp(Pr.S[k,])
+      Pr.S[k,] = Pr.S[k,] / sum(Pr.S[k,])				
     }
     
-    if(sum(is.na(Pr.S))>0){
-      print(paste("Pr.S=",Pr.S))
-    }
-    
-    ## Determine which cluster each mutation is assigned to
-    # 		S.i[m,] <- sapply(1:num.muts, function(Pr, k) {sum(rmultinom(1,1,Pr[k,]) * (1:length(Pr[k,])))}, Pr=Pr.S)
+    # Determine which cluster each mutation is assigned to
     S.i[m,] = apply(Pr.S, 1, function(mut) { which(rmultinom(1,1,mut)==1) })
     
     # Update stick-breaking weights
-    V.h[m,1:(C-1)]  <- sapply(1:(C-1), function(S, curr.m, curr.alpha, h) {rbeta(1, 1+sum(S[curr.m,] == h), curr.alpha+sum(S[curr.m,] > h))}, S=S.i, curr.m=m, curr.alpha=alpha[m-1])
-    V.h[m,c(V.h[m,1:(C-1)] == 1,FALSE)] <- 0.999 # Need to prevent one stick from taking all the remaining weight
+    V.h[m,1:(C-1)] = sapply(1:(C-1), function(S, curr.m, curr.alpha, h) {rbeta(1, 1+sum(S[curr.m,] == h), curr.alpha+sum(S[curr.m,] > h))}, S=S.i, curr.m=m, curr.alpha=alpha[m-1])
+    V.h[m,c(V.h[m,1:(C-1)] == 1,FALSE)] = 0.999 # Need to prevent one stick from taking all the remaining weight
     
-    #200512 - get expected number of mutant reads per mutation copy number
-    countsPerCopyNum=array(NA,c(num.timepoints,num.muts))
-    for(t in 1:num.timepoints){
-      countsPerCopyNum[t,]=(mutCount[,t]+WTCount[,t])*mutationCopyNumberToMutationBurden(copyNumberAdjustment[,t],totalCopyNumber[,t],cellularity[t],normalCopyNumber[,t])
+    # Get expected number of mutant reads per mutation copy number
+    countsPerCopyNum = array(NA,c(num.timepoints,num.muts))
+    for (t in 1:num.timepoints) {
+      countsPerCopyNum[t,] = (mutCount[,t]+WTCount[,t])*mutationCopyNumberToMutationBurden(copyNumberAdjustment[,t],totalCopyNumber[,t],cellularity[t],normalCopyNumber[,t])
     }
-    #pi.h[m,,]=pi.h[m-1,,]
-    #190512 randomise unused pi.h
-    for(t in 1:num.timepoints){
-      pi.h[m,,t]=runif(C,lower[t],upper[t])
+    
+    # randomise unused pi.h
+    for (t in 1:num.timepoints) {
+      pi.h[m,,t] = runif(C,lower[t],upper[t])
     }
-    #080214 - no longer needed, because mutBurdens are not saved for every iter
-    #mutBurdens[m,,,]=mutBurdens[m-1,,,]
+
     for(c in unique(S.i[m,])){
       for(t in 1:num.timepoints){
         #040213 - problem if sum(countsPerCopyNum[t,S.i[m,]==c])==0 fixed
@@ -137,23 +99,14 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,
           pi.h[m,c,t] = 0
         }else{
           pi.h[m,c,t] = rgamma(1,shape=sum(mutCount[S.i[m,]==c,t]),rate=sum(countsPerCopyNum[t,S.i[m,]==c]))
-          #if(is.nan(pi.h[m,c,t])){
-          #	stop()
-          #}
         }
       }
     }		
+    
     for(t in 1:num.timepoints){
       for(c in 1:C){
-        #mutBurdens[m,c,t,]=mutationCopyNumberToMutationBurden(pi.h[m,c,t] * copyNumberAdjustment[,t],totalCopyNumber[,t],cellularity[t])
-        #080214
         mutBurdens[c,t,]=mutationCopyNumberToMutationBurden(pi.h[m,c,t] * copyNumberAdjustment[,t],totalCopyNumber[,t],cellularity[t],normalCopyNumber[,t])
       }
-    }
-    
-    if(sum(is.na(pi.h[m,,]))){
-      print(paste("pi.h=",pi.h[m,,]))
-      print(paste("m=",m,sep=""))
     }
     
     # Update alpha
