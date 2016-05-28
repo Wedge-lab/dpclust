@@ -410,10 +410,6 @@ if (ncol(mutCount) > 1) {
                                                  normalCopyNumber=array(2, dim(mutCount)),
                                                  cellularity=cellularity)
       
-#       all.likelihoods = consClustering$all.assignment.likelihoods
-#       colnames(all.likelihoods) = paste("prob.cluster", 1:ncol(all.likelihoods))
-#       write.table(all.likelihoods, file=paste(output_folder, "/", samplename, "_DP_and_cluster_info.txt", sep=""), quote=F, row.names=F, sep="\t")
-      
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
       q(save="no", status=1)

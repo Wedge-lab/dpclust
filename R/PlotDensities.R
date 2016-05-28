@@ -101,7 +101,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
 #' @author sd11
 plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, samplename="", CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
-  cbPalette = c("lightgray", "gray")
+  cbPalette = c("lightgray", "black")
   colnames(density)[1] = "fraction.of.tumour.cells"
   
   conf.interval = data.frame(x=density[,1], ymax=(polygon.data[1:512] / sum(density$median.density)), ymin=(rev(polygon.data[513:1024]) / sum(density$median.density)))
@@ -114,17 +114,20 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
   
   p = ggplot() +
     geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType, alpha=0.3), binwidth=0.025, position="stack", alpha=0.8, colour="black") +
-    geom_ribbon(data=conf.interval, mapping=aes(x=x,ymin=ymin,ymax=ymax), fill=cm.colors(1, alpha=0.3)) +
+    geom_ribbon(data=conf.interval, mapping=aes(x=x,ymin=ymin,ymax=ymax), fill=cm.colors(1, alpha=0.8)) +
     geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="plum4") +
     xlab("Fraction of Tumour Cells") +
     ylab("Density") +
     ggtitle(samplename) +
     theme_bw() +
     xlim(0, x.max) +
-    theme(axis.text=element_text(size=rel(1.5)),
-          axis.title=element_text(size=rel(2)),
-          strip.text.x=element_text(size=rel(1.5)),
-          plot.title=element_text(size=rel(2))) +
+    theme(axis.text=element_text(size=25),
+          axis.title=element_text(size=35),
+          # strip.text.x=element_text(size=rel(0.75)),
+          plot.title=element_text(size=50),
+          legend.text=element_text(size=25),
+          legend.title=element_text(size=25),
+          legend.position="bottom") +
     scale_fill_manual(values=cbPalette) +
     scale_colour_discrete(drop=F, limits=levels(ccf.df$mutationTypes))
   
