@@ -300,16 +300,8 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                     conc_param=conc_param,
                                     cluster_conc=cluster_conc)
   
-  write.csv(GS.data$S.i,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_states.csv",sep=""))
-  write.csv(GS.data$V.h,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""))
-  write.csv(GS.data$pi.h,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""))
-  write.csv(GS.data$alpha,paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""))
+  save(file=paste(output_folder, "/", samplename, "_gsdata.RData", sep=""), GS.data)
   
-#      GS.data = list()
-#      GS.data$S.i = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_states.csv",sep=""),row.names=1))
-#      GS.data$V.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_stickbreaking_weights.csv",sep=""),row.names=1))
-#      GS.data$pi.h = as.matrix(read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_discreteMutationCopyNumbers.csv",sep=""),row.names=1))
-#      GS.data$alpha = read.csv(paste(output_folder,"/",samplename,"_2D_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_alpha.csv",sep=""),row.names=1)
   # nD dataset, plot sample versus sample
   if (ncol(mutCount) > 1) {
     ########################
@@ -317,9 +309,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     ########################
     for (i in 1:(length(subsamplesrun)-1)) {
       for (j in (i+1):length(subsamplesrun)) {
-        print("image")
-        print(i)
-        print(j)
         imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
         print(imageFile)
         density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
