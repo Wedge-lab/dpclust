@@ -203,7 +203,7 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   # Take average depth as template for these CNAs disguised as fictional SNVs
   N = round(mean(dataset$WTCount+dataset$mutCount)*3)
 
-  # Calculate the average mutation rate per 10kb
+  # Calculate the average mutation rate per 10kb 300.000
   hum_genome_size = 323483
   mut_rate_10kb = nrow(dataset$mutCount)/hum_genome_size
   
@@ -216,7 +216,7 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     conf = ifelse(!is.na(cndata[i,]$SDfrac_A), cndata[i,]$SDfrac_A*100+1, 1)
     
     # Calculate the size of this segment in kb and the number of muts it needs to be represented by
-    CNA_size = cndata[i,]$endpos/100000 - cndata[i,]$startpos/100000
+    CNA_size = cndata[i,]$endpos/10000 - cndata[i,]$startpos/10000
     CNA_num_muts = ceiling(CNA_size * mut_rate_10kb) / conf
     
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
