@@ -115,7 +115,7 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
   p = ggplot() +
     geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType, alpha=0.3), binwidth=0.025, position="stack", alpha=0.8, colour="black") +
     geom_ribbon(data=conf.interval, mapping=aes(x=x,ymin=ymin,ymax=ymax), fill=cm.colors(1, alpha=0.8)) +
-    geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="plum4") +
+    geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="plum4", size=2) +
     xlab("Fraction of Tumour Cells") +
     ylab("Density") +
     ggtitle(samplename) +
@@ -147,8 +147,8 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
 
     # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
     p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) +
-      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0)) +
-      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/20)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0))
+      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0), size=8) +
+      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/20)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0), size=8)
   }
   
   if (!is.na(pngFile)) {
@@ -184,8 +184,9 @@ plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA, num_sample
     for (cluster.no in unique(cluster_locations$Cluster)) {
       cndata_cluster = cndata[cndata$cluster_assignment==cluster.no,]
       cndata_cluster = cndata_cluster[unique(cndata_cluster$startpos),]
-      cluster_locations[cluster_locations$Cluster==cluster.no, "Num CNAs"] = nrow(cndata_cluster)
+      cluster_locations[cluster_locations$Cluster==cluster.no, "no.of.cnas"] = nrow(cndata_cluster)
     }
+    colnames(cluster_locations)[ncol(cluster_locations)] = "Num CNAs"
   }
   
   png(filename=pngFile,width=500,height=500)
