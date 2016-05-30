@@ -2,18 +2,18 @@ Package: DPClust
 Maintainer: Stefan Dentro <sd11@sanger.ac.uk>
 License: GPL-3
 Type: Package
-Title: DPClust - An R package for SNV based subclonal reconstruction
-Version: 2.1.1
+Title: DPClust - An R package for subclonal reconstruction of tumours using sequencing data
+Version: 2.2.0
 Authors@R: c(person("David", "Wedge", role=c("aut"), email="dw9@sanger.ac.uk"),
     person("Peter", "Van Loo", role=c("aut")),
     person("Stefan","Dentro", email="sd11@sanger.ac.uk", role=c("aut", "cre")))
 Description: Dirichlet process based subclonal reconstruction methods
 Depends: 
   R (>= 2.15.0),
-  doParallel,
-  doRNG,
   KernSmooth,
   ks,
   lattice,
-  VariantAnnotation
+  VariantAnnotation,
+  ggplot2,
+  gridExtra
 LazyLoad: yes

@@ -8,24 +8,18 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
   V.h = GS.data$V.h
   pi.h = GS.data$pi.h[,,1]
   
-  hypercube.size = 20
-  localOptima = NULL
-  peak.indices = NULL
-  for(i in (1+hypercube.size):(nrow(density)-hypercube.size)){
-    if(density$median.density[i] == max(density$median.density[(i-hypercube.size):(i+hypercube.size)])){
-      localOptima = c(localOptima,density$fraction.of.tumour.cells[i])
-      peak.indices = c(peak.indices,i)
-    }
-  }
+  # Obtain local optima and peak indices
+  res = getLocalOptima(density, hypercube.size=5)
+  localOptima = res$localOptima
+  peak.indices = res$peak.indices
+  write.table(localOptima,paste(samplename,"_localOptima.txt",sep=""), quote=F, sep="\t")
   
   print("localOptima")
   print(localOptima)
   
-  write.table(localOptima,paste(samplename,"_localOptima.txt",sep=""),quote=F,sep="\t")
-  
-  #ASSIGN mutations to clusters
+  # Assign mutations to clusters
   no.optima = length(localOptima)
-  if(no.optima>1){  
+  if (no.optima>1) {  
     boundary = array(NA,no.optima-1)
     mutation.preferences = array(0,c(no.muts,no.optima))
     for(i in 1:(no.optima-1)){
@@ -54,21 +48,42 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
       mutation.preferences = mutation.preferences + iter.preferences
     }
     mutation.preferences = mutation.preferences / length(sampledIters)
+    
+    # Drop clusters with all probs for mutations zero
+    not.is.empty = !apply(mutation.preferences, 2, function(x) { all(x==0) })
+    mutation.preferences = mutation.preferences[, not.is.empty, drop=F]
+    localOptima = localOptima[not.is.empty]
+    no.optima = length(localOptima)
+    
+    # Save the cluster assignment probabilities table
     most.likely.cluster = max.col(mutation.preferences)
+    out = cbind(mutation.preferences, most.likely.cluster)
+    colnames(out)[(ncol(out)-no.optima):ncol(out)] = c(paste("prob.cluster", 1:ncol(mutation.preferences),sep=""),"most.likely.cluster")
+    write.table(out, paste(samplename,"_DP_and_cluster_info.txt",sep=""), sep="\t", row.names=F, quote=F)
+
+    # Assemble a table with mutation assignments to each cluster
+    cluster_assignment_counts = sapply(1:ncol(mutation.preferences), function(x, m) { sum(m==x) }, m=most.likely.cluster) #table(most.likely.cluster)
+    cluster_locations = array(NA, c(length(cluster_assignment_counts), 3))
+    cluster_locations[,1] = 1:length(cluster_assignment_counts)
+    cluster_locations[,2] = localOptima
+    cluster_locations[,3] = cluster_assignment_counts
+    # Clear clusters with no mutations assigned
+    cluster_locations = cluster_locations[cluster_locations[,3] > 0,,drop=F]
+    print(cluster_locations)
+    write.table(cluster_locations, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)		
     
-    out = cbind(mutation.preferences,most.likely.cluster)
-    colnames(out)[(ncol(out)-no.optima):ncol(out)] = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
-    write.table(cbind(1:no.optima,localOptima,colSums(mutation.preferences)),paste(samplename,"_optimaInfo.txt",sep=""),col.names = c("cluster.no","location","no.of.mutations"),row.names=F,sep="\t",quote=F)		
-    write.table(out,paste(samplename,"_DP_and_cluster_info.txt",sep=""),sep="\t",row.names=F,quote=F)
-    
+    # Obtain likelyhood of most likely cluster assignments
     most.likely.cluster.likelihood = apply(mutation.preferences, 1, max)
     
   }else{
-    most.likely.cluster = rep(1,no.muts)
-    most.likely.cluster.likelihood = rep(1,no.muts)
+    warning("No local optima found when assigning mutations to clusters")
+    most.likely.cluster = rep(1, no.muts)
+    most.likely.cluster.likelihood = rep(1, no.muts)
+    best.assignment.likelihoods = rep(1, no.muts)
+    cluster_locations = NA
   }
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cbind(1:no.optima,localOptima)))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=most.likely.cluster.likelihood, cluster.locations=cluster_locations, all.assignment.likelihoods=mutation.preferences))
 }
 
 
@@ -161,7 +176,7 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   
   
   print("Setting up the data")
-  no.muts = ncol(node.assignments)
+  no.muts = nrow(mutCount)
   no.subsamples = ncol(mutCount)
   
   if(no.muts<=1){
@@ -193,16 +208,13 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   }
   
   print("Opening devices for plotting")
-  #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/histograms_",samplename,".pdf",sep=""),height=4,width=4*no.subsamples)
   pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_histograms.pdf",sep=""),height=4,width=4*no.subsamples)
   hist.device=dev.cur()
   par(mfrow=c(2,no.subsamples))   
-  #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/densities_",samplename,".pdf",sep=""),height=4,width=4*no.subsamples)
   pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_densities.pdf",sep=""),height=4,width=4*no.subsamples)
   density.device=dev.cur()        
   par(mfrow=c(2,no.subsamples))
   if(no.subsamples>1){
-    #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/consensus_scatter_",samplename,".pdf",sep=""),height=4,width=no.subsamples*(no.subsamples-1)*2)
     pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_consensus_scatter.pdf",sep=""),height=4,width=no.subsamples*(no.subsamples-1)*2)
     scatter.device=dev.cur()
     par(mfrow=c(1,no.subsamples*(no.subsamples-1)/2))
@@ -224,6 +236,7 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   all.node.positions = list()
   all.node.positions[[no.nodes]] = array(mean.subclonal.fractions,c(1,no.subsamples))
   all.likelihoods = list()
+  all.likelihoods[[no.nodes]] = matrix(rep(1, no.muts*no.subsamples), ncol=no.subsamples)
   
   print("Starting EM")
   node.added=T
@@ -290,15 +303,6 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
         }
       }
       
-#       new.likelihood = 0
-#       for(i in 1:no.muts){
-#         lfoy = log.f.of.y(mutCount[i,], mutCount[i,] + WTCount[i,], rep(1,ncol(mutCount)), node.position[consensus.assignments[i],])
-#         if(!is.nan(lfoy)){
-#           new.likelihood <- new.likelihood + lfoy
-#         }
-#       }
-#       likelihoods = c(likelihoods,new.likelihood)
-      
       all.likelihoods[[no.nodes+1]] = calc.new.likelihood2(mutCount, mutCount+WTCount, matrix(1, nrow=nrow(mutCount), ncol=ncol(mutCount)), node.position[consensus.assignments,])
       likelihoods = c(likelihoods, sum(all.likelihoods[[no.nodes+1]]))     
       
@@ -341,11 +345,6 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   print("likelihoods and BIC")
   print(cbind(likelihoods,BIC))
   print(paste("best BIC index=",best.BIC.index,sep=""))
-  #for(s in 1:no.subsamples){
-  #       write.table(cbind(data[,c(2,3,4,5,6,9,10,11)],all.consensus.assignments[[best.BIC.index]]),paste("/lustre/scratch109/sanger/dw9/2D_Dirichlet_Process/Lucy_heterogeneity/",samplename,subsamplenames[s],"_muts_withDPAssignments.txt",sep=""),col.names = c(names(data)[c(2,3,4,5,6,9,10,11)],"DirichletProcessCluster"),sep="\t",quote=F,row.names=F)
-  #}
-  #write a single file
-  #write.table(cbind(data[,c(2,3,4,5,6,9,10,11)],subclonal.fraction,all.consensus.assignments[[best.BIC.index]]),paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/",samplename,"_muts_withDPAssignments_23Jan2013.txt",sep=""),col.names = c(names(data)[c(2,3,4,5,6,9,10,11)],colnames(subclonal.fraction),"DirichletProcessCluster"),sep="\t",quote=F,row.names=F)
   
   #
   # Following code commented out because the input for it is not (yet) available. For example of input, see:
@@ -353,14 +352,8 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   #
   #   write.table(cbind(data[,c(2,3,4,5,6,9,10,11)],subclonal.fraction,all.consensus.assignments[[best.BIC.index]]),paste(outdir, "/", samplename,"_muts_withDPAssignments.txt",sep=""),col.names = c(names(data)[c(2,3,4,5,6,9,10,11)],colnames(subclonal.fraction),"DirichletProcessCluster"),sep="\t",quote=F,row.names=F)
   
-  no.muts.per.node = table(all.consensus.assignments[[best.BIC.index]])
-  #write.table(cbind(1:length(no.muts.per.node),no.muts.per.node,all.node.positions[[best.BIC.index]]),paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters/",samplename,"_bestNodePositions_23Jan2013.txt",sep=""),col.names = c("cluster.no","no.muts.in.cluster",paste(samplename,subsamplenames,sep="")),sep="\t",quote=F,row.names=F)
-  write.table(cbind(1:length(no.muts.per.node),no.muts.per.node,all.node.positions[[best.BIC.index]]),paste(outdir, "/", samplename,"_bestNodePositions.txt",sep=""),col.names = c("cluster.no","no.muts.in.cluster",paste(samplename,subsamplenames,sep="")),sep="\t",quote=F,row.names=F)    
-  
-  
   if(no.subsamples>1){
     consensus.assignments = all.consensus.assignments[[best.BIC.index]]
-    #pdf(paste("/nfs/team78pc11/dw9/Lucy_heterogeneity_23Jan2014_1000iters//best_scatter_",samplename,"_23Jan2014.pdf",sep=""),height=4,width=4)
     pdf(paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin_bestScatter.pdf",sep=""),height=4,width=4)
     
     #its hard to distinguish more than 8 different colours
@@ -415,8 +408,12 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
     #     dev.off()               
     
   }
-  
-  return(list(best.node.assignments=all.consensus.assignments[[best.BIC.index]], best.assignment.likelihoods=all.likelihoods[[best.BIC.index]]))
+
+  most.likely.cluster = all.consensus.assignments[[best.BIC.index]]
+  write.table(cbind(1:length(table(most.likely.cluster)), table(most.likely.cluster), all.node.positions[[best.BIC.index]]), paste(outdir, "/", samplename, "_optimaInfo.txt", sep=""), col.names=c("cluster.no", "no.muts.in.cluster", paste(samplename,subsamplenames,sep="")), sep="\t", quote=F, row.names=F)
+  cluster.locations = cbind(1:length(most.likely.cluster), all.node.positions[[best.BIC.index]], most.likely.cluster)
+
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=all.likelihoods[[best.BIC.index]], cluster.locations=cluster.locations, all.assignment.likelihoods=NA))
 }
 
 multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment, GS.data, density.smooth, opts) {
@@ -653,12 +650,19 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     out = cbind(mutation.preferences,most.likely.cluster)
     names(out) = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
     
-    write.table(cbind(quantiles[,,2],colSums(mutation.preferences),table(factor(most.likely.cluster,levels = 1:no.optima))),paste(new_output_folder,"/",samplename,"_optimaInfo_",density.smooth,".txt",sep=""),col.names = c(paste(samplename,subsamples,sep=""),"estimated.no.of.mutations","no.of.mutations.assigned"),row.names=F,sep="\t",quote=F)
+    cluster.locations = cbind(1:ncol(mutation.preferences), quantiles[,,2], colSums(mutation.preferences), table(factor(most.likely.cluster,levels = 1:no.optima)))
+    write.table(cluster.locations,
+                paste(new_output_folder,"/",samplename,"_optimaInfo_",density.smooth,".txt",sep=""),
+                col.names = c("cluster.no", paste(samplename, subsamples, sep=""), "estimated.no.of.mutations", "no.of.mutations.assigned"),
+                row.names=F,
+                sep="\t",
+                quote=F)
     
     write.table(out,paste(new_output_folder,"/",samplename,"_DP_and cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
     write.table(CIs,paste(new_output_folder,"/",samplename,"_confInts_",density.smooth,".txt",sep=""),col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),row.names=F,sep="\t",quote=F)
   }else{
     most.likely.cluster = rep(1,no.muts)
+    warning("No local optima found")
   }
   
   
@@ -688,46 +692,173 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     }
   }       
   dev.off()
+
+  # Remove the estimated number of SNVs per cluster from the cluster locations table  
+  cluster.locations = as.data.frame(cluster.locations[,c(1:(length(subsamples)+1),ncol(cluster.locations))])
+  # Report only the clusters that have mutations assigned
+  cluster.locations = cluster.locations[cluster.locations[,ncol(cluster.locations)] > 0,]
   
-  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood))
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=mutation.preferences, cluster.locations=cluster.locations))
 }
 
-#' Function that creates various final output files that contain fixed information about mutations.
-#' This includes adding removed mutations (either due to sampling or data characteristics) back in.
-produceMutAssignmentOutput = function(dataset, clustering, outfiles.prefix, most.similar.mut=NA, write_tree=F) {
-  # Check if mutation sampling has been done, if so, unpack and assign here
-  if (!is.na(most.similar.mut)) {
-    res = unsample_mutations(dataset, clustering)
-    dataset = res$dataset
-    clustering = res$clustering
+# #' Function that creates various final output files that contain fixed information about mutations.
+# #' This includes adding removed mutations (either due to sampling or data characteristics) back in.
+# produceMutAssignmentOutput = function(dataset, clustering, outfiles.prefix, most.similar.mut=NA, write_tree=F) {
+#   # Check if mutation sampling has been done, if so, unpack and assign here
+#   if (!is.na(most.similar.mut)) {
+#     res = unsample_mutations(dataset, clustering)
+#     dataset = res$dataset
+#     clustering = res$clustering
+#   }
+#   
+#   # Create final output data matrix
+#   output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
+#   
+#   # Add the removed mutations back in
+#   for (i in dataset$removed_indices) {
+#     if (i==1) {
+#       output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
+#     } else if (i >= nrow(output)) {
+#       output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
+#     } else {
+#       output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+#     }
+#   }
+#   
+#   # Save the indices of the mutations that were not used during the analysis
+#   write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
+#   
+#   # Save the consensus mutation assignments
+#   save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering)
+#   colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
+#   write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
+#   
+#   # If tree based analysis, also save the tree
+#   if (write_tree) {
+#     write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
+#   }
+# }
+
+
+#' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
+#' This for now only works with a single timepoint
+mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copyNumberAdjustment, tumourCopyNumber, normalCopyNumber, cellularity) {
+  # Define convenience variables
+  num.timepoints = ncol(mutCount)
+  num.muts = nrow(mutCount)
+  
+  if (num.timepoints > 1) {
+    warning("Assigment of mutations through binomial only implemented for a single timepoint")
+    q(save="no")
   }
   
-  # Create final output data matrix
-  output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
+  # Obtain peak locations whtin the given clustering density
+  res = getLocalOptima(clustering_density, hypercube.size=5)
+  cluster_locations = res$localOptima
   
-  # Add the removed mutations back in
-  for (i in dataset$removed_indices) {
-    if (i==1) {
-      output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
-    } else if (i >= nrow(output)) {
-      output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
-    } else {
-      output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
+  # Strip out clusters with a small density
+  cluster_density = getClusterDensity(clustering_density, cluster_locations, min.window.density=1)
+  # Take all clusters with at least 1% of the density
+  cluster_locations = cluster_locations[cluster_density > 0.01]
+  num.clusters = length(cluster_locations)
+  print(cluster_locations)
+  
+  # Calculate log likelihoods for each mutation to be part of each cluster location
+  assignment_ll = array(NA, c(num.muts, num.clusters))
+  for (t in 1:num.timepoints) {
+    for (c in 1:num.clusters) {
+      mutBurdens = mutationCopyNumberToMutationBurden(cluster_locations[c] * copyNumberAdjustment[,t], tumourCopyNumber[,t], cellularity[t], normalCopyNumber[,t])
+      assignment_ll[,c] = sapply(1:num.muts, function(k, mc, wt, mb) {  mc[k]*log(mb[k]) + wt[k]*log(1-mb[k]) }, mc=mutCount[,t], wt=WTCount[,t], mb=mutBurdens)
     }
   }
-  
-  # Save the indices of the mutations that were not used during the analysis
-  write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
-  
-  # Save the consensus mutation assignments
-  save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering)
-  colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
-  write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
-  
-  # If tree based analysis, also save the tree
-  if (write_tree) {
-    write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
+
+  # Convert ll to prob
+  assignment_probs = assignment_ll
+  assignment_probs[is.na(assignment_probs)] = 0
+  assignment_probs = t(apply(assignment_probs, 1, function(assignment_probs_k) { assignment_probs_k - max(assignment_probs_k) }))
+  assignment_probs = exp(assignment_probs)
+  assignment_probs = matrix(assignment_probs / rowSums(assignment_probs), ncol=num.clusters)
+
+  # Hard assign mutations
+  most.likely.cluster = sapply(1:num.muts, function(k, assignment_probs) { which.max(assignment_probs[k,]) }, assignment_probs=assignment_probs)
+  assignment.likelihood = sapply(1:num.muts, function(k, assignment_probs, most.likely.cluster) { assignment_probs[k, most.likely.cluster[k]] }, assignment_probs=assignment_probs, most.likely.cluster=most.likely.cluster)
+
+  # Save a table with the output as a summary
+  cluster_assignments = table(most.likely.cluster)
+  output = array(NA, c(length(cluster_locations), 3))
+  print(cluster_assignments)
+  for (c in 1:num.clusters) {
+    cluster_id = names(cluster_assignments)[c]
+    cluster_id = as.character(c)
+    
+    output[c,1] = as.numeric(cluster_id)
+    output[c,2] = cluster_locations[c]
+    # Check if there are mutations assigned to the cluster, i.e. it's in the cluster_assignments table
+    if (cluster_id %in% names(cluster_assignments)) {
+      output[c,3] = cluster_assignments[names(cluster_assignments)==cluster_id]
+    } else {
+      output[c,3] = 0
+    }
   }
+  write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
+  
+  return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=assignment_probs, cluster.locations=output))
 }
 
+#' Function that fetches the local optima from a density function call output
+#' @return A list containing two fields: localOptima, the location of a peak and peak.indices, the index of the peak within a hypercube
+getLocalOptima = function(cluster_density, hypercube.size=20) {
+  localOptima = NULL
+  peak.indices = NULL
+  for (i in (1+hypercube.size):(nrow(cluster_density)-hypercube.size)) {
+    if (cluster_density$median.density[i] == max(cluster_density$median.density[(i-hypercube.size):(i+hypercube.size)])) {
+      localOptima = c(localOptima, cluster_density$fraction.of.tumour.cells[i])
+      peak.indices = c(peak.indices, i)
+    }
+  }
+  return(list(localOptima=localOptima, peak.indices=peak.indices))
+}
 
+#' Obtain the mean density of each cluster. This function takes the cluster_locations and for
+#' each cluster it walks from the cluster peak along CCF space until the median density
+#' drops below the supplied minimum in both directions. After obtaining the CCF space that a
+#' cluster takes up we calculate the mean density in that space. Finally across all cluster
+#' densities we normalise to obtain the fraction of total density that each cluster represents
+#' @return A vector with for each cluster the fraction of density
+getClusterDensity = function(clustering_density, cluster_locations, min.window.density) {
+  cluster_density = array(NA, length(cluster_locations))
+  for (c in 1:length(cluster_locations)) {
+    cluster_location = cluster_locations[c]
+    x.cluster = which.min(abs(clustering_density$fraction.of.tumour.cells-cluster_location))
+    # Obtain the left most x.axis point of the cluster
+    run = T
+    i = x.cluster
+    while (run) {
+      if (i!=0 && clustering_density[i,]$median.density > min.window.density) {
+        i = i-1
+      } else {
+        run = F
+      }
+    }
+    x.cluster.min = i
+    
+    # Obtain the right most x.axis point of the cluster
+    run = T
+    i = x.cluster
+    while (run) {
+      if (i!=(nrow(clustering_density)+1) && clustering_density[i,]$median.density > min.window.density) {
+        i = i+1
+      } else {
+        run = F
+      }
+    }
+    x.cluster.max = i
+    
+    # Take the average density
+    cluster_density[c] = mean(clustering_density[x.cluster.min:x.cluster.max,]$median.density)
+  }
+  
+  # Normalise the densities across the clusters
+  cluster_density = cluster_density/sum(cluster_density)
+  return(cluster_density)
+}
