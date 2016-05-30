@@ -143,11 +143,11 @@ unsample_mutations = function(dataset, clustering_result) {
   cluster.locations = clustering_result$cluster.locations
   new_assignment_counts = table(best.node.assignments)
   for (cluster in names(new_assignment_counts)) {
-    cluster.locations[cluster.locations[,1]==as.numeric(cluster), 3] = new_assignment_counts[cluster]
+    cluster.locations[cluster.locations[,1]==as.numeric(cluster), ncol(cluster.locations)] = new_assignment_counts[cluster]
   }
   
   # Not all assignment options return a full likelihood table
-  if (!is.na(all.assignment.likelihoods)) {
+  if (!is.na(clustering_result$all.assignment.likelihoods)) {
     all.assignment.likelihoods = clustering_result$all.assignment.likelihoods[dataset$most.similar.mut,]
   } else {
     all.assignment.likelihoods = NA
