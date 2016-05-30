@@ -1,10 +1,8 @@
 # DPClust R package
 
-Repository containing various Dirichlet Process based subclonal reconstruction methods
+This R package contains methods for subclonal reconstruction through SNVs and/or CNAs from whole genome or whole exome sequencing data. Pipelines are provided separately.
 
 ## Dependencies
-  doParallel
-  doRNG
   KernSmooth
   ks
   lattice
