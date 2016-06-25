@@ -15,5 +15,6 @@ Depends:
   lattice,
   VariantAnnotation,
   ggplot2,
-  gridExtra
+  gridExtra,
+  mcclust
 LazyLoad: yes
