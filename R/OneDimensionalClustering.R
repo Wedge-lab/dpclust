@@ -964,7 +964,7 @@ get_preferences_matrix = function(snv_ccfs, combined_densities, no.optima, no.mu
 }
 
 #' Function that works out where SNVs would've been assigned, given an SNV to cluster assignment
-get_mutation_preferences = function(pi.h, S.i, best.node.assignments, subclonal.fraction) {
+get_mutation_preferences = function(pi.h, S.i, best.node.assignments, subclonal.fraction, no.iters, no.iters.burn.in) {
   no.optima = length(unique(best.node.assignments[!is.na(best.node.assignments)]))
   no.muts = nrow(subclonal.fraction)
   # Obtain densities for each cluster so we know the probability of each cluster vs CCF  
@@ -1008,7 +1008,7 @@ mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.fr
     cluster_sizes = table(label_assignments)
     filtered_label_assignments = label_assignments
     for (clusterid in unique(label_assignments[!is.na(label_assignments)])) {
-      if (cluster_sizes[as.character(clusterid)] < floor(min.frac.snvs.cluster*num.muts)) {
+      if (cluster_sizes[as.character(clusterid)] < 5) { #floor(min.frac.snvs.cluster*num.muts)
         filtered_label_assignments[label_assignments==clusterid] = NA
       }
     }
@@ -1045,7 +1045,7 @@ mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.fr
               filename=paste(outdir, samplename, "_mpear_large_clusters.png", sep="")) 
   
   # Build a mutation preferences table
-  mutation.preferences = get_mutation_preferences(GS.data$pi.h[,,1], GS.data$S.i, filtered_label_assignments, dataset$subclonal.fraction)
+  mutation.preferences = get_mutation_preferences(GS.data$pi.h[,,1], GS.data$S.i, filtered_label_assignments, dataset$subclonal.fraction, no.iters, no.iters.burn.in)
   save(file=paste(outdir, samplename, "_mutation_preferences.RData", sep=""), mutation.preferences)
   preferences = mutation.preferences$mutation.preferences
   
