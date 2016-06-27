@@ -21,7 +21,7 @@
 #' @author sdentro
 #' @return A list of tables, one for each type of information
 # REMOVED datpath, samplename, data_file_suffix num_muts_sample=NA, 
-load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male=T, is.vcf=F, ref.genome.version="hg19", min.depth=1, min.mutreads=1) {
+load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male=T, is.vcf=F, ref.genome.version="hg19", min.depth=1, min.mutreads=1, supported_chroms=c(1:22)) {
   data=list()
   
   if (!is.vcf) {
@@ -42,13 +42,13 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
-  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads))
+  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms))
 }
   
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
 #' @noRD
-load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads) {
+load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms) {
   no.subsamples = length(list_of_tables)
   no.muts = nrow(list_of_tables[[1]])
   
@@ -95,11 +95,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   not.coverage.threshold.depth = apply(WTCount+mutCount, 1, function(x) { any(x<min.depth | is.na(x)) })
   not.coverage.threshold.mutreads = apply(mutCount, 1, function(x) { any(x<min.mutreads | is.na(x)) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
-  if (is.male) {
-    not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(1:22)) })
-  } else {
-    not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% c(1:22, "X")) })
-  }
+  not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(supported_chroms)) })
 
   coverage = matrix(WTCount[!(not.there.wt & not.there.mut),] + mutCount[!(not.there.wt & not.there.mut),], ncol=no.subsamples)
   cov.mean = mean(colMeans(coverage))
