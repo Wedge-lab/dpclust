@@ -918,16 +918,15 @@ get_cluster_densities = function(best.node.assignments, subclonal.fraction, min_
 #' @param no.iters.burn.in The total number of iterations to use as burnin
 #' @return A matrix with a column for each SNV and a row for each to consider iteration with the cell containing the CCF
 #' @author sd11
-get_snv_assignment_ccfs = function(pi.h, S.i, no.muts, no.iters, no.iters.burn.in) {
+get_snv_assignment_ccfs = function(pi.h, S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in) {
   #' Get assignment ccfs for each snv
   no.iters.post.burnin = no.iters-no.iters.burn.in
-  
-  # pi.h = GS.data$pi.h[,,1]
-  # no.muts = nrow(dataset$subclonal.fraction)
-  snv_ccfs = array(NA, c(no.iters.post.burnin, no.muts))
+  snv_ccfs = array(NA, c(no.iters.post.burnin, no.muts, no.timepoints))
   x = (no.iters.burn.in+1):no.iters
-  for (i in 1:no.muts) {
-    snv_ccfs[, i] = pi.h[cbind(x, S.i[-c(1:no.iters.burn.in), i])]
+  for (t in 1:no.timepoints) {
+    for (i in 1:no.muts) {
+      snv_ccfs[, i, t] = pi.h[cbind(x, S.i[-c(1:no.iters.burn.in), i])]
+    }
   }
   return(snv_ccfs)
 }
@@ -1008,7 +1007,7 @@ mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.fr
     cluster_sizes = table(label_assignments)
     filtered_label_assignments = label_assignments
     for (clusterid in unique(label_assignments[!is.na(label_assignments)])) {
-      if (cluster_sizes[as.character(clusterid)] < 5) { #floor(min.frac.snvs.cluster*num.muts)
+      if (cluster_sizes[as.character(clusterid)] < floor(min.frac.snvs.cluster*num.muts) & cluster_sizes[as.character(clusterid)] < 30) {
         filtered_label_assignments[label_assignments==clusterid] = NA
       }
     }
