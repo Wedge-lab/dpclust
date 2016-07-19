@@ -925,7 +925,7 @@ get_snv_assignment_ccfs = function(pi.h, S.i, no.muts, no.timepoints, no.iters, 
   x = (no.iters.burn.in+1):no.iters
   for (t in 1:no.timepoints) {
     for (i in 1:no.muts) {
-      snv_ccfs[, i, t] = pi.h[cbind(x, S.i[-c(1:no.iters.burn.in), i])]
+      snv_ccfs[, i, t] = pi.h[cbind(x, S.i[-c(1:no.iters.burn.in), i], t)]
     }
   }
   return(snv_ccfs)
