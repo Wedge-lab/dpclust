@@ -1085,6 +1085,73 @@ mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.fr
 }
 
 
+#' Calculate confidence intervals on the cluster location
+#' @param GS.data MCMC output with assignments and cluster locations
+#' @param mut_assignments Final mutation to cluster assignments
+#' @param clusterids Clusterids to run through
+#' @param no.muts The total number of mutations
+#' @param no.iters Total number of iterations
+#' @param no.timepoints Total number of samples in this dataset
+#' @param no.iters.burn.in Number of iterations to use as burn-in
+#' @return A data.frame with the confidence intervals for each cluster
+#' @author sd11
+calc_cluster_conf_intervals = function(GS.data, mut_assignments, clusterids, no.muts, no.timepoints, no.iters, no.iters.burn.in) {
+  assign_ccfs = get_snv_assignment_ccfs(GS.data$pi.h, GS.data$S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in)
+  cluster_intervals = data.frame()
+  for (t in 1:no.timepoints) {
+    for (i in 1:length(clusterids)) {
+      # get all SNVs assigned to this cluster
+      clusterid = clusterids[i]
+      assigned = which(mut_assignments==clusterid)
+      ccfs = assign_ccfs[, assigned, t]
+      # Flatten the matrix
+      dim(ccfs) = NULL
+      quants = t(data.frame(quantile(ccfs, c(.05, .5, .95))))
+      cluster_intervals = rbind(cluster_intervals, data.frame(clusterid=clusterid, timepoint=t, quants))
+    }
+  }
+  return(cluster_intervals)
+}
 
+#' Calculate for a pair of clusters whether a has a higher CCF than b.
+#' 
+#' This function uses mutation assignments during MCMC of the mutations that have been assigned
+#' to clusters a and b after completion of the run. It samples 1000 mutations from a and b and
+#' looks how often a_i has a higher assignment CCF than b_i and combines this information in a 
+#' fraction. The final table contains for each cell a probability whether the column has a higher
+#' CCF than the row.
+#' @param GS.data MCMC output with assignments and cluster locations
+#' @param clusterids Clusterids to run through
+#' @param no.muts The total number of mutations
+#' @param no.timepoints Total number of samples in this dataset
+#' @param no.iters Total number of iterations
+#' @param no.iters.burn.in Number of iterations to use as burn-in
+#' @return A array multi-dimensional array with in each cell whether the column cluster has a higher CCF than the row cluster across the samples in the third dimension
+#' @author sd11
+calc_cluster_order_probs = function(GS.data, mut_assignments, clusterids, no.muts, no.timepoints, no.iters, no.iters.burn.in, no.samples=1000) {
+  assign_ccfs = get_snv_assignment_ccfs(GS.data$pi.h, GS.data$S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in)
+  num_clusters = length(clusterids)
+  
+  probs = array(NA, c(length(clusterids), length(clusterids), no.timepoints))
+  for (t in 1:no.timepoints) {
+    for (c in 1:(num_clusters-1)) {
+      for (k in (c+1):num_clusters) {
+        
+        snvs_a = which(mut_assignments==clusterids[c])
+        snvs_b = which(mut_assignments==clusterids[k])
+        
+        sampled_a = sample(snvs_a, no.samples, replace=T)
+        sampled_b = sample(snvs_b, no.samples, replace=T)
+        
+        frac_gt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] >= assign_ccfs[, sampled_b[i], t])) }))
+        frac_lt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] <= assign_ccfs[, sampled_b[i], t])) }))
+        
+        probs[c, k, t] = frac_lt / (frac_lt+frac_gt)
+        probs[k, c, t] = frac_gt / (frac_lt+frac_gt)
+      }
+    }
+  }
+  return(probs)
+}
 
 
