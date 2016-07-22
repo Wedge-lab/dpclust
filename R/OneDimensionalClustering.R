@@ -504,6 +504,8 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   print(localOptima)
   
   write.table(cbind(localOptima,above95confidence),paste(new_output_folder,"/",samplename,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
+  print(localOptima)
+  print(localOptima[above95confidence,])
   write.table(localOptima[above95confidence,],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
   
   no.optima = nrow(localOptima)
@@ -1129,29 +1131,33 @@ calc_cluster_conf_intervals = function(GS.data, mut_assignments, clusterids, no.
 #' @return A array multi-dimensional array with in each cell whether the column cluster has a higher CCF than the row cluster across the samples in the third dimension
 #' @author sd11
 calc_cluster_order_probs = function(GS.data, mut_assignments, clusterids, no.muts, no.timepoints, no.iters, no.iters.burn.in, no.samples=1000) {
-  assign_ccfs = get_snv_assignment_ccfs(GS.data$pi.h, GS.data$S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in)
   num_clusters = length(clusterids)
-  
-  probs = array(NA, c(length(clusterids), length(clusterids), no.timepoints))
-  for (t in 1:no.timepoints) {
-    for (c in 1:(num_clusters-1)) {
-      for (k in (c+1):num_clusters) {
-        
-        snvs_a = which(mut_assignments==clusterids[c])
-        snvs_b = which(mut_assignments==clusterids[k])
-        
-        sampled_a = sample(snvs_a, no.samples, replace=T)
-        sampled_b = sample(snvs_b, no.samples, replace=T)
-        
-        frac_gt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] >= assign_ccfs[, sampled_b[i], t])) }))
-        frac_lt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] <= assign_ccfs[, sampled_b[i], t])) }))
-        
-        probs[c, k, t] = frac_lt / (frac_lt+frac_gt)
-        probs[k, c, t] = frac_gt / (frac_lt+frac_gt)
+  if (num_clusters > 1) {
+    assign_ccfs = get_snv_assignment_ccfs(GS.data$pi.h, GS.data$S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in)
+    
+    probs = array(NA, c(length(clusterids), length(clusterids), no.timepoints))
+    for (t in 1:no.timepoints) {
+      for (c in 1:(num_clusters-1)) {
+        for (k in (c+1):num_clusters) {
+          
+          snvs_a = which(mut_assignments==clusterids[c])
+          snvs_b = which(mut_assignments==clusterids[k])
+          
+          sampled_a = sample(snvs_a, no.samples, replace=T)
+          sampled_b = sample(snvs_b, no.samples, replace=T)
+          
+          frac_gt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] >= assign_ccfs[, sampled_b[i], t])) }))
+          frac_lt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] <= assign_ccfs[, sampled_b[i], t])) }))
+          
+          probs[c, k, t] = frac_lt / (frac_lt+frac_gt)
+          probs[k, c, t] = frac_gt / (frac_lt+frac_gt)
+        }
       }
     }
+    return(probs)
+  } else {
+    return(array(NA, c(length(clusterids), length(clusterids), no.timepoints)))
   }
-  return(probs)
 }
 
 
