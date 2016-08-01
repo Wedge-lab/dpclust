@@ -459,7 +459,10 @@ add.muts.back.in = function(dat, removed_indices, def.value=0) {
   # keeping the order in tact.
   #
   for (i in removed_indices) { 
-    if (i >= ncol(dat)) {
+    if (i==1) {
+      dat = cbind(rep(def.value, nrow(dat)), dat)
+      dat = rbind(rep(def.value, ncol(dat)), dat)
+    } else if (i >= ncol(dat)) {
       	dat = cbind(dat, rep(def.value, nrow(dat)))
       	dat = rbind(dat, rep(def.value, ncol(dat)))
     } else {
