@@ -278,7 +278,7 @@
 # }
 
 
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes) {
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes, min.frac.snvs.cluster) {
   #
   # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
   # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
@@ -338,6 +338,10 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
       warning("binom mut assignment not implemented for multiple timepoints")
       q(save="no", status=1)
     
+    } else if (mut.assignment.type == 4) {  
+      warning("MPEAR mut assignment not implemented for multiple timepoints")
+      q(save="no", status=1)
+      
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
       q(save="no", status=1)
@@ -371,7 +375,7 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
       subclonal.fraction[is.nan(subclonal.fraction)] = 0
       consClustering = oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in)
-      
+      setwd(wd) 
     } else if (mut.assignment.type == 2) {
       setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt
       consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
@@ -384,6 +388,15 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                                  tumourCopyNumber=totalCopyNumber,
                                                  normalCopyNumber=array(2, dim(mutCount)),
                                                  cellularity=cellularity)
+      
+    } else if (mut.assignment.type == 4) {  
+      consClustering = mutation_assignment_mpear(GS.data=GS.data, 
+                                                 no.iters=no.iters, 
+                                                 no.iters.burn.in=no.iters.burn.in, 
+                                                 min.frac.snvs.cluster=min.frac.snvs.cluster, 
+                                                 dataset=dataset, 
+                                                 samplename=samplename, 
+                                                 outdir=output_folder)
       
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
@@ -446,7 +459,10 @@ add.muts.back.in = function(dat, removed_indices, def.value=0) {
   # keeping the order in tact.
   #
   for (i in removed_indices) { 
-    if (i >= ncol(dat)) {
+    if (i==1) {
+      dat = cbind(rep(def.value, nrow(dat)), dat)
+      dat = rbind(rep(def.value, ncol(dat)), dat)
+    } else if (i >= ncol(dat)) {
       	dat = cbind(dat, rep(def.value, nrow(dat)))
       	dat = rbind(dat, rep(def.value, ncol(dat)))
     } else {

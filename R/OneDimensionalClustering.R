@@ -504,6 +504,8 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   print(localOptima)
   
   write.table(cbind(localOptima,above95confidence),paste(new_output_folder,"/",samplename,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
+  print(localOptima)
+  print(localOptima[above95confidence,])
   write.table(localOptima[above95confidence,],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
   
   no.optima = nrow(localOptima)
@@ -739,6 +741,9 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
 #   }
 # }
 
+#######################################################################################################################
+# Binomial based mutation assignment
+#######################################################################################################################
 
 #' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
 #' This for now only works with a single timepoint
@@ -862,3 +867,297 @@ getClusterDensity = function(clustering_density, cluster_locations, min.window.d
   cluster_density = cluster_density/sum(cluster_density)
   return(cluster_density)
 }
+
+#######################################################################################################################
+# MPEAR based mutation assignment
+#######################################################################################################################
+
+#' A function that takes SNVs assigned to clusters and works out a PDF for each cluster, in 512 bins across the given space. These densities can then be used to obtain the probability of each cluster for not assigned SNVs.
+#' @param best.node.assignments A vector with hard assignments of SNVs to clusters
+#' @param subclonal.fraction CCF values of the SNVs
+#' @param min_ccf The minimum CCF value to consider for constructing the density
+#' @param max_ccf The minimum CCF value to consider for constructing the density
+#' @return A combined density distribution, a column per cluster
+get_cluster_densities = function(best.node.assignments, subclonal.fraction, min_ccf=0, max_ccf=1.5) {
+  print("Building densities")
+  print("Clusters:")
+  print(unique(best.node.assignments[!is.na(best.node.assignments)]))
+  print("Subclonal fraction:")
+  print(head(subclonal.fraction))
+  
+  #' Get the per cluster densities
+  cluster_densities = list()
+  for (clusterid in unique(best.node.assignments[!is.na(best.node.assignments)])) {
+    ccfs_snvs_cluster = subclonal.fraction[best.node.assignments==clusterid,]
+    print("Clusterid:")
+    print(clusterid)
+    print(head(ccfs_snvs_cluster))
+    p = ggplot_build(ggplot(data.frame(x=ccfs_snvs_cluster)) + aes(x=x, y=..density..) + geom_density() + xlim(min_ccf, max_ccf))
+    cluster_densities[[length(cluster_densities)+1]] = p$data[[1]]
+  }
+  
+  #' Combining the densities into a matrix
+  combined_densities = data.frame(cbind(cluster_densities[[1]][,c("x")],
+                                        do.call(cbind, lapply(cluster_densities, function(x) { x[,c("y")] }))))
+  
+  no.optima = length(unique(best.node.assignments[!is.na(best.node.assignments)]))
+  # Rescale the height of the density by the total combined height to obtain fraction of the density per bin
+  if (ncol(combined_densities)==2) {
+    # Only 1 cluster, so always probability 1
+    combined_densities[,(1:no.optima)+1] = 1
+  } else {
+    combined_densities[,(1:no.optima)+1] = combined_densities[,(1:no.optima)+1] / colSums(combined_densities[,(1:no.optima)+1])
+  }
+  colnames(combined_densities) = c("x", paste("cluster_", unique(best.node.assignments[!is.na(best.node.assignments)]), sep=""))
+  return(combined_densities)
+}
+
+#' Fetch the CCFs of the clusters to which SNVs have been assigned during MCMC into a big table
+#' @param pi.h The cluster CCFs
+#' @param S.i The mutation assignments to cluster ids
+#' @param no.muts Number of total SNVs
+#' @param no.iters The total number of iterations
+#' @param no.iters.burn.in The total number of iterations to use as burnin
+#' @return A matrix with a column for each SNV and a row for each to consider iteration with the cell containing the CCF
+#' @author sd11
+get_snv_assignment_ccfs = function(pi.h, S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in) {
+  #' Get assignment ccfs for each snv
+  no.iters.post.burnin = no.iters-no.iters.burn.in
+  snv_ccfs = array(NA, c(no.iters.post.burnin, no.muts, no.timepoints))
+  x = (no.iters.burn.in+1):no.iters
+  for (t in 1:no.timepoints) {
+    for (i in 1:no.muts) {
+      snv_ccfs[, i, t] = pi.h[cbind(x, S.i[-c(1:no.iters.burn.in), i], t)]
+    }
+  }
+  return(snv_ccfs)
+}
+
+#' Function to obtain cluster preferences for individual SNVs via the CCF of assigned clusters, known cluster 
+#' locations and a density that approximates the probability of belonging to a certain cluster
+#' @param snv_ccfs
+#' @param combined_densities
+#' @param no.optima
+#' @param no.muts
+#' @param no.iters
+#' @param no.iters.burn.in
+#' @return A list with two tables. One with the fraction of iterations that each SNV would've been assigned to each of the clusters and one where SNVs are not hard assigned, but the probabilities of the clusters are added up per cluster
+#' @author sd11
+get_preferences_matrix = function(snv_ccfs, combined_densities, no.optima, no.muts, no.iters, no.iters.burn.in) {
+  no.iters.post.burnin = no.iters-no.iters.burn.in
+  #' Determine the cluster the snv would be assigned to - given the densities
+  # clusterids = cluster_locations_table$cluster.no
+  # no.optima = length(clusterids)
+  mutation.preferences = array(0, c(no.muts, no.optima))
+  mutation.sum.probs = array(0, c(no.muts, no.optima))
+  for (iter in 1:(no.iters.post.burnin)) {
+    assignment_ccf = snv_ccfs[iter, 1:no.muts]
+    bins = sapply(1:no.muts, function(i) { which.min(abs(combined_densities$x-assignment_ccf[i])) })
+    snv.most.likely.cluster = sapply(bins, function(bin) { which.max(combined_densities[bin,(1:no.optima)+1]) })
+    # Get the max probability cluster for this assignment_ccf and count the assignment
+    mutation.preferences[cbind(1:no.muts, snv.most.likely.cluster)] = mutation.preferences[cbind(1:no.muts, snv.most.likely.cluster)] + 1
+    # Sum the probabilities of each cluster
+    mutation.sum.probs = mutation.sum.probs + combined_densities[bins,(1:no.optima)+1]
+  }
+  mutation.preferences = mutation.preferences / no.iters.post.burnin
+  mutation.sum.probs = mutation.sum.probs / no.iters.post.burnin
+  return(list(mutation.preferences=mutation.preferences, mutation.sum.probs=mutation.sum.probs))
+}
+
+#' Function that works out where SNVs would've been assigned, given an SNV to cluster assignment
+get_mutation_preferences = function(pi.h, S.i, best.node.assignments, subclonal.fraction, no.iters, no.iters.burn.in) {
+  no.optima = length(unique(best.node.assignments[!is.na(best.node.assignments)]))
+  no.muts = nrow(subclonal.fraction)
+  # Obtain densities for each cluster so we know the probability of each cluster vs CCF  
+  combined_densities = get_cluster_densities(best.node.assignments, subclonal.fraction)
+  # Get the CCFs of the clusters to which SNVs have been assigned during MCMC
+  snv_ccfs = get_snv_assignment_ccfs(pi.h, S.i, no.muts, no.iters, no.iters.burn.in)
+  # Combine the density with the assignment CCFs to work out where each SNV would've been assigned during MCMC
+  prefs = get_preferences_matrix(snv_ccfs, combined_densities, no.optima, no.muts, no.iters, no.iters.burn.in)
+  return(list(snv_ccfs=snv_ccfs, mutation.preferences=prefs$mutation.preferences, mutation.sum.probs=prefs$mutation.sum.probs, combined_densities=combined_densities))
+}
+
+#' Use the max-PEAR metric to obtain mutation clusters
+#' @param GS.data
+#' @param no.iters
+#' @param no.iters.burn.in
+#' @param min.frac.snvs.cluster
+#' @return 
+#' @author sd11
+mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.frac.snvs.cluster, dataset, samplename, outdir) {
+  
+  #' Take a list of assigned labels and a dataset and create the cluster locations table by 
+  #' using the mean CCF of the assigned mutations per cluster
+  make_clusters = function(filtered_label_assignments, dataset) {
+    # Build a DPClust clusters table
+    cluster_locs = data.frame()
+    for (i in unique(filtered_label_assignments)) {
+      if (!is.na(i)) {
+        assigned_muts = filtered_label_assignments==i
+        assigned_muts[is.na(assigned_muts)] = F
+        cluster_locs = rbind(cluster_locs, data.frame(cluster.no=i, 
+                                                      location=mean(dataset$subclonal.fraction[assigned_muts,]), 
+                                                      no.mutations=sum(assigned_muts)))
+      }
+    }
+    return(cluster_locs)
+  }
+  
+  #' Set assigned labels to small clusters to NA
+  remove_small_clusters = function(label_assignments, min.frac.snvs.cluster) {
+    num.muts = length(label_assignments)
+    cluster_sizes = table(label_assignments)
+    filtered_label_assignments = label_assignments
+    for (clusterid in unique(label_assignments[!is.na(label_assignments)])) {
+      if (cluster_sizes[as.character(clusterid)] < floor(min.frac.snvs.cluster*num.muts) & cluster_sizes[as.character(clusterid)] < 30) {
+        filtered_label_assignments[label_assignments==clusterid] = NA
+      }
+    }
+    return(filtered_label_assignments)
+  }
+  
+  #' Convenience function to make the plot
+  make_figure = function(dataset, mutation_assignments, filename) {
+    dat_ccf_mpear = cbind(data.frame(ccf=dataset$subclonal.fraction[,1]), data.frame(cluster=factor(mutation_assignments)))
+    p = ggplot(dat_ccf_mpear) + aes(x=ccf, y=..count.., fill=cluster) + geom_bar(binwidth=0.05, colour="black")
+    png(filename, width=700, height=400)
+    print(p)
+    dev.off()
+  }
+  
+  
+  num.muts = ncol(GS.data$S.i)
+  # Obtain coassignment posterior estimates from the trace
+  coassignments = mcclust::comp.psm(GS.data$S.i[no.iters.burn.in:no.iters, ])
+  # Get the max PEAR
+  mpear = mcclust::maxpear(coassignments)
+  label_assignments = mpear$cl
+  
+  # Save the computationally heavy results
+  save(file=paste(outdir, samplename, "_coassignment_matrix.RData", sep=""), coassignments, mpear)
+  
+  # Remove too small clusters
+  filtered_label_assignments = remove_small_clusters(label_assignments, min.frac.snvs.cluster)
+  
+  # Build a DPClust clusters table
+  cluster_locs = make_clusters(filtered_label_assignments, dataset)
+  make_figure(dataset=dataset, 
+              mutation_assignments=filtered_label_assignments, 
+              filename=paste(outdir, samplename, "_mpear_large_clusters.png", sep="")) 
+  
+  # Build a mutation preferences table
+  mutation.preferences = get_mutation_preferences(GS.data$pi.h[,,1], GS.data$S.i, filtered_label_assignments, dataset$subclonal.fraction, no.iters, no.iters.burn.in)
+  save(file=paste(outdir, samplename, "_mutation_preferences.RData", sep=""), mutation.preferences)
+  preferences = mutation.preferences$mutation.preferences
+  
+  # Assign the unassigned mutations
+  unassigned_index = which(is.na(filtered_label_assignments))
+  most_likely_cluster = sapply(unassigned_index, function(i) { which.max(preferences[i,]) })
+  # Save the id of the most likely cluster - sort because the preferences table is sorted by cluster id, which may not be the same ordering as the clusterin
+  filtered_label_assignments_final = filtered_label_assignments
+  filtered_label_assignments_final[is.na(filtered_label_assignments_final)] = sort(cluster_locs$cluster.no)[most_likely_cluster]
+  
+  # TODO: maybe update the cluster locations?
+  
+  make_figure(dataset=dataset, 
+              mutation_assignments=filtered_label_assignments_final, 
+              filename=paste(outdir, samplename, "_mpear_large_clusters_allsnvs.png", sep=""))
+  
+  
+  # # Get probabilities for each mutation and cluster
+  # assignment_probs = calcBinomProbs(dataset, cluster_locs$location)
+  # 
+  # # Assign the remaining mutations to the most likely cluster
+  # most.likely.cluster = cluster_locs$cluster.no[apply(assignment_probs, 1, which.max)]
+  # filtered_label_assignments[is.na(filtered_label_assignments)] = most.likely.cluster[is.na(filtered_label_assignments)]
+  # 
+  # Rebuild the clusters with all mutations assigned
+  cluster_locs = make_clusters(filtered_label_assignments_final, dataset)
+  
+  # Rename the clusters to have the ids line up
+  filtered_label_assignments_final.temp = filtered_label_assignments_final
+  for (i in nrow(cluster_locs):1) {
+    filtered_label_assignments_final[filtered_label_assignments_final.temp==cluster_locs$cluster.no[i]] = i
+  }
+  cluster_locs$cluster.no = nrow(cluster_locs):1
+  
+  # Obtain the probability of the most likely cluster to return to upstream
+  best.assignment.likelihoods = preferences[cbind(1:length(filtered_label_assignments_final), filtered_label_assignments_final)]
+  return(list(best.node.assignments=filtered_label_assignments_final, best.assignment.likelihoods=best.assignment.likelihoods, cluster.locations=cluster_locs, all.assignment.likelihoods=preferences))
+}
+
+
+#' Calculate confidence intervals on the cluster location
+#' @param GS.data MCMC output with assignments and cluster locations
+#' @param mut_assignments Final mutation to cluster assignments
+#' @param clusterids Clusterids to run through
+#' @param no.muts The total number of mutations
+#' @param no.iters Total number of iterations
+#' @param no.timepoints Total number of samples in this dataset
+#' @param no.iters.burn.in Number of iterations to use as burn-in
+#' @return A data.frame with the confidence intervals for each cluster
+#' @author sd11
+calc_cluster_conf_intervals = function(GS.data, mut_assignments, clusterids, no.muts, no.timepoints, no.iters, no.iters.burn.in) {
+  assign_ccfs = get_snv_assignment_ccfs(GS.data$pi.h, GS.data$S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in)
+  cluster_intervals = data.frame()
+  for (t in 1:no.timepoints) {
+    for (i in 1:length(clusterids)) {
+      # get all SNVs assigned to this cluster
+      clusterid = clusterids[i]
+      assigned = which(mut_assignments==clusterid)
+      ccfs = assign_ccfs[, assigned, t]
+      # Flatten the matrix
+      dim(ccfs) = NULL
+      quants = t(data.frame(quantile(ccfs, c(.05, .5, .95))))
+      cluster_intervals = rbind(cluster_intervals, data.frame(clusterid=clusterid, timepoint=t, quants))
+    }
+  }
+  return(cluster_intervals)
+}
+
+#' Calculate for a pair of clusters whether a has a higher CCF than b.
+#' 
+#' This function uses mutation assignments during MCMC of the mutations that have been assigned
+#' to clusters a and b after completion of the run. It samples 1000 mutations from a and b and
+#' looks how often a_i has a higher assignment CCF than b_i and combines this information in a 
+#' fraction. The final table contains for each cell a probability whether the column has a higher
+#' CCF than the row.
+#' @param GS.data MCMC output with assignments and cluster locations
+#' @param clusterids Clusterids to run through
+#' @param no.muts The total number of mutations
+#' @param no.timepoints Total number of samples in this dataset
+#' @param no.iters Total number of iterations
+#' @param no.iters.burn.in Number of iterations to use as burn-in
+#' @return A array multi-dimensional array with in each cell whether the column cluster has a higher CCF than the row cluster across the samples in the third dimension
+#' @author sd11
+calc_cluster_order_probs = function(GS.data, mut_assignments, clusterids, no.muts, no.timepoints, no.iters, no.iters.burn.in, no.samples=1000) {
+  num_clusters = length(clusterids)
+  if (num_clusters > 1) {
+    assign_ccfs = get_snv_assignment_ccfs(GS.data$pi.h, GS.data$S.i, no.muts, no.timepoints, no.iters, no.iters.burn.in)
+    
+    probs = array(NA, c(length(clusterids), length(clusterids), no.timepoints))
+    for (t in 1:no.timepoints) {
+      for (c in 1:(num_clusters-1)) {
+        for (k in (c+1):num_clusters) {
+          
+          snvs_a = which(mut_assignments==clusterids[c])
+          snvs_b = which(mut_assignments==clusterids[k])
+          
+          sampled_a = sample(snvs_a, no.samples, replace=T)
+          sampled_b = sample(snvs_b, no.samples, replace=T)
+          
+          frac_gt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] >= assign_ccfs[, sampled_b[i], t])) }))
+          frac_lt = sum(sapply(1:no.samples, function(i) { (sum(assign_ccfs[, sampled_a[i], t] <= assign_ccfs[, sampled_b[i], t])) }))
+          
+          probs[c, k, t] = frac_lt / (frac_lt+frac_gt)
+          probs[k, c, t] = frac_gt / (frac_lt+frac_gt)
+        }
+      }
+    }
+    return(probs)
+  } else {
+    return(array(NA, c(length(clusterids), length(clusterids), no.timepoints)))
+  }
+}
+
+
