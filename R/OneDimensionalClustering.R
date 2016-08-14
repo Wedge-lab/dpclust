@@ -977,6 +977,34 @@ get_mutation_preferences = function(pi.h, S.i, best.node.assignments, subclonal.
   return(list(snv_ccfs=snv_ccfs, mutation.preferences=prefs$mutation.preferences, mutation.sum.probs=prefs$mutation.sum.probs, combined_densities=combined_densities))
 }
 
+#' Helper function that builds the a density over assignment CCFs for each mutation
+get_snv_ccf_assignmnent_density = function(S.i, pi.h, no.iters.burn.in) {
+  snv_ccfs = DPClust::get_snv_assignment_ccfs(pi.h, S.i, ncol(S.i), 1, nrow(S.i), no.iters.burn.in)
+  snv_ccfs = snv_ccfs[,,1]
+  snv_densities = lapply(1:ncol(snv_ccfs), function(i) { ggplot_build(ggplot(data.frame(ccf=snv_ccfs[,i])) + aes(x=ccf, y=..density..) + geom_density() + xlim(0, 1.5))$data[[1]]$y })
+  snv_densities = lapply(snv_densities, function(dat) { dat/sum(dat) })
+  return(snv_densities)
+}
+
+#' Build a coassignment probability matrix using SNV specific densities over
+#' the assigned CCFs during MCMC
+#' @param S.i
+#' @param pi.h
+#' @param no.iters.burn.in
+build_coassignment_prob_matrix_densities = function(S.i, pi.h, no.iters.burn.in) {
+  snv_densities = get_snv_ccf_assignmnent_density(S.i, pi.h, no.iters.burn.in)
+  no.muts = length(snv_densities)
+  identity.strengths = array(0,c(no.muts,no.muts))
+  for (i in 1:(no.muts-1)) {
+    identity.strengths[i,i] = 1
+    for(j in (i+1):no.muts) {
+      identity.strengths[i,j] = identity.strengths[j,i] = 1-(sum(abs(snv_densities[[i]]-snv_densities[[j]])) / 2)
+    }
+  }
+  identity.strengths[no.muts,no.muts] = 1
+  return(identity.strengths)
+}
+
 #' Use the max-PEAR metric to obtain mutation clusters
 #' @param GS.data
 #' @param no.iters
@@ -1028,7 +1056,8 @@ mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.fr
   
   num.muts = ncol(GS.data$S.i)
   # Obtain coassignment posterior estimates from the trace
-  coassignments = mcclust::comp.psm(GS.data$S.i[no.iters.burn.in:no.iters, ])
+  # coassignments = mcclust::comp.psm(GS.data$S.i[no.iters.burn.in:no.iters, ])
+  coassignments = build_coassignment_prob_matrix_densities(GS.data$S.i, GS.data$pi.h, no.iters.burn.in)
   # Get the max PEAR
   mpear = mcclust::maxpear(coassignments)
   label_assignments = mpear$cl
