@@ -101,7 +101,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
 #' @author sd11
 plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, samplename="", CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
-  cbPalette = c("lightgray", "black")
+  cbPalette = c("lightgray", "red", "blue")
   colnames(density)[1] = "fraction.of.tumour.cells"
   
   conf.interval = data.frame(x=density[,1], ymax=(polygon.data[1:512] / sum(density$median.density)), ymin=(rev(polygon.data[513:1024]) / sum(density$median.density)))
@@ -114,7 +114,7 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
   
   p = ggplot() +
     geom_histogram(data=ccf.df, mapping=aes(x=V1, y=(..count..)/sum(..count..), fill=mutationType, alpha=0.3), binwidth=0.025, position="stack", alpha=0.8, colour="black") +
-    geom_ribbon(data=conf.interval, mapping=aes(x=x,ymin=ymin,ymax=ymax), fill=cm.colors(1, alpha=0.8)) +
+    geom_ribbon(data=conf.interval, mapping=aes(x=x,ymin=ymin,ymax=ymax), fill=cm.colors(1, alpha=0.6)) +
     geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="plum4", size=2) +
     xlab("Fraction of Tumour Cells") +
     ylab("Density") +
@@ -165,8 +165,9 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
 #' @param pngFile Output file to save the image.
 #' @param cndata Optional CNA data table. This must be the table from after assigning CNA events to clusters (Default: NA).
 #' @param num_samples Optional parameter representing the number of samples that have been clustered (Default: 1)
+#' @param indeldata Optional indel data table. This must be the table from after assigning indel events to clusters (Default: NA).
 #' @author sd11
-plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA, num_samples=1) {
+plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA, num_samples=1, indeldata=NA) {
   # Set the naming for the figure
   cluster_locations = as.data.frame(cluster_locations)
   colnames(cluster_locations) = c("Cluster", "Location", rep("", num_samples-1), "Num SNVs")
@@ -178,8 +179,17 @@ plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA, num_sample
     cluster_locations[,i+1] = round(cluster_locations[,i+1], 2)
   }
   
+  # Add in the indels if they are available
+  if (!is.null(indeldata)) {
+    cluster_locations$no.of.indels = 0
+    for (cluster.no in unique(cluster_locations$Cluster)) {
+      cluster_locations[cluster_locations$Cluster==cluster.no, "no.of.indels"] = sum(indeldata$cluster==cluster.no, na.rm=T)
+    }
+    colnames(cluster_locations)[ncol(cluster_locations)] = "Num indels"
+  }
+  
   # Add in the CNAs if they are available
-  if (!is.na(cndata)) {
+  if (!is.null(cndata)) {
     cluster_locations$no.of.cnas = 0
     for (cluster.no in unique(cluster_locations$Cluster)) {
       cndata_cluster = cndata[cndata$cluster_assignment==cluster.no,]

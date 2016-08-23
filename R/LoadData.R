@@ -48,7 +48,7 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
 #' @noRD
-load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms) {
+load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms, mutation_type="SNV") {
   no.subsamples = length(list_of_tables)
   no.muts = nrow(list_of_tables[[1]])
   
@@ -135,7 +135,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   mutationCopyNumber = as.matrix(mutationCopyNumber[select,])
   subclonalFraction = as.matrix(subclonalFraction[select,])
   phasing = as.data.frame(phasing[select,])
-  mutationType = factor(rep("SNV", nrow(mutCount)), levels=c("SNV", "CNA"))
+  mutationType = factor(rep(mutation_type, nrow(mutCount)), levels=c("SNV", "CNA", "indel"))
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
 
   # These are required when this dataset is subsampled
@@ -158,6 +158,13 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
 load.cn.data = function(infile) {
   cndata = read.table(infile, header=T, stringsAsFactors=F)
   return(cndata)
+}
+
+#' Load the indel input
+#' This expects a DP indel input file
+load.indel.data = function(infiles) {
+  indeldata = lapply(infiles, function(infile) read.table(infile, header=T, stringsAsFactors=F))
+  return(indeldata)
 }
 
 #' Function that adds copy number as a series of SNVs into a data set
@@ -275,7 +282,7 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
     dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)
   }
   # Setting mutation type of all CNAs and making each CNA most similar to itself
-  dataset$mutationType = factor(c(as.character(dataset$mutationType), rep("CNA", nrow(cndata))), levels=c("SNV", "CNA"))
+  dataset$mutationType = factor(c(as.character(dataset$mutationType), rep("CNA", nrow(cndata))), levels=c("SNV", "CNA", "indel"))
   dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
   
   if (add.conflicts) {
@@ -369,7 +376,7 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   dataset$phase = rbind(dataset$phase, new_phase)
 
   # Setting mutation type of all SNVs and making each CNA most similar to itself
-  dataset$mutationType = factor(c(as.character(dataset$mutationType), rep("CNA", num_muts)), levels=c("SNV", "CNA"))
+  dataset$mutationType = factor(c(as.character(dataset$mutationType), rep("CNA", num_muts)), levels=c("SNV", "CNA", "indel"))
   dataset$most.similar.mut = c(dataset$most.similar.mut, which(dataset$mutationType=="CNA"))
 
   return(dataset)
@@ -504,4 +511,73 @@ add.mutphasing = function(dataset, mutphasing, add.conflicts=F) {
     }
   }
   return(dataset)
+}
+
+#' Add indels to an existing dataset
+add.in.indels = function(dataset, indeldata, is.male, min.depth, min.mutreads, supported_chroms) {
+  indelset = load.data.inner(list_of_tables=indeldata, 
+                             cellularity=dataset$cellularity, 
+                             Chromosome="chr", 
+                             position="end",
+                             WT.count="WT.count", 
+                             mut.count="mut.count", 
+                             subclonal.CN="subclonal.CN", 
+                             no.chrs.bearing.mut="no.chrs.bearing.mut", 
+                             mutation.copy.number="mutation.copy.number", 
+                             subclonal.fraction="subclonal.fraction", 
+                             phase="phase",
+                             is.male=is.male,
+                             min.depth=min.depth, 
+                             min.mutreads=min.mutreads, 
+                             supported_chroms=supported_chroms, 
+                             mutation_type="indel")
+  dataset = append.dataset(dataset, indelset)
+  # Save the indelset separately
+  dataset$indeldata=indelset
+  return(dataset)
+}
+
+
+#' Convenience function to append two datasets
+append.dataset = function(a, b) {
+  if (dim(a$mutCount) != dim(b$mutCount) & a$cellularity!=b$cellularity) {
+    stop("Cannot append two datasets of different sizes or with different cellularities")
+  }
+  
+  if (!is.na(a$sampling.selection) | !is.na(b$sampling.selection)) {
+    stop("Cannot append datasets that have been downsampled")
+  }
+  
+  if (!is.na(a$conflict.array) | !is.na(b$conflict.array)) {
+    stop("Cannot append datasets that contain conflict arrays")
+  }
+  
+  # Append the basic tables
+  a$chromosome = rbind(a$chromosome, b$chromosome)
+  a$position = rbind(a$position, b$position)
+  a$mutCount = rbind(a$mutCount, b$mutCount)
+  a$WTCount = rbind(a$WTCount,  b$WTCount)
+  a$totalCopyNumber = rbind(a$totalCopyNumber,  b$totalCopyNumber)
+  a$copyNumberAdjustment = rbind(a$copyNumberAdjustment, b$copyNumberAdjustment)
+  a$mutation.copy.number = rbind(a$mutation.copy.number, b$mutation.copy.number)
+  a$kappa = rbind(a$kappa, b$kappa)
+  a$subclonal.fraction = rbind(a$subclonal.fraction, b$subclonal.fraction)
+  a$phase = rbind(a$phase, b$phase)
+  a$mutationType = factor(c(as.character(a$mutationType), as.character(b$mutationType)), levels=c("SNV", "CNA", "indel"))
+  a$most.similar.mut = c(a$most.similar.mut, b$most.similar.mut)
+  a$non.deleted.muts = c(a$non.deleted.muts, b$non.deleted.muts)
+  a$chromosome.not.filtered = c(a$chromosome.not.filtered, b$chromosome.not.filtered)
+  a$mut.position.not.filtered = c(a$mut.position.not.filtered, b$mut.position.not.filtered)
+
+  # Add the total number of SNVs in the a dataset to the removed indices of b
+  a$removed_indices = c(a$removed_indices, b$removed_indices+nrow(a$chromosome.not.filtered))
+  
+  # Cannot have been any downsampling, so take whatever is in a
+  a$sampling.selection = a$sampling.selection
+  a$conflict.array = a$conflict.array
+  # Mutphasing tables can be appended
+  a$mutphasing = rbind(a$mutphasing, b$mutphasing)
+  
+  # full.data=full_data, 
+  return(a)  
 }

@@ -293,12 +293,19 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   }
   GS.data = subclone.dirichlet.gibbs(mutCount=mutCount,
                                     WTCount=WTCount,
-                                    totalCopyNumber=totalCopyNumber, 
-                                    copyNumberAdjustment=copyNumberAdjustment, 
+                                    totalCopyNumber=totalCopyNumber,
+                                    copyNumberAdjustment=copyNumberAdjustment,
                                     cellularity=cellularity,
                                     iter=no.iters,
                                     conc_param=conc_param,
                                     cluster_conc=cluster_conc)
+  
+  # GS.data = subclone.dirichlet.gibbs.1d(mutCount=mutCount,
+  #                                       WTCount=WTCount,
+  #                                       totalCopyNumber=totalCopyNumber, 
+  #                                       copyNumberAdjustment=copyNumberAdjustment, 
+  #                                       cellularity=cellularity,
+  #                                       iter=no.iters)
   
   save(file=paste(output_folder, "/", samplename, "_gsdata.RData", sep=""), GS.data)
   
