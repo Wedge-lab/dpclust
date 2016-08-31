@@ -163,11 +163,11 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
 #' Plot a table with the assignment counts
 #' @param cluster_locations Cluster table with cluster number, cluster location and number of mutations as columns.
 #' @param pngFile Output file to save the image.
-#' @param cndata Optional CNA data table. This must be the table from after assigning CNA events to clusters (Default: NA).
+#' @param cndata Optional CNA data table. This must be the table from after assigning CNA events to clusters (Default: NULL).
 #' @param num_samples Optional parameter representing the number of samples that have been clustered (Default: 1)
-#' @param indeldata Optional indel data table. This must be the table from after assigning indel events to clusters (Default: NA).
+#' @param indeldata Optional indel data table. This must be the table from after assigning indel events to clusters (Default: NULL).
 #' @author sd11
-plotAssignmentTable = function(cluster_locations, pngFile, cndata=NA, num_samples=1, indeldata=NA) {
+plotAssignmentTable = function(cluster_locations, pngFile, cndata=NULL, num_samples=1, indeldata=NULL) {
   # Set the naming for the figure
   cluster_locations = as.data.frame(cluster_locations)
   colnames(cluster_locations) = c("Cluster", "Location", rep("", num_samples-1), "Num SNVs")
