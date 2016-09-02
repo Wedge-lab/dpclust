@@ -98,8 +98,9 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
 #' @param cluster.locations Locations of where clusters were found. A vectical line is plotted for each cluster.
 #' @param mutation.assignments
 #' @param mutationTypes
+#' @param font_sizes A list that defines the size of the fonts in the title, axis and legends (Default: Best settings for 1500x1000 plot).
 #' @author sd11
-plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, samplename="", CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
+plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, samplename="", CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL, font_sizes = list(plot.title = 50, axis.text = 25, axis.title = 35, legend.text = 25, legend.title = 25, legend.position = "bottom")) {
   # Gray for first mutation type (SNVs), orange for second (CNAs), as defined in LoadData
   cbPalette = c("lightgray", "red", "blue")
   colnames(density)[1] = "fraction.of.tumour.cells"
@@ -121,13 +122,12 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
     ggtitle(samplename) +
     theme_bw() +
     xlim(0, x.max) +
-    theme(axis.text=element_text(size=25),
-          axis.title=element_text(size=35),
-          # strip.text.x=element_text(size=rel(0.75)),
-          plot.title=element_text(size=50),
-          legend.text=element_text(size=25),
-          legend.title=element_text(size=25),
-          legend.position="bottom") +
+    theme(axis.text=element_text(size=font_sizes$axis.text),
+          axis.title=element_text(size=font_sizes$axis.title),
+          plot.title=element_text(size=font_sizes$plot.title),
+          legend.text=element_text(size=font_sizes$legend.text),
+          legend.title=element_text(size=font_sizes$legend.title),
+          legend.position=font_sizes$legend.position) +
     scale_fill_manual(values=cbPalette) +
     scale_colour_discrete(drop=F, limits=levels(ccf.df$mutationTypes))
   
