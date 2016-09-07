@@ -164,7 +164,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
 
 # q(save="no")
 
-mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
+mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction, node.assignments, opts) {
   
   # Unpack analysis options required
   no.iters = opts$no.iters
@@ -173,6 +173,9 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
   outdir = opts$outdir
   subsamplenames = opts$subsamplenames
   samplename = opts$samplename
+  
+  identity.strengths = build_coassignment_prob_matrix_densities(GS.data$S.i, GS.data$pi.h, no.iters.burn.in)
+  identity.strengths = identity.strengths*no.iters.post.burn.in
   
   
   print("Setting up the data")
@@ -184,20 +187,20 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
     next()
   }
   
-  # Determine mutation strengths across all iterations, discarding burnin
-  identity.strengths = array(0,c(no.muts,no.muts))
-  for(m in 1:(no.muts-1)){
-    identity.strengths[m,m] = no.iters.post.burn.in
-    for(n in (m+1):no.muts){
-      identity.strengths[m,n] = identity.strengths[n,m] = sum(node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,m] == node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,n])
-    }
-  }
-  identity.strengths[no.muts,no.muts] = no.iters-no.iters.post.burn.in
+  # # Determine mutation strengths across all iterations, discarding burnin
+  # identity.strengths = array(0,c(no.muts,no.muts))
+  # for(m in 1:(no.muts-1)){
+  #   identity.strengths[m,m] = no.iters.post.burn.in
+  #   for(n in (m+1):no.muts){
+  #     identity.strengths[m,n] = identity.strengths[n,m] = sum(node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,m] == node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,n])
+  #   }
+  # }
+  # identity.strengths[no.muts,no.muts] = no.iters-no.iters.post.burn.in
   
   #initialise: assume all mutations are assigned to a single node, with mean subclonal fractions
   likelihoods = 0 
-  subclonal.fraction = mutCount/(mutCount+WTCount)
-  subclonal.fraction[is.nan(subclonal.fraction)]=0
+  #subclonal.fraction = mutCount/(mutCount+WTCount)
+  #subclonal.fraction[is.nan(subclonal.fraction)]=0
   mean.subclonal.fractions = colMeans(subclonal.fraction)
   
   for(i in 1:no.muts){
@@ -411,7 +414,8 @@ mutation_assignment_em = function(mutCount, WTCount, node.assignments, opts) {
 
   most.likely.cluster = all.consensus.assignments[[best.BIC.index]]
   write.table(cbind(1:length(table(most.likely.cluster)), table(most.likely.cluster), all.node.positions[[best.BIC.index]]), paste(outdir, "/", samplename, "_optimaInfo.txt", sep=""), col.names=c("cluster.no", "no.muts.in.cluster", paste(samplename,subsamplenames,sep="")), sep="\t", quote=F, row.names=F)
-  cluster.locations = cbind(1:length(most.likely.cluster), all.node.positions[[best.BIC.index]], most.likely.cluster)
+  assignment_counts = table(most.likely.cluster)
+  cluster.locations = data.frame(cbind(names(assignment_counts), all.node.positions[[best.BIC.index]], assignment_counts))
 
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=all.likelihoods[[best.BIC.index]], cluster.locations=cluster.locations, all.assignment.likelihoods=NA))
 }
@@ -1017,6 +1021,43 @@ build_coassignment_prob_matrix_densities = function(S.i, pi.h, no.iters.burn.in)
   return(identity.strengths)
 }
 
+build_coassignment_prob_matrix_preferences = function(GS.data, density, no.muts, sampledIters) {
+  res = getLocalOptima(density, hypercube.size=5)
+  localOptima = res$localOptima
+  peak.indices = res$peak.indices
+  no.optima = length(localOptima)
+  
+  boundary = array(NA,no.optima-1)
+  mutation.preferences = array(0,c(no.muts,no.optima))
+  for(i in 1:(no.optima-1)){
+    min.density = min(density$median.density[(peak.indices[i]+1):(peak.indices[i+1]-1)])
+    min.indices = intersect(which(density$median.density == min.density),(peak.indices[i]+1):(peak.indices[i+1]-1))
+    
+    #what distance along the line between a pair of optima do we have to go to reach the minimum density
+    boundary[i] = (density$fraction.of.tumour.cells[max(min.indices)] + density$fraction.of.tumour.cells[min(min.indices)])/2
+  }
+  
+  # Adapt this to make a table with the preferred cluster for each mutation in each iteration
+  S.i = data.matrix(GS.data$S.i)
+  pi.h = GS.data$pi.h[,,1]
+  mutation.preferences = array(0, c(no.muts, length(sampledIters)))
+  coassignments = array(0, c(no.muts, no.muts))
+  for(s in sampledIters) {
+    #temp.preferences = array(0,c(no.muts,no.optima))
+    for(c in unique(S.i[s,])){
+      
+      bestOptimum = sum(pi.h[s,c]>boundary)+1
+      #temp.preferences[S.i[s,]==c,bestOptimum] = temp.preferences[S.i[s,]==c,bestOptimum] + 1
+      assigned.muts = which(S.i[s,]==c)
+      coassignments[assigned.muts, assigned.muts] = coassignments[assigned.muts, assigned.muts] + 1
+    }
+    #iter.preferences = t(apply(temp.preferences, 1, function(p) { as.integer(p==max(p)) / sum(p==max(p)) }))
+    #mutation.preferences = mutation.preferences + iter.preferences
+  }
+  coassignments = coassignments / length(sampledIters)
+  return(coassignments)
+}
+
 #' Use the max-PEAR metric to obtain mutation clusters
 #' @param GS.data
 #' @param no.iters
@@ -1024,7 +1065,7 @@ build_coassignment_prob_matrix_densities = function(S.i, pi.h, no.iters.burn.in)
 #' @param min.frac.snvs.cluster
 #' @return 
 #' @author sd11
-mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.frac.snvs.cluster, dataset, samplename, outdir) {
+mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.frac.snvs.cluster, dataset, samplename, outdir, density) {
   
   #' Take a list of assigned labels and a dataset and create the cluster locations table by 
   #' using the mean CCF of the assigned mutations per cluster
@@ -1069,7 +1110,8 @@ mutation_assignment_mpear = function(GS.data, no.iters, no.iters.burn.in, min.fr
   num.muts = ncol(GS.data$S.i)
   # Obtain coassignment posterior estimates from the trace
   # coassignments = mcclust::comp.psm(GS.data$S.i[no.iters.burn.in:no.iters, ])
-  coassignments = build_coassignment_prob_matrix_densities(GS.data$S.i, GS.data$pi.h, no.iters.burn.in)
+  # coassignments = build_coassignment_prob_matrix_densities(GS.data$S.i, GS.data$pi.h, no.iters.burn.in)
+  coassignments = build_coassignment_prob_matrix_preferences(GS.data, density, num.muts, no.iters.burn.in:no.iters)
   # Get the max PEAR
   mpear = mcclust::maxpear(coassignments)
   label_assignments = mpear$cl

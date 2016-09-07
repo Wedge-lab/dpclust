@@ -339,7 +339,12 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                                   density.smooth=0.01, 
                                                   opts=opts)
     } else if (mut.assignment.type == 2) {
-      consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
+      consClustering = mutation_assignment_em(GS.data=GS.data,
+                                              mutCount=mutCount, 
+                                              WTCount=WTCount, 
+                                              subclonal.fraction=mutation.copy.number/copyNumberAdjustment, 
+                                              node.assignments=GS.data$S.i, 
+                                              opts=opts)
       
     } else if (mut.assignment.type == 3) {  
       warning("binom mut assignment not implemented for multiple timepoints")
@@ -385,7 +390,12 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
       setwd(wd) 
     } else if (mut.assignment.type == 2) {
       setwd(wd) # set the wd back earlier. The oneD clustering and gibbs sampler do not play nice yet and need the switch, the em assignment doesnt
-      consClustering = mutation_assignment_em(mutCount=mutCount, WTCount=WTCount, node.assignments=GS.data$S.i, opts=opts)
+      consClustering = mutation_assignment_em(GS.data=GS.data,
+                                              mutCount=mutCount, 
+                                              WTCount=WTCount, 
+                                              subclonal.fraction=mutation.copy.number/copyNumberAdjustment, 
+                                              node.assignments=GS.data$S.i, 
+                                              opts=opts)
       
     } else if (mut.assignment.type == 3) {  
       consClustering = mutation_assignment_binom(clustering_density=density,
@@ -403,7 +413,8 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                                  min.frac.snvs.cluster=min.frac.snvs.cluster, 
                                                  dataset=dataset, 
                                                  samplename=samplename, 
-                                                 outdir=output_folder)
+                                                 outdir=output_folder,
+                                                 density=density)
       
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
