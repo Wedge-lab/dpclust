@@ -145,10 +145,13 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
     dat$assignment_counts = assignment_counts
     dat$y.max = y.max
 
-    # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
-    p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) +
-      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0), size=8) +
-      geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/20)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0), size=8)
+    # Only attempt to plot when the lines will be within the bounds of the figure, otherwise this will crash
+    if (any(dat$non_empty_cluster_locations < x.max)) {
+      # Plot a line for each cluster, the cluster id and the number of mutations assigned to it
+      p = p + geom_segment(data=dat, mapping=aes(x=non_empty_cluster_locations, xend=non_empty_cluster_locations, y=0, yend=y.max)) +
+        geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max, label=paste("Cluster", non_empty_cluster_ids, sep=" "), hjust=0), size=8) +
+        geom_text(data=dat, mapping=aes(x=(non_empty_cluster_locations+0.01), y=(9/10)*y.max-((1/20)*y.max), label=paste(assignment_counts, "mutations", sep=" "), hjust=0), size=8)
+    }
   }
   
   if (!is.na(pngFile)) {
