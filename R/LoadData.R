@@ -203,8 +203,11 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   }
   num.samples = ncol(dataset$mutCount)
   
-  # Take average depth as template for these CNAs disguised as fictional SNVs
-  N = round(mean(dataset$WTCount+dataset$mutCount)*3)
+  # Take average depth as template for these CNAs disguised as fictional SNVs - but if that is lower than 90x we cannot insert a subclone at 2% CCF
+  N = round(mean(dataset$WTCount+dataset$mutCount))
+  if (N < 90) {
+    N = 90
+  }
 
   # Calculate the average mutation rate per 10kb 300.000
   hum_genome_size = 323483
@@ -225,6 +228,9 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
     # Now create the number of mutations required, but only if the copy number segment is of large enough size
     if (CNA_num_muts > 0 & CNA_size > min.cna.size) {
       dataset = create_pseudo_snv(cndata[i,], CNA_num_muts, N, conf, cellularity, dataset, conflicting.events.only)
+    } else {
+      # Add the CNA as a single SNV so it is co-clustered without adding much weight
+      dataset = create_pseudo_snv(cndata[i,], 1, N, conf, cellularity, dataset, conflicting.events.only)
     }
   }
   
@@ -343,14 +349,24 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   num.samples = ncol(dataset$mutCount)
   # Create pseudo SNV carried by 1 copy in 1+1 area, and being subclonal proportionate to the CNA
   tumourCN = 2
-  ncbm = 1
+  ncbm = 1 # copy number adjustment / multiplicity
   reads.per.clonal.copy = (cellularity*N/conf) / (cellularity*tumourCN + (1-cellularity)*2)
-  # Calculate the expected number of reads carying the mutation and from there mutCount, WTCount and mutation.copy.number
-  exp_mc = round(reads.per.clonal.copy*cndata.i$frac1_A)
-  mc = rbinom(num_muts, round(N/conf), exp_mc/(N/conf))
-  mc[mc==0] = 1
-  wt = round(N/conf) - mc
-  mcn = mutationBurdenToMutationCopyNumber(mc/(mc+wt), tumourCN, cellularity, 2)
+  
+  # multiple mutations - a cluster, therefore add binomial noise
+  if (num_muts > 1) {
+    # Calculate the expected number of reads carying the mutation and from there mutCount, WTCount and mutation.copy.number
+    exp_mc = round(reads.per.clonal.copy*cndata.i$frac1_A)
+    mc = rbinom(num_muts, round(N/conf), exp_mc/(N/conf))
+    mc[mc==0] = 1
+    wt = round(N/conf) - mc
+    mcn = mutationBurdenToMutationCopyNumber(mc/(mc+wt), tumourCN, cellularity, 2)
+    
+  # single mutation - do not add binomial noise
+  } else {
+    mc = round(reads.per.clonal.copy*cndata.i$frac1_A)
+    wt = round(N/conf) - mc
+    mcn = mutationBurdenToMutationCopyNumber(mc/(mc+wt), tumourCN, cellularity, 2)
+  }
   
   # Save the pseudo SNVs in the dataset
   dataset$chromosome = rbind(dataset$chromosome, matrix(rep(cndata.i$chr, num.samples*num_muts), ncol=num.samples))
