@@ -215,8 +215,8 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
   
   # For each copy number event simulate a mutation cluster
   for (i in 1:nrow(cndata)) {
-    print(paste("CNA",i))
-    print(cndata[i,])
+    #print(paste("CNA",i))
+    #print(cndata[i,])
     # Confidence is used to downweigh the depth of this CNA to mimick uncertainty. 
     # If its a clonal event then there is no SD defined, so set confidence to 1, which means no downscaling is performed
     conf = ifelse(!is.na(cndata[i,]$SDfrac_A), cndata[i,]$SDfrac_A*100+1, 1)
@@ -326,7 +326,6 @@ add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
           conflict.array[j,i] = 2
           conflict.array[i,j] = 1024 #equivalent to 10 mutations
         }
-        
       }
       
       print(paste("Found ", conflicting_mutcount, " conflicting CNA and SNVs", sep=""))
@@ -353,7 +352,7 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   reads.per.clonal.copy = (cellularity*N/conf) / (cellularity*tumourCN + (1-cellularity)*2)
   
   # multiple mutations - a cluster, therefore add binomial noise
-  if (num_muts > 1) {
+  if (round(num_muts) > 1) {
     # Calculate the expected number of reads carying the mutation and from there mutCount, WTCount and mutation.copy.number
     exp_mc = round(reads.per.clonal.copy*cndata.i$frac1_A)
     mc = rbinom(num_muts, round(N/conf), exp_mc/(N/conf))
@@ -363,6 +362,7 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
     
   # single mutation - do not add binomial noise
   } else {
+    num_muts = 1
     mc = round(reads.per.clonal.copy*cndata.i$frac1_A)
     wt = round(N/conf) - mc
     mcn = mutationBurdenToMutationCopyNumber(mc/(mc+wt), tumourCN, cellularity, 2)
@@ -379,7 +379,7 @@ create_pseudo_snv = function(cndata.i, num_muts, N, conf, cellularity, dataset, 
   dataset$kappa = rbind(dataset$kappa, matrix(rep(mutationCopyNumberToMutationBurden(1, tumourCN, cellularity), num.samples*num_muts), ncol=num.samples))
 
   index = which(dataset$position==cndata.i$startpos)
-  print(head(paste("NEW CNA CCF/MCN", cndata.i$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf), 25))
+  #print(head(paste("NEW CNA CCF/MCN", cndata.i$frac1_A, dataset$mutation.copy.number[index,1], mcn, dataset$mutCount[index,1], dataset$WTCount[index, 1], conf), 25))
   # TODO: Setting same CNA CCF across samples does not work for multiple samples!
   dataset$subclonal.fraction = rbind(dataset$subclonal.fraction, matrix(rep(dataset$mutation.copy.number[index,1], num.samples), ncol=num.samples))
   dataset$non.deleted.muts = c(dataset$non.deleted.muts, T)

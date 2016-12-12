@@ -317,7 +317,6 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
 
 Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.smooth=0.1, post.burn.in.start=3000, post.burn.in.stop=10000, density.from=0, x.max=2, y.max=5, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL) {
   print(paste("density.smooth=",density.smooth,sep=""))
-  png(filename=pngFile,,width=1500,height=1000)
   # GS.data is the list output from the above function
   # density.smooth is the smoothing factor used in R's density() function
   # post.burn.in.start is the number of iterations to drop from the Gibbs sampler output to allow the estimates to equilibrate on the posterior
@@ -368,16 +367,15 @@ Gibbs.subclone.density.est.1d <- function(GS.data, pngFile, samplename, density.
   
   print(head(polygon.data))
   
-  plot1D(density, 
-         polygon.data, 
-         pngFile=pngFile, 
-         density.from=0, 
-         y.max=y.max, 
-         x.max=x.max, 
-         mutationCopyNumber=mutationCopyNumber.original, 
+  plot1D(density,
+         polygon.data,
+         pngFile=pngFile,
+         density.from=0,
+         y.max=y.max,
+         x.max=x.max,
+         mutationCopyNumber=mutationCopyNumber.original,
          no.chrs.bearing.mut=no.chrs.bearing.mut,
          samplename=samplename)
-  
   
   print(paste("highest density is at ",xx[which.max(yy)],sep=""))
   write.table(density,gsub(".png","density.txt",pngFile),sep="\t",col.names=c(gsub(" ",".",xlabel),"median.density"),row.names=F,quote=F)

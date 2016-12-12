@@ -278,7 +278,7 @@
 # }
 
 
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes, min.frac.snvs.cluster) {
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes, min.frac.snvs.cluster, max.considered.clusters) {
   #
   # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
   # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
@@ -298,14 +298,8 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                     cellularity=cellularity,
                                     iter=no.iters,
                                     conc_param=conc_param,
-                                    cluster_conc=cluster_conc)
-  
-  # GS.data = subclone.dirichlet.gibbs.1d(mutCount=mutCount,
-  #                                       WTCount=WTCount,
-  #                                       totalCopyNumber=totalCopyNumber, 
-  #                                       copyNumberAdjustment=copyNumberAdjustment, 
-  #                                       cellularity=cellularity,
-  #                                       iter=no.iters)
+                                    cluster_conc=cluster_conc,
+                                    C=max.considered.clusters)
   
   save(file=paste(output_folder, "/", samplename, "_gsdata.RData", sep=""), GS.data)
   
