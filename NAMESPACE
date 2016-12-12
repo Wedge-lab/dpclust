@@ -1,7 +1,9 @@
 exportPattern("^[[:alpha:]]+")
 import(lattice)
 import(KernSmooth)
-import(VariantAnnotation)
 import(ks)
-import(ggplot2)
+import(VariantAnnotation)
+import(mcclust)
 import(gridExtra)
+import(ggplot2)
+
