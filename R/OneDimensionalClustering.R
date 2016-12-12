@@ -1274,25 +1274,38 @@ get_mutation_preferences = function(GS.data, density, mut_assignments, clusterid
   localOptima = localOptima[peak_is_cluster]
   no.optima = length(localOptima)
   
-  boundary = array(NA,no.optima-1)
-  for(i in 1:(no.optima-1)){
-    min.density = min(density$median.density[(peak.indices[i]+1):(peak.indices[i+1]-1)])
-    min.indices = intersect(which(density$median.density == min.density),(peak.indices[i]+1):(peak.indices[i+1]-1))
-    
-    #what distance along the line between a pair of optima do we have to go to reach the minimum density
-    boundary[i] = (density$fraction.of.tumour.cells[max(min.indices)] + density$fraction.of.tumour.cells[min(min.indices)])/2
-  }
-  
-  # Get a table with the preferred cluster CCF
   S.i = data.matrix(GS.data$S.i)
   pi.h = GS.data$pi.h #[,,1]
-  assign_ccfs = array(0, c(length(sampledIters), no.muts, no.timepoints))
-  for (t in 1:no.timepoints) {
-    for (s in sampledIters) {
-      for (c in unique(S.i[s,])) {
-        bestOptimum = sum(pi.h[s, c, t]>boundary)+1
-        assigned.muts = which(S.i[s,]==c)
-        assign_ccfs[s-no.iters.burn.in, assigned.muts, t] = localOptima[bestOptimum] #pi.h[s, c, t]
+  
+  if (no.optima == 1) {
+    # If only a single optimum was found we assign all muts to that one cluster
+    assign_ccfs = array(0, c(length(sampledIters), no.muts, no.timepoints))
+    for (t in 1:no.timepoints) {
+      for (s in sampledIters) {
+        assign_ccfs[s-no.iters.burn.in, 1:no.muts, t] = localOptima[1]
+      }
+    }
+      
+  } else {
+    
+    boundary = array(NA,no.optima-1)
+    for(i in 1:(no.optima-1)){
+      min.density = min(density$median.density[(peak.indices[i]+1):(peak.indices[i+1]-1)])
+      min.indices = intersect(which(density$median.density == min.density),(peak.indices[i]+1):(peak.indices[i+1]-1))
+      
+      #what distance along the line between a pair of optima do we have to go to reach the minimum density
+      boundary[i] = (density$fraction.of.tumour.cells[max(min.indices)] + density$fraction.of.tumour.cells[min(min.indices)])/2
+    }
+    
+    # Get a table with the preferred cluster CCF
+    assign_ccfs = array(0, c(length(sampledIters), no.muts, no.timepoints))
+    for (t in 1:no.timepoints) {
+      for (s in sampledIters) {
+        for (c in unique(S.i[s,])) {
+          bestOptimum = sum(pi.h[s, c, t]>boundary)+1
+          assigned.muts = which(S.i[s,]==c)
+          assign_ccfs[s-no.iters.burn.in, assigned.muts, t] = localOptima[bestOptimum] #pi.h[s, c, t]
+        }
       }
     }
   }
