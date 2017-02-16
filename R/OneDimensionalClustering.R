@@ -174,8 +174,9 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
   subsamplenames = opts$subsamplenames
   samplename = opts$samplename
   
-  identity.strengths = build_coassignment_prob_matrix_densities(GS.data$S.i, GS.data$pi.h, no.iters.burn.in)
-  identity.strengths = identity.strengths*no.iters.post.burn.in
+  # Disabled because it rerutns different values than the original code below
+  #identity.strengths = build_coassignment_prob_matrix_densities(GS.data$S.i, GS.data$pi.h, no.iters.burn.in)
+  #identity.strengths = identity.strengths*no.iters.post.burn.in
   
   
   print("Setting up the data")
@@ -187,15 +188,15 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
     next()
   }
   
-  # # Determine mutation strengths across all iterations, discarding burnin
-  # identity.strengths = array(0,c(no.muts,no.muts))
-  # for(m in 1:(no.muts-1)){
-  #   identity.strengths[m,m] = no.iters.post.burn.in
-  #   for(n in (m+1):no.muts){
-  #     identity.strengths[m,n] = identity.strengths[n,m] = sum(node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,m] == node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,n])
-  #   }
-  # }
-  # identity.strengths[no.muts,no.muts] = no.iters-no.iters.post.burn.in
+  # Determine mutation strengths across all iterations, discarding burnin
+  identity.strengths = array(0,c(no.muts,no.muts))
+  for(m in 1:(no.muts-1)){
+    identity.strengths[m,m] = no.iters.post.burn.in
+    for(n in (m+1):no.muts){
+      identity.strengths[m,n] = identity.strengths[n,m] = sum(node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,m] == node.assignments[(1+no.iters-no.iters.post.burn.in):no.iters,n])
+    }
+  }
+  identity.strengths[no.muts,no.muts] = no.iters-no.iters.post.burn.in
   
   #initialise: assume all mutations are assigned to a single node, with mean subclonal fractions
   likelihoods = 0 
@@ -411,12 +412,10 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
     #     dev.off()               
     
   }
-
   most.likely.cluster = all.consensus.assignments[[best.BIC.index]]
   write.table(cbind(1:length(table(most.likely.cluster)), table(most.likely.cluster), all.node.positions[[best.BIC.index]]), paste(outdir, "/", samplename, "_optimaInfo.txt", sep=""), col.names=c("cluster.no", "no.muts.in.cluster", paste(samplename,subsamplenames,sep="")), sep="\t", quote=F, row.names=F)
   assignment_counts = table(most.likely.cluster)
-  cluster.locations = data.frame(cbind(names(assignment_counts), all.node.positions[[best.BIC.index]], assignment_counts))
-
+  cluster.locations = data.frame(cbind(as.numeric(names(assignment_counts)), all.node.positions[[best.BIC.index]], assignment_counts), stringsAsFactors=F)
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=all.likelihoods[[best.BIC.index]], cluster.locations=cluster.locations, all.assignment.likelihoods=NA))
 }
 
@@ -508,7 +507,6 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   print(localOptima)
   
   write.table(cbind(localOptima,above95confidence),paste(new_output_folder,"/",samplename,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
-  print(localOptima)
   print(localOptima[above95confidence,])
   write.table(localOptima[above95confidence,],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
   
