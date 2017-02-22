@@ -311,7 +311,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     for (i in 1:(length(subsamplesrun)-1)) {
       for (j in (i+1):length(subsamplesrun)) {
         imageFile = paste(output_folder,"/",samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep="")
-        print(imageFile)
         density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
                                              GS.data,
                                              imageFile, 
@@ -376,6 +375,7 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     
     # Assign mutations to clusters using one of the different assignment methods
     opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
+
     print("Assigning mutations to clusters")
     if (mut.assignment.type == 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
