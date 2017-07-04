@@ -62,6 +62,9 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
       selection = avail_for_sampling
     }
     
+  } else if (sampling_method==4) {
+    selection = do_cn_based_sampling(dataset, dataset$cellularity, bb_subclones, num_muts_sample)
+    
   } else {
     print("Unsupported sampling method supplied. No sampling performed.")
     return(dataset)
@@ -94,31 +97,8 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
   }
 
   # Don't update these - maybe this should be done, but not like this as the removed_indices matrix remains the same size as CNAs are added
-  #removed_indices = as.matrix(dataset$removed_indices[selection])
   removed_indices = dataset$removed_indices
-  
-  # for each muation not sampled, find the most similar mutation that was sampled
-  # TODO: add in code that at least selects the conflicting SNVs to help find branching trees
-  most.similar.mut = rep(1, nrow(full_data$chromosome))
-  
-  for (i in 1:nrow(full_data$chromosome)) { #[full_data$mutationType=="SNV"]
-    if (i %in% selection) {
-      # Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
-      most.similar.mut[i] = which(selection==i)
-    } else {
-      # Find mutation with closest kappa
-      kappa.diff = matrix(full_data$kappa[selection,]-full_data$kappa[i,], ncol=ncol(full_data$mutCount))
-      curr = selection[which.min(abs(rowSums(kappa.diff)))]
-      # Select all mutations with this kappa - a bit of trickery needed to make this work properly with a single column matrix
-      curr = selection[which(rowSums(matrix(full_data$kappa[selection,], ncol=ncol(full_data$kappa)))==sum(full_data$kappa[curr,]))]
-      # Pick the mutation with the most similar AF as the the most similar mutation for i
-      af.i = full_data$mutCount[i,] / (full_data$mutCount[i,] + full_data$WTCount[i,])
-      af = full_data$mutCount[curr,] / (full_data$mutCount[curr,] + full_data$WTCount[curr,])
-      af.diff = matrix(af-af.i, ncol=ncol(full_data$mutCount))
-      curr = curr[which.min(abs(rowSums(af.diff)))]
-      most.similar.mut[i] = which(selection==curr) # Saving index of most similar mut in the sampled data here for expansion at the end
-    }
-  }
+  most.similar.mut = get_most_similar_snv(full_data, selection)
   # # Map CNAs back onto themselves
   # most.similar.mut = c(most.similar.mut, which(full_data$mutationType=="CNA"))
   
@@ -130,6 +110,23 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
               sampling.selection=selection, full.data=full_data, most.similar.mut=most.similar.mut,
               mutationType=mutationType, cellularity=dataset$cellularity, conflict.array=conflict.array,
               phase=phase))
+}
+
+get_most_similar_snv = function(full_data, selection) {
+  most.similar.mut = rep(1, length(full_data$chromosome))
+  
+  for (i in 1:length(full_data$chromosome)) { #[full_data$mutationType=="SNV"]
+    if (i %in% selection) {
+      # Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
+      most.similar.mut[i] = which(selection==i)
+    } else {
+      # Find mutation with closest CCF
+      ccf.diff = matrix(full_data$subclonal.fraction[selection]-full_data$subclonal.fraction[i], ncol=1)
+      curr = selection[which.min(abs(rowSums(ccf.diff)))]
+      most.similar.mut[i] = which(selection==curr) # Saving index of most similar mut in the sampled data here for expansion at the end
+    }
+  }
+  return(most.similar.mut)
 }
 
 #' Unsample a sampled dataset and expand clustering results with the mutations that were not used during clustering.
