@@ -13,7 +13,6 @@ Depends:
   KernSmooth,
   ks,
   lattice,
-  VariantAnnotation,
   ggplot2,
   gridExtra,
   mcclust
