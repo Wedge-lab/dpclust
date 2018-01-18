@@ -40,7 +40,7 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
     #                         nMaj2=as.vector(info(v)$NMA2), nMin2=as.vector(info(v)$NMI2), frac2=as.vector(info(v)$FR2),
     #                         phase=as.vector(info(v)$PHS), mutation.copy.number=as.vector(info(v)$MCN), subclonal.fraction=as.vector(info(v)$CCF),
     #                         no.chrs.bearing.mut=as.vector(info(v)$NCBM)) # TODO: add in phase
-    }
+    #}
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
