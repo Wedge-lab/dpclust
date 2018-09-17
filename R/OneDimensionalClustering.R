@@ -433,6 +433,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   new_output_folder = opts$outdir
   
   no.subsamples = length(subsamples)
+  no.muts = nrow(mutation.copy.number)
   
   # Get multi-D density
   density.out = Gibbs.subclone.density.est.nd(mutation.copy.number/copyNumberAdjustment,GS.data,density.smooth,burn.in+1,noiters,max.burden = 1.5)
@@ -555,8 +556,6 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     }
     #boundary = boundary - plane.vector[,,no.subsamples + 1] # make distance relative to a plane through the origin
     boundary = boundary - plane.vector[,,no.subsamples + 1] / vector.length # 020714 - normalise adjustment
-    
-    no.muts = nrow(mutation.copy.number)
     
     mutation.preferences = array(0,c(no.muts,no.optima))
     
