@@ -1259,6 +1259,11 @@ get_mutation_preferences = function(GS.data, density, mut_assignments, clusterid
   localOptima = res$localOptima
   peak.indices = res$peak.indices
   
+  print("IN get_mutation_preferences")
+  print(head(density))
+  print(localOptima)
+  print(cluster_ccfs)
+  
   # Check if any corresponding peaks to found clusters
   peak_is_cluster = unlist(lapply(localOptima, function(x) any(abs(x-cluster_ccfs) < .Machine$double.eps ^ 0.5)))
   if (sum(peak_is_cluster)==0) {

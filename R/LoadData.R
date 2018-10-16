@@ -117,7 +117,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   print(paste("Removed", sum(too.high.coverage), "mutations with coverage over",cov.mean+6*cov.std, sep=" "))
 
   select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage | not.coverage.threshold.depth | not.coverage.threshold.mutreads)
-  
+  print(select)
   # Keep indices of removed mutations to 'spike in' lateron when constructing the output
   removed_indices = which(!select)
   chromosome.not.filtered = chromosome
@@ -137,7 +137,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   phasing = as.data.frame(phasing[select,])
   mutationType = factor(rep(mutation_type, nrow(mutCount)), levels=c("SNV", "CNA", "indel"))
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
-
+  print(head(chromosome))
   # These are required when this dataset is subsampled
   selection = NA
   full_data = NA
