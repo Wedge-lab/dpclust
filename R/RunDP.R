@@ -8,9 +8,12 @@
 #' @param assign_sampled_muts
 #' @param supported_chroms
 #' @param mutphasingfiles
+#' @param keep_temp_files
+#' @param generate_cluster_ordering
 #' @return A list containing these components
 #' @author sd11
-make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, min.mutreads=1, min.depth=0, assign_sampled_muts=TRUE, supported_chroms=NULL) {
+#' @export
+make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, min.mutreads=1, min.depth=0, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
   if (is.null(supported_chroms)) {
     # Set the expected chromosomes based on the sex
     if (is.male) {
@@ -21,7 +24,8 @@ make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_
   }
   
   return(list(no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, mut.assignment.type=mut.assignment.type, min.depth=min.depth, min.mutreads=min.mutreads, 
-              supported_chroms=supported_chroms, num_muts_sample=num_muts_sample, assign_sampled_muts=assign_sampled_muts))
+              supported_chroms=supported_chroms, num_muts_sample=num_muts_sample, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files,
+              generate_cluster_ordering=generate_cluster_ordering))
 }
 
 #' Helper function to package sample parameters
@@ -32,6 +36,7 @@ make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_
 #' @param subsamples
 #' @return A list containing these components
 #' @author sd11
+#' @export
 make_sample_params = function(datafiles, cellularity, is.male, samplename, subsamples, mutphasingfiles=NULL) {
   return(list(datafiles=datafiles, cellularity=cellularity, is.male=is.male, samplename=samplename, subsamples=subsamples, mutphasingfiles=mutphasingfiles))
 }
@@ -44,59 +49,27 @@ make_sample_params = function(datafiles, cellularity, is.male, samplename, subsa
 #' @param max.considered.clusters
 #' @return A list containing these components
 #' @author sd11
+#' @export
 make_advanced_params = function(seed, min.frac.snvs.cluster=0.05, conc_param=0.01, cluster_conc=5, max.considered.clusters=20) {
   return(list(min.frac.snvs.cluster=min.frac.snvs.cluster, conc_param=conc_param, cluster_conc=cluster_conc, seed=seed, max.considered.clusters=max.considered.clusters))
 }
 
-#' Main function that handles the various pipelines
-#' @param analysis_type
-#' @param list_of_datafiles
-#' @param cellularity
-#' @param is.male
-#' @param samplename
-#' @param subsamples
-#' @param no.iters
-#' @param no.iters.burn.in
-#' @param outdir
-#' @param conc_param
-#' @param cluster_conc
-#' @param blockid
-#' @param mut.assignment.type
-#' @param min.depth
-#' @param min.mutreads
-#' @param supported_chroms
-#' @param cndatafiles=NA
-#' @param init.alpha=0.01
-#' @param shrinkage.threshold=0.1
-#' @param remove.node.frequency=NA
-#' @param remove.branch.frequency=NA
-#' @param num_muts_sample=NA
-#' @param add.conflicts=F
-#' @param cna.conflicting.events.only=F
-#' @param num.clonal.events.to.add=1
-#' @param assign_sampled_muts=T
-#' @param cndata_params=NULL
-#' @param sample.snvs.only=F
-#' @param mutphasing=NULL
-#' @param remove.snvs=F
-#' @param min.frac.snvs.cluster=0.01
-#' 
-#' 
-#' to replace, create convenience functions to generate these lists
-#' sample_params = list(list_of_datafiles, cellularity, is.male, samplename, subsamples)
-#' run_params = list(no.iters, no.iters.burn.in, mut.assignment.type, min.depth, min.mutreads, supported_chroms, num_muts_sample, assign_sampled_muts)
-#' cna_params = list(cndatafiles, add.conflicts, cna.conflicting.events.only, num.clonal.events.to.add, remove.snvs, sample.snvs.only, cndata_params)
-#' advanced_params = list(min.frac.snvs.cluster, conc_param, cluster_conc, blockid)
+#' Helper function to package CNA parameters - to be implemented
+make_cna_params = function() {
+  print("Not yet implemented")
+}
 
-# RunDP <- function(analysis_type, list_of_datafiles, cellularity, is.male, samplename, subsamples, outdir, 
-#                   no.iters, no.iters.burn.in, conc_param, cluster_conc, blockid, mut.assignment.type, min.depth, min.mutreads, supported_chroms,
-#                   cndatafiles=NA, add.conflicts=F, cna.conflicting.events.only=F, num.clonal.events.to.add=1,
-#                   # both not used? init.alpha=0.01, shrinkage.threshold=0.1, 
-#                   num_muts_sample=NA, assign_sampled_muts=T, 
-#                   cndata_params=NULL, sample.snvs.only=F, mutphasing=NULL, remove.snvs=F, min.frac.snvs.cluster=0.01) {
-  
+#' Main DPClust function that handles the various pipelines
+#' @param analysis_type
+#' @param run_params
+#' @param sample_params
+#' @param advanced_params
+#' @param outdir
+#' @param cna_params
+#' @param mutphasingfiles
+#' @author sd11
+#' @export
 RunDP <- function(analysis_type, run_params, sample_params, advanced_params, outdir, cna_params=NULL, mutphasingfiles=NULL) { 
-  
   
   #####################################################################################
   # Unpack parameters
@@ -108,22 +81,42 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     attach(cna_params)
   }
   
+  #####################################################################################
+  # Check input
+  #####################################################################################
+  # Check whether a supported analysis_type was supplied
+  supported_commands = c('nd_dp', 'replot_1d', 'replot_nd', 'reassign_muts_1d', 'reassign_muts_nd')
+  if (!(analysis_type %in% supported_commands)) {
+    print(paste("Type of analysis", analysis_type, "unknown."))
+    print(paste(c("Specify either ", supported_commands)), sep=" ")
+    q(save="no", status=1)
+  }
+  # Check whether the mut.assignment.type is supported
+  supported_mut.assignment.methods = c(1,2,3,4)
+  if (!(mut.assignment.type %in% supported_mut.assignment.methods)) {
+    print(paste("Type of mutation assignment method", mut.assignment.type, "unknown."))
+    print(paste(c("Specify either ", supported_mut.assignment.methods)), sep=" ")
+    q(save="no", status=1)
+  }
+  
+  #####################################################################################
+  # Setup
+  #####################################################################################
   set.seed(seed)
   
+  # Create the output directory
+  if (!file.exists(outdir)) { dir.create(outdir) }
+  
   # Path for output files
-  outfiles.prefix = paste(outdir, "/", samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep="")
+  outfiles.prefix = file.path(outdir, paste(samplename, "_", no.iters, "iters_", no.iters.burn.in, "burnin", sep=""))
   
   #####################################################################################
   # Loading data
   #####################################################################################
   # Load data from disk if there was already a dataset object, otherwise create a new one
   if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
-    # # Wait a certain number of seconds before loading - this is required for when starting multiple processes/threads on this file
-    # if (!is.na(blockid) & blockid != "NA") {
-    #   Sys.sleep(blockid*3)
-    # }
     
-    load(paste(outdir, "/dataset.RData", sep=""))
+    load(file.path(outdir, "dataset.RData"))
     cndata = dataset$cndata
     mutphasing = dataset$mutphasing
     
@@ -153,7 +146,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                         no.chrs.bearing.mut="no.chrs.bearing.mut", 
                         mutation.copy.number="mutation.copy.number", 
                         subclonal.fraction="subclonal.fraction", 
-                        phase="phase",
+                        phase=NULL, # disabled for now, as the data is not used
                         is.male=is.male,
                         is.vcf=F, # reading of VCF input files os disabled
                         ref.genome.version="hg19", # reading of VCF input files is disabled, this parameter is not used
@@ -184,7 +177,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
       mutphasing = NULL
     }
     
-    save(file=paste(outdir, "/dataset.RData", sep=""), dataset)
+    save(file=file.path(outdir, "dataset.RData"), dataset)
   }
   
   
@@ -239,7 +232,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   }
   dataset$cndata = cndata
   # The dataset object was modified, so save it
-  if (resave.dataset) { save(file=paste(outdir, "/dataset.RData", sep=""), dataset) }
+  if (resave.dataset) { save(file=file.path(outdir, "dataset.RData"), dataset) }
 
   if (analysis_type == 'nd_dp') {
     ##############################
@@ -268,8 +261,8 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     ##############################
     # Replot 1D clustering
     ##############################
-    density = read.table(paste(outdir, "/", samplename, "_DirichletProcessplotdensity.txt", sep=""), header=T)
-    polygon.data = read.table(paste(outdir, "/", samplename, "_DirichletProcessplotpolygonData.txt", sep=""), header=T)
+    density = read.table(file.path(outdir, paste(samplename, "_DirichletProcessplotdensity.txt", sep="")), header=T)
+    polygon.data = read.table(file.path(outdir, paste(samplename, "_DirichletProcessplotpolygonData.txt", sep="")), header=T)
     load(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""))
     replot_1D(outdir=outdir,
               outfiles.prefix=outfiles.prefix,
@@ -335,14 +328,14 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   if (all(!analysis_type %in% c('replot_1d', 'replot_nd'))) {
 
     # Load the MCMC output as its needed to get cluster confidence intervals
-    density_file = paste(outdir, "/", samplename, "_DirichletProcessplotdensity.txt", sep="")
+    density_file = file.path(outdir, paste(samplename, "_DirichletProcessplotdensity.txt", sep=""))
     if (file.exists(density_file)) {
       density = read.table(density_file, header=T)
       colnames(density)[1] = "fraction.of.tumour.cells"
     } else {
       density = NA
     }
-    load(paste(outdir, samplename, "_gsdata.RData", sep=""))
+    load(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
     write_tree = analysis_type != 'nd_dp' & analysis_type != 'reassign_muts_1d' & analysis_type != 'reassign_muts_nd'
     writeStandardFinalOutput(clustering=clustering, 
                              dataset=dataset,
@@ -354,7 +347,24 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                              no.iters=no.iters, 
                              no.iters.burn.in=no.iters.burn.in,
                              assign_sampled_muts=assign_sampled_muts,
-                             write_tree=write_tree)
+                             write_tree=write_tree,
+                             generate_cluster_ordering=generate_cluster_ordering)
+  }
+  
+  ####################################################################################################################
+  # Remove intermediate files
+  ####################################################################################################################
+  if (!keep_temp_files) {
+    file.remove(paste(outfiles.prefix, "_removedMutationsIndex.txt", sep=""))
+    file.remove(file.path(outdir, paste(samplename, "_DP_and_cluster_info.txt", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_DirichletProcessplot.png", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_DirichletProcessplot_with_cluster_locations.png", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_DirichletProcessplotdensity.txt", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_DirichletProcessplotpolygonData.txt", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_localOptima.txt", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_optimaInfo.txt", sep="")))
+    file.remove(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
+    file.remove(file.path(outdir, "dataset.RData"))
   }
 }
 
@@ -369,39 +379,43 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param no.iters.burn.in Number of iterations to be used as burn-in
 #' @param assign_sampled_muts Boolean whether to assign the non-sampled mutations (Default: TRUE)
 #' @param write_tree Boolean whether to write a tree to file. Not all clustering methods return a tree (Default: FALSE)
+#' @param generate_cluster_ordering Boolean specifying whether a possible cluster ordering should be determined (Default: FALSE)
 #' @param no.samples.cluster.order Number of mutations to sample (with replacement) to classify pairs of clusters into parent-offspring or siblings (Default: 1000)
 #' @author sd11
-writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, assign_sampled_muts=T, write_tree=F, no.samples.cluster.order=1000) {
+#' @noRd
+writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
   
-  ########################################################################
-  # Before doing anything else, calculate confidence intervals on the cluster locations using only the mutations used during clustering
-  ########################################################################
-  # Calc confidence intervals for the cluster locations
-  conf = calc_cluster_conf_intervals(GS.data, 
-                                     mut_assignments=clustering$best.node.assignments, 
-                                     clusterids=clustering$cluster.locations[,1], 
-                                     no.muts=nrow(dataset$mutCount), 
-                                     no.timepoints=ncol(dataset$mutCount), 
-                                     no.iters=no.iters, 
-                                     no.iters.burn.in=no.iters.burn.in)
-  conf = data.frame(conf)
-  colnames(conf) = c("cluster.no", "timepoint", "loc_conf_0.025", "loc_conf_0.500", "loc_conf_0.975")
-  write.table(conf, file=paste(outfiles.prefix, "_clusterConfidenceIntervals.txt", sep=""), quote=F, row.names=F, sep="\t")
-  
-  # Calc probs for cluster orders
-  probs = calc_cluster_order_probs(GS.data=GS.data,
-                                   density=density,
-                                   mut_assignments=clustering$best.node.assignments,
-                                   clusterids=clustering$cluster.locations[,1],
-                                   cluster_ccfs=clustering$cluster.locations[,2],
-                                   no.muts=nrow(dataset$mutCount),
-                                   no.timepoints=ncol(dataset$mutCount),
-                                   no.iters=no.iters,
-                                   no.iters.burn.in=no.iters.burn.in,
-                                   no.samples=no.samples.cluster.order)
-  probs = flatten_3d_to_2d(probs$classification, c("timepoint", clustering$cluster.locations[,1]))
-  write.table(probs, file=paste(outfiles.prefix, "_clusterOrderProbabilities.txt", sep=""), quote=F, row.names=F, sep="\t")
+  if (generate_cluster_ordering) {
+    ########################################################################
+    # Before doing anything else, calculate confidence intervals on the cluster locations using only the mutations used during clustering
+    ########################################################################
+    # Calc confidence intervals for the cluster locations
+    conf = calc_cluster_conf_intervals(GS.data, 
+                                       mut_assignments=clustering$best.node.assignments, 
+                                       clusterids=clustering$cluster.locations[,1], 
+                                       no.muts=nrow(dataset$mutCount), 
+                                       no.timepoints=ncol(dataset$mutCount), 
+                                       no.iters=no.iters, 
+                                       no.iters.burn.in=no.iters.burn.in)
+    conf = data.frame(conf)
+    colnames(conf) = c("cluster.no", "timepoint", "loc_conf_0.025", "loc_conf_0.500", "loc_conf_0.975")
+    write.table(conf, file=paste(outfiles.prefix, "_clusterConfidenceIntervals.txt", sep=""), quote=F, row.names=F, sep="\t")
+    
+    # Calc probs for cluster orders
+    probs = calc_cluster_order_probs(GS.data=GS.data,
+                                     density=density,
+                                     mut_assignments=clustering$best.node.assignments,
+                                     clusterids=clustering$cluster.locations[,1],
+                                     cluster_ccfs=clustering$cluster.locations[,2],
+                                     no.muts=nrow(dataset$mutCount),
+                                     no.timepoints=ncol(dataset$mutCount),
+                                     no.iters=no.iters,
+                                     no.iters.burn.in=no.iters.burn.in,
+                                     no.samples=no.samples.cluster.order)
+    probs = flatten_3d_to_2d(probs$classification, c("timepoint", clustering$cluster.locations[,1]))
+    write.table(probs, file=paste(outfiles.prefix, "_clusterOrderProbabilities.txt", sep=""), quote=F, row.names=F, sep="\t")
+  }
   
   ########################################################################
   # Check if mutation sampling has been done, if so, unpack and assign here
@@ -415,7 +429,8 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   ########################################################################
   # Write out the final mutation-cluster probabilities with all mutations spiked in
   ########################################################################
-  if (!is.null(clustering$all.assignment.likelihoods) & !is.na(clustering$all.assignment.likelihoods)) {
+  # if (!is.null(clustering$all.assignment.likelihoods) & !is.na(clustering$all.assignment.likelihoods)) {
+  if ("all.assignment.likelihoods" %in% names(clustering)) {
     # Fetch and drop all columns that have just zeroes
     cols_all_zero = which(sapply(1:ncol(clustering$all.assignment.likelihoods), function(i) { max(clustering$all.assignment.likelihoods[,i])==0 }))
     if (length(cols_all_zero)!=0) {
@@ -458,7 +473,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   ########################################################################
   # Save the indices of the mutations that were not used during the analysis
   ########################################################################
-  save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering)
+  save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering, GS.data, density, dataset, most.similar.mut, no.iters, no.iters.burn.in)
   write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
   
   ########################################################################
@@ -476,7 +491,8 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
     cndata = assign_cnas_to_clusters(dataset$cndata, output)
     write.table(cndata, file=paste(outfiles.prefix, "_bestCNAassignments.txt", sep=""), quote=F, row.names=F, sep="\t")
     
-    if (!is.null(clustering$all.assignment.likelihoods) & !is.na(clustering$all.assignment.likelihoods)) {
+    # if (!is.null(clustering$all.assignment.likelihoods) & !is.na(clustering$all.assignment.likelihoods)) {
+    if ("all.assignment.likelihoods" %in% names(clustering)) {
       cna_assignment_likelihoods = get_cnas_cluster_probs(dataset$cndata, all_assignment_likelihoods[dataset$mutationType=="CNA",], colnames(all_assignment_likelihoods))
       write.table(cna_assignment_likelihoods, file=paste(outfiles.prefix, "_cnaClusterLikelihoods.bed", sep=""), quote=F, row.names=F, sep="\t")
     }

@@ -1,7 +1,6 @@
 #' This function loads a series of data tables or VCFs into a dataset object
 #' which is in essense a list of tables, one for each type of information
 #' 
-#' Takes:
 #' @param list_of_data_files A list of data file names to be read in
 #' @param cellularity A vector containing the cellularity estimates for each sample
 #' @param Chromosome String that contains the name of the column with chromosome denomination for each mutation
@@ -21,7 +20,7 @@
 #' @author sdentro
 #' @return A list of tables, one for each type of information
 # REMOVED datpath, samplename, data_file_suffix num_muts_sample=NA, 
-load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male=T, is.vcf=F, ref.genome.version="hg19", min.depth=1, min.mutreads=1, supported_chroms=c(1:22)) {
+load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase=NULL, is.male=T, is.vcf=F, ref.genome.version="hg19", min.depth=1, min.mutreads=1, supported_chroms=c(1:22)) {
   data=list()
   
   if (!is.vcf) {
@@ -62,7 +61,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   non.deleted.muts = vector(mode="logical",length=nrow(list_of_tables[[1]]))
   mutationCopyNumber = matrix(NA,no.muts,no.subsamples)
   subclonalFraction = matrix(NA,no.muts,no.subsamples)
-  phasing = matrix(NA,no.muts,no.subsamples)
+  phasing = matrix("unphased",no.muts,no.subsamples)
   for(s in 1:length(list_of_tables)){
     chromosome[,s] = list_of_tables[[s]][,Chromosome]
     mut.position[,s] = as.numeric(list_of_tables[[s]][,position])
@@ -73,7 +72,9 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
     non.deleted.muts[list_of_tables[[s]][,no.chrs.bearing.mut]>0]=T
     mutationCopyNumber[,s] = as.numeric(list_of_tables[[s]][,mutation.copy.number])
     subclonalFraction[,s] = as.numeric(list_of_tables[[s]][,subclonal.fraction])
-    phasing[,s] = list_of_tables[[s]][,phase]
+    if (!is.null(phase)) {
+      phasing[,s] = list_of_tables[[s]][,phase]
+    }
   }
   
   # Calculate the kappa, in essense the correction component for the allele frequency of each mutation
@@ -91,10 +92,9 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   not.there.kappa = apply(kappa, 1, function(x) { sum(is.na(x))>0 })
   # Remove those mutations that have no coverage. These cause for trouble lateron.
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
-  not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
-  not.coverage.threshold.depth = apply(WTCount+mutCount, 1, function(x) { any(x<min.depth | is.na(x)) })
-  not.coverage.threshold.mutreads = apply(mutCount, 1, function(x) { any(x<min.mutreads | is.na(x)) })
-  not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0) })
+  # not.coverage.threshold.depth = apply(WTCount+mutCount, 1, function(x) { any(x<min.depth | is.na(x)) })
+  # not.coverage.threshold.mutreads = apply(mutCount, 1, function(x) { any(x<min.mutreads | is.na(x)) })
+  not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0 | is.na(x)) })
   not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(supported_chroms)) })
 
   coverage = matrix(WTCount[!(not.there.wt & not.there.mut),] + mutCount[!(not.there.wt & not.there.mut),], ncol=no.subsamples)
@@ -110,14 +110,14 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   print(paste("Removed", sum(not.there.cna),"with missing copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.there.kappa),"with missing kappa", sep=" "))
   print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
-  print(paste("Removed", sum(not.coverage.threshold.depth), "with less than", min.depth, "reads coverage", sep=" "))
-  print(paste("Removed", sum(not.coverage.threshold.mutreads), "with less than", min.mutreads, "supporting reads", sep=" "))
-  print(paste("Removed", sum(not.cna),"with zero copyNumberAdjustment", sep=" "))
+  # print(paste("Removed", sum(not.coverage.threshold.depth), "with less than", min.depth, "reads coverage", sep=" "))
+  # print(paste("Removed", sum(not.coverage.threshold.mutreads), "with less than", min.mutreads, "supporting reads", sep=" "))
+  print(paste("Removed", sum(not.cna),"with no copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.on.supported.chrom), "on not supported genomic regions", sep=" "))
   print(paste("Removed", sum(too.high.coverage), "mutations with coverage over",cov.mean+6*cov.std, sep=" "))
 
-  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage | not.coverage.threshold.depth | not.coverage.threshold.mutreads)
-  print(select)
+  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage)
+  
   # Keep indices of removed mutations to 'spike in' lateron when constructing the output
   removed_indices = which(!select)
   chromosome.not.filtered = chromosome
@@ -137,7 +137,7 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   phasing = as.data.frame(phasing[select,])
   mutationType = factor(rep(mutation_type, nrow(mutCount)), levels=c("SNV", "CNA", "indel"))
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
-  print(head(chromosome))
+  
   # These are required when this dataset is subsampled
   selection = NA
   full_data = NA
