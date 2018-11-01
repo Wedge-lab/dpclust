@@ -61,6 +61,7 @@ The DPClust input file should be generated via the DPClust pre-processing packag
 
 DPClust creates the following output for a single sample case
 
+|Column|Description|
 |---|---|
 |*_bestClusterInfo.txt			| Contains the mutation clusters found, for each cluster in each sample the proportion of tumour cells that the cluster represents (CCF) and the number of mutations assigned to the cluster |
 |*_bestConsensusAssignments.bed		| Assignment of mutations to clusters, the cluster column refers to the cluster.no in the *_bestClusterInfo.txt file |
