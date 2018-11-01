@@ -1,6 +1,9 @@
-
+#
+# Convenience functions for the pipelie
+#
 
 replot_1D = function(outdir, outfiles.prefix, samplename, dataset, clustering, density, polygon.data) {
+  # Old plot
   plot1D(density=density, 
          polygon.data=polygon.data[,1], 
          pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations_replot.png", sep=""), 
@@ -12,6 +15,7 @@ replot_1D = function(outdir, outfiles.prefix, samplename, dataset, clustering, d
          cluster.locations=clustering$cluster.locations,
          mutation.assignments=clustering$best.node.assignments)
   
+  # New plot
   plot1D_2(density=density, 
            polygon.data=polygon.data[,1],
            pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2_replot.png", sep=""), 
@@ -27,10 +31,6 @@ replot_1D = function(outdir, outfiles.prefix, samplename, dataset, clustering, d
 
 reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, conc_param, cluster_conc, min.frac.snvs.cluster) {
   full_outdir = paste(outdir, "/", sep="")
-  # GS.data = read_gsdata_object(outdir,
-  #                              no.iters, 
-  #                              conc_param, 
-  #                              cluster_conc)
   load(file=paste(full_outdir, samplename, "_gsdata.RData", sep=""))
   
   # Obtain the density
@@ -92,7 +92,6 @@ reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, 
     q(save="no", status=1)
   }
   
-  # TODO: replace with call to replot code above
   # Replot the data with cluster locations
   plot1D_2(density=clustering_density, 
            polygon.data=polygon.data, 
@@ -136,8 +135,7 @@ replot_nD = function(outdir, outfiles.prefix, samplename, subsamples, dataset, c
 reassign_nd = function(outdir, samplename, subsamples, no.iters, no.iters.burn.in, dataset, conc_param, cluster_conc) {
   # Load the output from the algorithm
   # GS.data = read_gsdata_object(outdir, no.iters=no.iters, conc_param=conc_param, cluster_conc=cluster_conc)
-  full_outdir = paste(outdir, "/", sep="")
-  load(file=paste(full_outdir, samplename, "_gsdata.RData", sep=""))
+  load(file=file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
   
   # Assign mutations to clusters using one of the different assignment methods
   opts = list(samplename=samplename, subsamplenames=subsamples, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=outdir)
@@ -149,12 +147,12 @@ reassign_nd = function(outdir, samplename, subsamples, no.iters, no.iters.burn.i
                                             density.smooth=0.01, 
                                             opts=opts)
     # Change the outfiles prefix to be able to identify the output files
-    outfiles.prefix = paste(full_outdir, samplename, "_reassign_option_1", sep="")
+    outfiles.prefix = file.path(outdir, paste(samplename, "_reassign_option_1", sep=""))
     
   } else if (mut.assignment.type == 2) {
     clustering = mutation_assignment_em(mutCount=dataset$mutCount, WTCount=dataset$WTCount, node.assignments=GS.data$S.i, opts=opts)
     # Change the outfiles prefix to be able to identify the output files
-    outfiles.prefix = paste(full_outdir, samplename, "_reassign_option_2", sep="")
+    outfiles.prefix = file.path(outdir, paste(samplename, "_reassign_option_2", sep=""))
     
   } else if (mut.assignment.type == 3) {  
     warning("binom mut assignment not implemented for multiple timepoints")
@@ -177,8 +175,7 @@ reassign_nd = function(outdir, samplename, subsamples, no.iters, no.iters.burn.i
 #' @author sd11
 read_gsdata_object = function(indir, no.iters, conc_param, cluster_conc) {
   GS.data = list()
-  full_outdir = paste(indir, "/", sep="")
-  filename_prefix = paste(full_outdir, samplename, "_2D_iters", no.iters, "_concParam", conc_param, "_clusterWidth", 1/cluster_conc, sep="")
+  filename_prefix = file.path(outdir, paste(samplename, "_2D_iters", no.iters, "_concParam", conc_param, "_clusterWidth", 1/cluster_conc, sep=""))
   GS.data$S.i = as.matrix(read.csv(paste(filename_prefix, "_states.csv", sep=""), row.names=1))
   GS.data$V.h = as.matrix(read.csv(paste(filename_prefix, "_stickbreaking_weights.csv", sep=""), row.names=1))
   GS.data$pi.h = as.matrix(read.csv(paste(filename_prefix, "_discreteMutationCopyNumbers.csv", sep=""), row.names=1))

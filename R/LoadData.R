@@ -1,3 +1,7 @@
+#
+# Functions to load DPClust input files
+#
+
 #' This function loads a series of data tables or VCFs into a dataset object
 #' which is in essense a list of tables, one for each type of information
 #' 
@@ -28,16 +32,17 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
       data[[s]] = read.table(list_of_data_files[s], header=T, stringsAsFactors=F, sep="\t")
     }
   } else {
-    for(s in 1:length(list_of_data_files)) {
-      v = readVcf(list_of_data_files[s], genome=ref.genome.version)
-      # Transform the VCF into the format that the original load.data function understands
-      data[[s]] = data.frame(chr=as.vector(seqnames(v)), start=as.vector(start(v))-1, end=as.vector(end(v)),
-                             WT.count=as.vector(info(v)$WC), mut.count=as.vector(info(v)$MC), subclonal.CN=as.vector(info(v))$TSC,
-                             nMaj1=as.vector(info(v)$NMA1), nMin1=as.vector(info(v)$NMI1), frac1=as.vector(info(v)$FR1),
-                             nMaj2=as.vector(info(v)$NMA2), nMin2=as.vector(info(v)$NMI2), frac2=as.vector(info(v)$FR2),
-                             phase=as.vector(info(v)$PHS), mutation.copy.number=as.vector(info(v)$MCN), subclonal.fraction=as.vector(info(v)$CCF),
-                             no.chrs.bearing.mut=as.vector(info(v)$NCBM)) # TODO: add in phase
-    }
+    # Reading from a VCF file is disabled as we're not using it and it's adding VariantAnnotation as a dependency for just parsing
+    # for(s in 1:length(list_of_data_files)) {
+    #   v = readVcf(list_of_data_files[s], genome=ref.genome.version)
+    #   # Transform the VCF into the format that the original load.data function understands
+    #   data[[s]] = data.frame(chr=as.vector(seqnames(v)), start=as.vector(start(v))-1, end=as.vector(end(v)),
+    #                          WT.count=as.vector(info(v)$WC), mut.count=as.vector(info(v)$MC), subclonal.CN=as.vector(info(v))$TSC,
+    #                          nMaj1=as.vector(info(v)$NMA1), nMin1=as.vector(info(v)$NMI1), frac1=as.vector(info(v)$FR1),
+    #                          nMaj2=as.vector(info(v)$NMA2), nMin2=as.vector(info(v)$NMI2), frac2=as.vector(info(v)$FR2),
+    #                          phase=as.vector(info(v)$PHS), mutation.copy.number=as.vector(info(v)$MCN), subclonal.fraction=as.vector(info(v)$CCF),
+    #                          no.chrs.bearing.mut=as.vector(info(v)$NCBM)) # TODO: add in phase
+    # }
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
@@ -92,8 +97,6 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   not.there.kappa = apply(kappa, 1, function(x) { sum(is.na(x))>0 })
   # Remove those mutations that have no coverage. These cause for trouble lateron.
   not.coverage = apply(WTCount+mutCount, 1, function(x) { any(x==0 | is.na(x)) })
-  # not.coverage.threshold.depth = apply(WTCount+mutCount, 1, function(x) { any(x<min.depth | is.na(x)) })
-  # not.coverage.threshold.mutreads = apply(mutCount, 1, function(x) { any(x<min.mutreads | is.na(x)) })
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0 | is.na(x)) })
   not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(supported_chroms)) })
 
@@ -101,18 +104,15 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   cov.mean = mean(colMeans(coverage))
   cov.std = mean(apply((coverage), 2, sd))
 
-  too.high.coverage = apply(WTCount+mutCount, 1, function(x) { any(x > cov.mean+6*cov.std)})
+  too.high.coverage = apply(WTCount+mutCount, 1, function(x) { any(x[!is.na(x)] > cov.mean+6*cov.std)})
   too.high.coverage[is.na(too.high.coverage)] = FALSE # Above leaves NA when either mutCount or WTCount is NA
 
   print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
   print(paste("Removed", sum(not.there.mut),"with missing mutCount", sep=" "))
-  print(paste("Removed", sum(not.there.cn),"with missing totalCopyNumber", sep=" "))
+  print(paste("Removed", sum(not.there.cn | not.cna),"with missing totalCopyNumber", sep=" "))
   print(paste("Removed", sum(not.there.cna),"with missing copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.there.kappa),"with missing kappa", sep=" "))
   print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
-  # print(paste("Removed", sum(not.coverage.threshold.depth), "with less than", min.depth, "reads coverage", sep=" "))
-  # print(paste("Removed", sum(not.coverage.threshold.mutreads), "with less than", min.mutreads, "supporting reads", sep=" "))
-  print(paste("Removed", sum(not.cna),"with no copyNumberAdjustment", sep=" "))
   print(paste("Removed", sum(not.on.supported.chrom), "on not supported genomic regions", sep=" "))
   print(paste("Removed", sum(too.high.coverage), "mutations with coverage over",cov.mean+6*cov.std, sep=" "))
 
@@ -136,7 +136,10 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   subclonalFraction = as.matrix(subclonalFraction[select,])
   phasing = as.data.frame(phasing[select,])
   mutationType = factor(rep(mutation_type, nrow(mutCount)), levels=c("SNV", "CNA", "indel"))
+  
+  print("")
   print(paste("Removed",no.muts-nrow(WTCount), "mutations with missing data"))
+  print("")
   
   # These are required when this dataset is subsampled
   selection = NA

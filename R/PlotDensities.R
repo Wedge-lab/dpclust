@@ -1,4 +1,6 @@
-# library(lattice)
+#
+# Plotting functions
+#
 
 plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
   #
@@ -21,7 +23,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   # mutationCopyNumber.df = as.data.frame(mutationCopyNumber)
   # p = ggplot() + geom_histogram(data=mutationCopyNumber.df, mapping=aes(x=V1, y=..density..), binwidth=0.1) + geom_polygon(data=conf.interval, mapping=aes(x=x, y=y), fill='lightblue', alpha=0.7) + geom_line(data=density, mapping=aes(x=fraction.of.tumour.cells, y=median.density), colour="purple")
   #
-  if (!is.na(pngFile)) { png(filename=pngFile,,width=1500,height=1000) }
+  if (!is.na(pngFile)) { png(filename=pngFile,width=1500,height=1000) }
   
   # Convert data into the space that was used for the clustering. This is done dynamically through the given data.
   xlabel = "Mutation Copy Number"

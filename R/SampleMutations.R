@@ -1,3 +1,7 @@
+#
+# Functions to downsample mutations
+#
+
 #' Sample a number of mutations from the dataset to reduce its size. The original
 #' dataset object is kept within the returned dataset with label full.data
 #' 
@@ -13,15 +17,15 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
     return(dataset)
   }
   
-  print(paste("Sampling mutations:", num_muts_sample))
-  
   # Get the data that is available for sampling
   avail_for_sampling = get_data_avail_for_sampling(dataset, sample.snvs.only, remove.snvs)
   
   # Check that the amount of data available for sampling is sufficient, if not, return the original dataset
   if (length(avail_for_sampling) < floor(min_sampling_factor*num_muts_sample)) {
-    print(paste("Num muts smaller than", min_sampling_factor, "*threshold, not performing sampling", sep=""))
+    # print(paste("Num muts smaller than", min_sampling_factor, "*threshold, not performing sampling", sep=""))
     return(dataset)
+  } else {
+    print(paste("Sampling", num_muts_sample, "of", length(avail_for_sampling), "mutations", sep=" "))
   }
   
   # Store the original mutations
@@ -174,16 +178,16 @@ unsample_mutations = function(dataset, clustering_result) {
 get_data_avail_for_sampling = function(dataset, sample.snvs.only, remove.snvs) {
   # Make inventory of what can be sampled
   if (sample.snvs.only & !remove.snvs) {
-    print("Sampling only SNVs")
+    # print("Sampling only SNVs")
     avail_for_sampling = which(dataset$mutationType=="SNV")
     
   } else if (remove.snvs) {
-    print("Sampling only CNAs, removing all SNVs")
+    # print("Sampling only CNAs, removing all SNVs")
     # Remove SNVs and sample CNAs
     avail_for_sampling = which(dataset$mutationType=="CNA")
     
   } else {
-    print("Sampling all data")
+    # print("Sampling all data")
     avail_for_sampling = 1:nrow(dataset$chromosome)
   }
   return(avail_for_sampling)

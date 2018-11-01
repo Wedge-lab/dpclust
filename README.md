@@ -6,21 +6,16 @@ This R package contains methods for subclonal reconstruction through SNVs and/or
   KernSmooth
   ks
   lattice
-  VariantAnnotation
   ggplot2
   gridExtra
+  mcclust
 
 
 ## Installation instructions
 
-From local source
-
-    > install.packages("~/repo/dpclust", repos=NULL, type="source")
-
-From Bitbucket
-
-    > devtools::install_bitbucket("sdentro/dpclust", user=SOMEUSER, password=SOMEPASSWORD)
-
+```
+devtools::install_github("Wedge-Oxford/dpclust")
+```
 
 
 
