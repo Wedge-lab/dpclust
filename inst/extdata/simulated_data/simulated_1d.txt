@@ -1,0 +1,4 @@
+sample	subsample	datafile	cellularity
+simulated_001_01	01	simulated_001_01_dp_input.txt	1
+simulated_001_02	02	simulated_001_02_dp_input.txt	1
+simulated_001_03	03	simulated_001_03_dp_input.txt	1
