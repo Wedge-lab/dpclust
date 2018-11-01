@@ -77,9 +77,10 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
     non.deleted.muts[list_of_tables[[s]][,no.chrs.bearing.mut]>0]=T
     mutationCopyNumber[,s] = as.numeric(list_of_tables[[s]][,mutation.copy.number])
     subclonalFraction[,s] = as.numeric(list_of_tables[[s]][,subclonal.fraction])
-    if (!is.null(phase)) {
-      phasing[,s] = list_of_tables[[s]][,phase]
-    }
+    # This is disabled for now, as its not used by current methods
+    # if (!is.null(phase)) {
+    #   phasing[,s] = list_of_tables[[s]][,phase]
+    # }
   }
   
   # Calculate the kappa, in essense the correction component for the allele frequency of each mutation

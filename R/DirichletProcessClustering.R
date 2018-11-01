@@ -140,7 +140,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   } else {
     list_of_datafiles = paste(datpath, datafiles, sep="/")
     cndatafiles = paste(datpath, cndatafiles, sep="")  
-    
+    # Note that the phase column is not used
     dataset = load.data(list_of_datafiles, 
                         cellularity=cellularity, 
                         Chromosome="chr", 
