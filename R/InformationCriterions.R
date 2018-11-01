@@ -1,3 +1,7 @@
+#
+# Metrics and core likelihood functions
+#
+
 log.f.of.y <- function(y1, n1, kappa1, x) {
   #x=1 and kappa=1 causes problems
   x[x>0.999 & kappa1==1] = 0.999
@@ -18,7 +22,7 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
   return(resSums)
 }
 
-calc.new.likelihood2 = function(y, n, kappa, thetas) {
+calc.new.likelihood = function(y, n, kappa, thetas) {
   lfoy = log.f.of.y(y,n,kappa,thetas)
   new.likelihood = sum(lfoy)
   return(new.likelihood)

@@ -1,4 +1,15 @@
+#
+# This file contains various functions to assign mutations to clusters
+#
 
+#' 
+#' @param samplename
+#' @param subclonal.fraction
+#' @param GS.data
+#' @param density
+#' @param no.iters
+#' @param no.iters.burn.in
+#' @return 
 oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, density, no.iters, no.iters.burn.in) {
   no.muts = length(subclonal.fraction)
   normal.copy.number = rep(2,no.muts)
@@ -13,9 +24,6 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
   localOptima = res$localOptima
   peak.indices = res$peak.indices
   write.table(localOptima,paste(samplename,"_localOptima.txt",sep=""), quote=F, sep="\t")
-  
-  print("localOptima")
-  print(localOptima)
   
   # Assign mutations to clusters
   no.optima = length(localOptima)
@@ -69,7 +77,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     cluster_locations[,3] = cluster_assignment_counts
     # Clear clusters with no mutations assigned
     cluster_locations = cluster_locations[cluster_locations[,3] > 0,,drop=F]
-    print(cluster_locations)
+    
     write.table(cluster_locations, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)		
     
     # Obtain likelyhood of most likely cluster assignments
@@ -162,8 +170,6 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
 # }
 
 
-# q(save="no")
-
 mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction, node.assignments, opts) {
   
   # Unpack analysis options required
@@ -247,7 +253,7 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
   while(node.added){      
     unique.nodes = unique(consensus.assignments)
     no.nodes = length(unique.nodes)
-    print(no.nodes)
+    
     new.pairwise.agreements = pairwise.agreements
     new.consensus.assignments = consensus.assignments
     new.node = max(unique.nodes)+1
@@ -297,7 +303,6 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
       current.agreement = new.agreements
       pairwise.agreements = new.pairwise.agreements
       fractional.current.agreement = current.agreement/(no.muts*no.muts*no.iters.post.burn.in)
-      print(paste(new.node,current.agreement,fractional.current.agreement))
       
       #fairly crude - use mean position
       node.position = array(NA,c(no.nodes+1,no.subsamples))
@@ -307,7 +312,7 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
         }
       }
       
-      all.likelihoods[[no.nodes+1]] = calc.new.likelihood2(mutCount, mutCount+WTCount, matrix(1, nrow=nrow(mutCount), ncol=ncol(mutCount)), node.position[consensus.assignments,])
+      all.likelihoods[[no.nodes+1]] = calc.new.likelihood(mutCount, mutCount+WTCount, matrix(1, nrow=nrow(mutCount), ncol=ncol(mutCount)), node.position[consensus.assignments,])
       likelihoods = c(likelihoods, sum(all.likelihoods[[no.nodes+1]]))     
       
       all.consensus.assignments[[no.nodes+1]] = consensus.assignments
@@ -346,15 +351,9 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
   BIC = bic(likelihoods, no.subsamples, tree.sizes, no.muts)
 
   best.BIC.index = which.min(BIC)
-  print("likelihoods and BIC")
-  print(cbind(likelihoods,BIC))
-  print(paste("best BIC index=",best.BIC.index,sep=""))
-  
-  #
-  # Following code commented out because the input for it is not (yet) available. For example of input, see:
-  # /lustre/scratch109/sanger/dw9/2D_Dirichlet_Process/Lucy_heterogeneity/AllSampleSubsv0.4Jan23rd2014forDW9.txt
-  #
-  #   write.table(cbind(data[,c(2,3,4,5,6,9,10,11)],subclonal.fraction,all.consensus.assignments[[best.BIC.index]]),paste(outdir, "/", samplename,"_muts_withDPAssignments.txt",sep=""),col.names = c(names(data)[c(2,3,4,5,6,9,10,11)],colnames(subclonal.fraction),"DirichletProcessCluster"),sep="\t",quote=F,row.names=F)
+  # print("likelihoods and BIC")
+  # print(cbind(likelihoods,BIC))
+  # print(paste("best BIC index=",best.BIC.index,sep=""))
   
   if(no.subsamples>1){
     consensus.assignments = all.consensus.assignments[[best.BIC.index]]
@@ -419,6 +418,13 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=all.likelihoods[[best.BIC.index]], cluster.locations=cluster.locations, all.assignment.likelihoods=NA))
 }
 
+#'
+#' @param mutation.copy.number
+#' @param copyNumberAdjustment
+#' @param GS.data
+#' @param density.smooth
+#' @param opts
+#' @return
 multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment, GS.data, density.smooth, opts) {
   #
   # Uses clustering in multi dimensions to obtain a likelihood across all iterations for each mutation
@@ -491,8 +497,6 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   while(!is.null(lastMin)){
     if(median.density[rbind(lastMin+hypercube.size)]>0 & median.density[rbind(lastMin+hypercube.size)] == max(median.density[getHypercubeIndices(gridsize,lastMin,hypercube.size)])){
       localMins = rbind(localMins,lastMin)
-      print("local maximum indices:")
-      print(lastMin)
       above95confidence = c(above95confidence,lower.CI[rbind(lastMin+hypercube.size)]>0)
     }
     lastMin = getNextHyperCube(gridsize,lastMin,hypercube.size)
@@ -502,13 +506,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   localOptima = array(rep(range[,1],each=no.subsamples),dim(localMins))
   localOptima = localOptima + array(rep((range[,2] - range[,1])/(gridsize-1),each=no.subsamples),dim(localMins)) * localMins
   
-  print("localMins")
-  print(localMins)
-  print("localOptima")
-  print(localOptima)
-  
   write.table(cbind(localOptima,above95confidence),paste(new_output_folder,"/",samplename,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
-  print(localOptima[above95confidence,])
   write.table(localOptima[above95confidence,],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
   
   no.optima = nrow(localOptima)
@@ -704,71 +702,34 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=mutation.preferences, cluster.locations=cluster.locations))
 }
 
-# #' Function that creates various final output files that contain fixed information about mutations.
-# #' This includes adding removed mutations (either due to sampling or data characteristics) back in.
-# produceMutAssignmentOutput = function(dataset, clustering, outfiles.prefix, most.similar.mut=NA, write_tree=F) {
-#   # Check if mutation sampling has been done, if so, unpack and assign here
-#   if (!is.na(most.similar.mut)) {
-#     res = unsample_mutations(dataset, clustering)
-#     dataset = res$dataset
-#     clustering = res$clustering
-#   }
-#   
-#   # Create final output data matrix
-#   output = cbind(dataset$chromosome[,1], dataset$position[,1]-1, dataset$position[,1], clustering$best.node.assignments, clustering$best.assignment.likelihoods)
-#   
-#   # Add the removed mutations back in
-#   for (i in dataset$removed_indices) {
-#     if (i==1) {
-#       output = rbind(c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output)
-#     } else if (i >= nrow(output)) {
-#       output = rbind(output, c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA))
-#     } else {
-#       output = rbind(output[1:(i-1),], c(dataset$chromosome.not.filtered[i], dataset$mut.position.not.filtered[i]-1, dataset$mut.position.not.filtered[i], NA, NA), output[i:nrow(output),])
-#     }
-#   }
-#   
-#   # Save the indices of the mutations that were not used during the analysis
-#   write.table(data.frame(mut.index=dataset$removed_indices), file=paste(outfiles.prefix,"_removedMutationsIndex.txt", sep=""), row.names=F, quote=F)
-#   
-#   # Save the consensus mutation assignments
-#   save(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""), output, clustering)
-#   colnames(output) = c("chr", "start", "end", "cluster", "likelihood")
-#   write.table(output, file=paste(outfiles.prefix, "_bestConsensusAssignments.bed", sep=""), quote=F, row.names=F, sep="\t")
-#   
-#   # If tree based analysis, also save the tree
-#   if (write_tree) {
-#     write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
-#   }
-# }
-
 #######################################################################################################################
 # Binomial based mutation assignment
 #######################################################################################################################
 
-#' Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
-#' This for now only works with a single timepoint
+# Note: This doesn't work better than the density based approach
+#
+# Assign mutations to clusters by looking at the binomial probability of each cluster for generating a mutation
+# This for now only works with a single timepoint
 mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copyNumberAdjustment, tumourCopyNumber, normalCopyNumber, cellularity) {
   # Define convenience variables
   num.timepoints = ncol(mutCount)
   num.muts = nrow(mutCount)
-  
+
   if (num.timepoints > 1) {
     warning("Assigment of mutations through binomial only implemented for a single timepoint")
     q(save="no")
   }
-  
+
   # Obtain peak locations whtin the given clustering density
   res = getLocalOptima(clustering_density, hypercube.size=5)
   cluster_locations = res$localOptima
-  
+
   # Strip out clusters with a small density
   cluster_density = getClusterDensity(clustering_density, cluster_locations, min.window.density=1)
   # Take all clusters with at least 1% of the density
   cluster_locations = cluster_locations[cluster_density > 0.01]
   num.clusters = length(cluster_locations)
-  print(cluster_locations)
-  
+
   # Calculate log likelihoods for each mutation to be part of each cluster location
   assignment_ll = array(NA, c(num.muts, num.clusters))
   for (t in 1:num.timepoints) {
@@ -792,11 +753,11 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
   # Save a table with the output as a summary
   cluster_assignments = table(most.likely.cluster)
   output = array(NA, c(length(cluster_locations), 3))
-  print(cluster_assignments)
+  
   for (c in 1:num.clusters) {
     cluster_id = names(cluster_assignments)[c]
     cluster_id = as.character(c)
-    
+
     output[c,1] = as.numeric(cluster_id)
     output[c,2] = cluster_locations[c]
     # Check if there are mutations assigned to the cluster, i.e. it's in the cluster_assignments table
@@ -806,12 +767,14 @@ mutation_assignment_binom = function(clustering_density, mutCount, WTCount, copy
       output[c,3] = 0
     }
   }
-  write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)  	
-  
+  write.table(output, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)
+
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=assignment_probs, cluster.locations=output))
 }
 
 #' Function that fetches the local optima from a density function call output
+#' @param cluster_density
+#' @param hypercube.size
 #' @return A list containing two fields: localOptima, the location of a peak and peak.indices, the index of the peak within a hypercube
 getLocalOptima = function(cluster_density, hypercube.size=20) {
   localOptima = NULL
@@ -830,6 +793,9 @@ getLocalOptima = function(cluster_density, hypercube.size=20) {
 #' drops below the supplied minimum in both directions. After obtaining the CCF space that a
 #' cluster takes up we calculate the mean density in that space. Finally across all cluster
 #' densities we normalise to obtain the fraction of total density that each cluster represents
+#' @param clustering_density
+#' @param cluster_locations
+#' @param min.window.density
 #' @return A vector with for each cluster the fraction of density
 getClusterDensity = function(clustering_density, cluster_locations, min.window.density) {
   cluster_density = array(NA, length(cluster_locations))
@@ -873,6 +839,7 @@ getClusterDensity = function(clustering_density, cluster_locations, min.window.d
 # MPEAR based mutation assignment
 #######################################################################################################################
 
+#' Note: This doesn't work better than the density based approach
 #' A function that takes SNVs assigned to clusters and works out a PDF for each cluster, in 512 bins across the given space. These densities can then be used to obtain the probability of each cluster for not assigned SNVs.
 #' @param best.node.assignments A vector with hard assignments of SNVs to clusters
 #' @param subclonal.fraction CCF values of the SNVs
@@ -880,19 +847,11 @@ getClusterDensity = function(clustering_density, cluster_locations, min.window.d
 #' @param max_ccf The minimum CCF value to consider for constructing the density
 #' @return A combined density distribution, a column per cluster
 get_cluster_densities = function(best.node.assignments, subclonal.fraction, min_ccf=0, max_ccf=1.5) {
-  print("Building densities")
-  print("Clusters:")
-  print(unique(best.node.assignments[!is.na(best.node.assignments)]))
-  print("Subclonal fraction:")
-  print(head(subclonal.fraction))
   
   #' Get the per cluster densities
   cluster_densities = list()
   for (clusterid in unique(best.node.assignments[!is.na(best.node.assignments)])) {
     ccfs_snvs_cluster = subclonal.fraction[best.node.assignments==clusterid,]
-    print("Clusterid:")
-    print(clusterid)
-    print(head(ccfs_snvs_cluster))
     p = ggplot_build(ggplot(data.frame(x=ccfs_snvs_cluster)) + aes(x=x, y=..density..) + geom_density() + xlim(min_ccf, max_ccf))
     cluster_densities[[length(cluster_densities)+1]] = p$data[[1]]
   }
@@ -1202,51 +1161,6 @@ calc_cluster_conf_intervals = function(GS.data, mut_assignments, clusterids, no.
   }
   return(cluster_intervals)
 }
-
-# #' Calculate for a pair of clusters whether a has a higher CCF than b.
-# #' 
-# #' This function uses mutation assignments during MCMC of the mutations that have been assigned
-# #' to clusters a and b after completion of the run. It samples 1000 mutations from a and b and
-# #' looks how often a_i has a higher assignment CCF than b_i and combines this information in a
-# #' fraction. The final table contains for each cell a probability whether the column has a higher
-# #' CCF than the row.
-# #' @param GS.data MCMC output with assignments and cluster locations
-# #' @param clusterids Clusterids to run through
-# #' @param no.muts The total number of mutations
-# #' @param no.timepoints Total number of samples in this dataset
-# #' @param no.iters Total number of iterations
-# #' @param no.iters.burn.in Number of iterations to use as burn-in
-# #' @return A array multi-dimensional array with in each cell whether the column cluster has a higher CCF than the row cluster across the samples in the third dimension
-# #' @author sd11
-# calc_cluster_order_probs = function(GS.data, density, mut_assignments, clusterids, cluster_ccfs, no.muts, no.timepoints, no.iters, no.iters.burn.in, no.samples=1000) {
-#   num_clusters = length(clusterids)
-#   if (num_clusters > 1) {
-#     preferences = get_mutation_preferences(GS.data, density, mut_assignments, clusterids, cluster_ccfs, no.muts, no.timepoints, no.iters, no.iters.burn.in)
-# 
-#     probs = array(NA, c(length(clusterids), length(clusterids), no.timepoints))
-#     for (t in 1:no.timepoints) {
-#       for (c in 1:(num_clusters-1)) {
-#         for (k in (c+1):num_clusters) {
-# 
-#           snvs_a = which(mut_assignments==clusterids[c])
-#           snvs_b = which(mut_assignments==clusterids[k])
-# 
-#           sampled_a = sample(snvs_a, no.samples, replace=T)
-#           sampled_b = sample(snvs_b, no.samples, replace=T)
-# 
-#           gt = sum(sapply(1:no.samples, function(i) { (sum(preferences[, sampled_a[i], t] >= preferences[, sampled_b[i], t])) }))
-#           lt = sum(sapply(1:no.samples, function(i) { (sum(preferences[, sampled_a[i], t] <= preferences[, sampled_b[i], t])) }))
-# 
-#           probs[c, k, t] = lt / (lt+gt)
-#           probs[k, c, t] = gt / (lt+gt)
-#         }
-#       }
-#     }
-#     return(probs)
-#   } else {
-#     return(array(NA, c(length(clusterids), length(clusterids), no.timepoints)))
-#   }
-# }
 
 #' Get mutation preferences table given a density and cluster locations. The output table
 #' contains the CCF of the preferred given cluster locations, i.e. the cluster to which
