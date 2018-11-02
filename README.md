@@ -4,6 +4,7 @@ This R package contains methods for subclonal reconstruction through SNVs and/or
 
 ## Installation instructions
 
+Install the latest release version
 ```
 source("http://bioconductor.org/biocLite.R"); biocLite(c("optparse"","KernSmooth","ks","lattice","ggplot2","gridExtra","mcclust"))'
 devtools::install_github("Wedge-Oxford/dpclust")
@@ -24,27 +25,30 @@ cd inst/example
 
 ## Docker
 
-Run DPClust on provided example data
+Run DPClust on provided example data. After checking out this repository, build the image:
 ```
 docker build -t dpclust:2.2.6 .
 ```
 
+Run DPClust as follows
 ```
 docker run -it -v `pwd`:/mnt/output/ dpclust:2.2.6 /opt/dpclust/example/run_docker.sh
 ```
 
 ## Input description
 
-DPClust takes as input a project description file and a file for each sample described in the project file. By providing the pipeline with an ID it can pick the case to run through. Since DPClust can take single and multi-sample cases it requires some encoding of matching multiple sample files to a single case. The project description is set up with that in mind. See `inst/extdata/simulated_data/simulated_1d.txt` and `inst/extdata/simulated_data/simulated.txt` for examples of a single and a multi-sample case respectively.
+DPClust takes as input a project description file and a file for each sample described in the project file. By providing the pipeline with an ID it can pick the case to run through. Since DPClust can take single and multi-sample cases it requires some encoding of matching multiple sample files to a single case. The project description is set up with that in mind. 
 
-|Column|Description|
-|---|---|
-| sample	| Top level ID to use when naming output files across all samples of this case |
-| subsample |	The ID to use on a per sample level (i.e. when comparing sample a with sample b) |
-| datafile	 | The DPClust input filename (the path to these files is provided to the pipeline) |
-| cellularity | The sample purity estimate (fraction of tumour cells in the sequencing sample) |
+For multi-sample cases it is important that all DPClust input files for that case contain all mutations across all samples.
 
-The DPClust input file should be generated via the DPClust pre-processing package ([dpclust3p](https://github.com/Wedge-Oxford/dpclust3p)) and must contain the columns listed right below. See [here](https://www.ncbi.nlm.nih.gov/pubmed/28270531) for more details on the meaning and derivation of these values.
+### Example data and pipelines
+Example data is included with this package. See `inst/extdata/simulated_data/simulated_1d.txt` and `inst/extdata/simulated_data/simulated.txt` for examples of a single and a multi-sample case respectively.
+
+The DPClust input file should be generated via the DPClust pre-processing package ([dpclust3p](https://github.com/Wedge-Oxford/dpclust3p)). Example pipelines to generate the DPClust input file ([here](https://github.com/Wedge-Oxford/dpclust3p/blob/master/inst/example/preproc_pipeline_simple.R) and [here](https://github.com/Wedge-Oxford/dpclust3p/blob/master/inst/example/preproc_pipeline_caveman.R)) and the DPClust project master file ([here](https://github.com/Wedge-Oxford/dpclust3p/blob/master/inst/example/preproc_dpclust_master_file.R)) are included in dpclust3p.
+
+### DPClust input file
+
+The DPClust input file requires these columns. See [here](https://www.ncbi.nlm.nih.gov/pubmed/28270531) for more details on the meaning and derivation of these values.
 
 |Column|Description|
 |---|---|
@@ -57,7 +61,20 @@ The DPClust input file should be generated via the DPClust pre-processing packag
 | subclonal.fraction	| The estimate of the fraction of tumour cells (CCF) that carry the mutation |
 | no.chrs.bearing.mut	| The mutation's multiplicity estimate |
 
+### DPClust project master file contents
+
+The DPClust project master file requires at least these columns
+
+|Column|Description|
+|---|---|
+| sample	| Top level ID to use when naming output files across all samples of this case |
+| subsample |	The ID to use on a per sample level (i.e. when comparing sample a with sample b) |
+| datafile	 | The DPClust input filename (the path to these files is provided to the pipeline) |
+| cellularity | The sample purity estimate (fraction of tumour cells in the sequencing sample) |
+
 ## Output description
+
+### Single sample
 
 DPClust creates the following output for a single sample case
 
@@ -69,6 +86,8 @@ DPClust creates the following output for a single sample case
 |*_bestConsensusResults.RData		| R data file with all the output |
 |*_DirichletProcessplot_with_cluster_locations_2.png  | Main output figure showing the raw input data in the background, the posterior density of mutation clusters in purple (with blue confidence interval) and the called mutation clusters and the number of assigned mutations in the foreground |
 |*_mutation_assignments.png | Table figure showing the called mutation clusters |
+
+### Multiple samples
 
 DPClust creates the following output for a multi-sample case
 
