@@ -365,11 +365,11 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
   
   # Determine how often to print a status update
   num_iters = prod(gridsize)
-  if (num_iters < 1000) {
+  if (num_iters < 5000) {
     print_status_iters = 100
-  } else if (num_iters < 10000) {
+  } else if (num_iters < 50000) {
     print_status_iters = 1000
-  } else if (num_iters < 100000) {
+  } else if (num_iters < 500000) {
     print_status_iters = 10000
   } else {
     print_status_iters = 100000
