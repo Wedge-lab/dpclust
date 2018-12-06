@@ -371,7 +371,7 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
     print_status_iters = 1000
   } else if (num_iters < 100000) {
     print_status_iters = 10000
-  } else if (num_iters < 1000000) {
+  } else {
     print_status_iters = 100000
   }
   
