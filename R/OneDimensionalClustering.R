@@ -77,10 +77,24 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     cluster_locations[,1] = 1:length(cluster_assignment_counts)
     cluster_locations[,2] = localOptima
     cluster_locations[,3] = cluster_assignment_counts
-    # Clear clusters with no mutations assigned
-    cluster_locations = cluster_locations[cluster_locations[,3] > 0,,drop=F]
     
+    # Keep a record of all clusters, in case it is of interest
     write.table(cluster_locations, paste(samplename,"_optimaInfo.txt",sep=""), col.names=c("cluster.no","location","no.of.mutations"), row.names=F, sep="\t", quote=F)		
+    
+    # Clear clusters with no mutations assigned
+    non_empty_clusters = which(cluster_locations[,3] > 0)
+    cluster_locations = cluster_locations[non_empty_clusters,,drop=F]
+    mutation.preferences = mutation.preferences[,non_empty_clusters, drop=F]
+    mutation.preferences = mutation.preferences / rowSums(mutation.preferences)
+    
+    # Sort clusters by CCF
+    clust_order = order(cluster_locations[,2], decreasing=T)
+    cluster_locations = cluster_locations[clust_order,,drop=F]
+    cluster_locations[,1] = 1:nrow(cluster_locations)
+    mutation.preferences = mutation.preferences[,clust_order]
+    
+    # get most likely cluster
+    most.likely.cluster = max.col(mutation.preferences)
     
     # Obtain likelyhood of most likely cluster assignments
     most.likely.cluster.likelihood = apply(mutation.preferences, 1, max)
