@@ -123,7 +123,7 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
     xlim(0, x.max) +
     theme(axis.text=element_text(size=font_sizes$axis.text),
           axis.title=element_text(size=font_sizes$axis.title),
-          plot.title=element_text(size=font_sizes$plot.title),
+          plot.title=element_text(size=font_sizes$plot.title, hjust=0.5),
           legend.text=element_text(size=font_sizes$legend.text),
           legend.title=element_text(size=font_sizes$legend.title),
           legend.position=font_sizes$legend.position) +
