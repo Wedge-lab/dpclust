@@ -13,7 +13,7 @@ R -q -e 'devtools::install_github("Wedge-Oxford/dpclust")'
 Alternatively, the software can be installed after downloading a release
 ```
 R -q -e 'source("http://bioconductor.org/biocLite.R"); biocLite(c("optparse","KernSmooth","ks","lattice","ggplot2","gridExtra"))'
-R -q -e 'install.packages([DPClust tarball], repos=NULL, type="source"'
+R -q -e 'install.packages([DPClust tarball], repos=NULL, type="source")'
 ```
 
 ## Running DPClust
