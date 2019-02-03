@@ -617,7 +617,27 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     warning("No local optima found")
   }
   
+  # Remove the estimated number of SNVs per cluster from the cluster locations table  
+  cluster.locations = as.data.frame(cluster.locations[,c(1:(length(subsamples)+1),ncol(cluster.locations))])
+  # Report only the clusters that have mutations assigned
+  non_empty_clusters = cluster.locations[,ncol(cluster.locations)] > 0
+  cluster.locations = cluster.locations[non_empty_clusters,,drop=F]
+  mutation.preferences = mutation.preferences[,non_empty_clusters, drop=F]
+  mutation.preferences = mutation.preferences / rowSums(mutation.preferences)
   
+  # Sort clusters by summed CCF (as a proxy for most clonal cluster first)
+  clust_order = order(rowSums(cluster.locations[,2:(ncol(cluster.locations)-1)]), decreasing=T)
+  cluster.locations = cluster.locations[clust_order,,drop=F]
+  cluster.locations[,1] = 1:nrow(cluster.locations)
+  mutation.preferences = mutation.preferences[,clust_order]
+
+  # get most likely cluster
+  most.likely.cluster = max.col(mutation.preferences)
+
+  # Obtain likelyhood of most likely cluster assignments
+  assignment.likelihood = sapply(1:no.muts,function(m,c,i){ m[i,c[i]] },m=mutation.preferences, c=most.likely.cluster)
+  
+  no.optima = nrow(cluster.locations)
   pdf(paste(new_output_folder,"/",samplename,"_most_likely_cluster_assignment_",density.smooth,".pdf",sep=""),height=4,width=4)
   #its hard to distinguish more than 8 different colours
   max.cols = 8
@@ -645,11 +665,6 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   }       
   dev.off()
 
-  # Remove the estimated number of SNVs per cluster from the cluster locations table  
-  cluster.locations = as.data.frame(cluster.locations[,c(1:(length(subsamples)+1),ncol(cluster.locations))])
-  # Report only the clusters that have mutations assigned
-  cluster.locations = cluster.locations[cluster.locations[,ncol(cluster.locations)] > 0,]
-  
   return(list(best.node.assignments=most.likely.cluster, best.assignment.likelihoods=assignment.likelihood, all.assignment.likelihoods=mutation.preferences, cluster.locations=cluster.locations))
 }
 
