@@ -109,7 +109,7 @@ outdir = paste(outdir, "/", samplename, "_DPoutput_", no.iters,"iters_", no.iter
 #####################################################################################
 # Setup parameters
 #####################################################################################
-run_params = make_run_params(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files, generate_cluster_ordering=generate_cluster_ordering)
+run_params = make_run_params(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male=is.male, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files, generate_cluster_ordering=generate_cluster_ordering)
 sample_params = make_sample_params(datafiles, cellularity, is.male, samplename, subsamples, mutphasingfiles)
 advanced_params = make_advanced_params(seed)
 
