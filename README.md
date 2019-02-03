@@ -20,7 +20,9 @@ R -q -e 'install.packages([DPClust tarball], repos=NULL, type="source"'
 
 The DPClust package comes with an example pipeline and some simulated data in `inst/example`. Run the examples as follows:
 ```
-cd inst/example
+# check out the repository
+git clone git@github.com:Wedge-Oxford/dpclust.git
+cd dpclust/inst/example
 
 # single sample case
 ./run.sh
