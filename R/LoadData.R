@@ -19,12 +19,9 @@
 #' @param is.male Optional boolean that represents the sex, set to TRUE if male, FALSE if female. This information is used to decide whether to include X chromosome mutations
 #' @param is.vcf Optional boolean parameter whether the files to be read in are in VCF format
 #' @param ref.genome.version Optional string that represents the reference genome, required when reading in VCF files
-#' @param min.depth Optional minimum depth requirement for a mutation to be included
-#' @param min.mutreads Optional minimum number of reads supporting the mutant allele for a mutation to be included
-#' @author sdentro
+#' @author sd11
 #' @return A list of tables, one for each type of information
-# REMOVED datpath, samplename, data_file_suffix num_muts_sample=NA, 
-load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase=NULL, is.male=T, is.vcf=F, ref.genome.version="hg19", min.depth=1, min.mutreads=1, supported_chroms=c(1:22)) {
+load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase=NULL, is.male=T, is.vcf=F, ref.genome.version="hg19", supported_chroms=c(1:22)) {
   data=list()
   
   if (!is.vcf) {
@@ -47,13 +44,13 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   }
 
   # Ofload combining of the tables per sample into a series of tables per data type
-  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms))
+  return(load.data.inner(data, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, supported_chroms))
 }
   
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
 #' @noRd
-load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms, mutation_type="SNV") {
+load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, supported_chroms, mutation_type="SNV") {
   no.subsamples = length(list_of_tables)
   no.muts = nrow(list_of_tables[[1]])
   
@@ -102,13 +99,6 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   not.cna = apply(copyNumberAdjustment, 1, function(x) { any(x==0 | is.na(x)) })
   not.on.supported.chrom = apply(chromosome, 1, function(x) { ! any(x %in% as.character(supported_chroms)) })
 
-  coverage = matrix(WTCount[!(not.there.wt & not.there.mut),] + mutCount[!(not.there.wt & not.there.mut),], ncol=no.subsamples)
-  cov.mean = mean(colMeans(coverage))
-  cov.std = mean(apply((coverage), 2, sd))
-
-  too.high.coverage = apply(WTCount+mutCount, 1, function(x) { any(x[!is.na(x)] > cov.mean+6*cov.std)})
-  too.high.coverage[is.na(too.high.coverage)] = FALSE # Above leaves NA when either mutCount or WTCount is NA
-
   print(paste("Removed", sum(not.there.wt),"with missing WTCount", sep=" "))
   print(paste("Removed", sum(not.there.mut),"with missing mutCount", sep=" "))
   print(paste("Removed", sum(not.there.cn | not.cna),"with missing totalCopyNumber", sep=" "))
@@ -116,9 +106,8 @@ load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT
   print(paste("Removed", sum(not.there.kappa),"with missing kappa", sep=" "))
   print(paste("Removed", sum(not.coverage),"with no coverage", sep=" "))
   print(paste("Removed", sum(not.on.supported.chrom), "on not supported genomic regions", sep=" "))
-  print(paste("Removed", sum(too.high.coverage), "mutations with coverage over",cov.mean+6*cov.std, sep=" "))
 
-  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom | too.high.coverage)
+  select = !(not.there.wt | not.there.mut | not.there.cn | not.there.cna | not.there.kappa | not.coverage | not.cna | not.on.supported.chrom)
   
   # Keep indices of removed mutations to 'spike in' lateron when constructing the output
   removed_indices = which(!select)
@@ -546,11 +535,9 @@ add.mutphasing = function(dataset, mutphasing, add.conflicts=F) {
 #' Add indels to an existing dataset
 #' @param dataset A data set object
 #' @param indeldata A list of read in data.frames (one per sample) with output from dpclust3p
-#' @param min.depth Minimum depth required to keep an indel
-#' @param min.mutreads Minimum number of mutant reads to keep an indel
 #' @param supported_chroms Chromosomes that are supported
 #' @return the provided dataset with indels added
-add.in.indels = function(dataset, indeldata, is.male, min.depth, min.mutreads, supported_chroms) {
+add.in.indels = function(dataset, indeldata, is.male, supported_chroms) {
   indelset = load.data.inner(list_of_tables=indeldata, 
                              cellularity=dataset$cellularity, 
                              Chromosome="chr", 
@@ -563,8 +550,6 @@ add.in.indels = function(dataset, indeldata, is.male, min.depth, min.mutreads, s
                              subclonal.fraction="subclonal.fraction", 
                              phase="phase",
                              is.male=is.male,
-                             min.depth=min.depth, 
-                             min.mutreads=min.mutreads, 
                              supported_chroms=supported_chroms, 
                              mutation_type="indel")
   dataset = append.dataset(dataset, indelset)

@@ -8,8 +8,6 @@
 #' @param mut.assignment.type Mutation assignment type option
 #' @param num_muts_sample The number of mutations from which to start downsampling
 #' @param is.male Boolean set to TRUE when the donor is male, female otherwise
-#' @param min.mutreads The minimum number of reads supporting a mutation (Default: 0)
-#' @param min.depth The minimum number of reads covering a mutation (Default: 1)
 #' @param assign_sampled_muts A boolean whether to assign mutations that have not been used for clustering due to downsampling (Default: TRUE)
 #' @param supported_chroms Vector with chromosome names from which mutations can be used (Default: NULL)
 #' @param keep_temp_files Set to TRUE to keep temporary files (Default: TRUE)
@@ -17,7 +15,7 @@
 #' @return A list containing these components
 #' @author sd11
 #' @export
-make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, min.mutreads=0, min.depth=1, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
+make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
   if (is.null(supported_chroms)) {
     # Set the expected chromosomes based on the sex
     if (is.male) {
@@ -27,7 +25,7 @@ make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_
     }
   }
   
-  return(list(no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, mut.assignment.type=mut.assignment.type, min.depth=min.depth, min.mutreads=min.mutreads, 
+  return(list(no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, mut.assignment.type=mut.assignment.type, 
               supported_chroms=supported_chroms, num_muts_sample=num_muts_sample, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files,
               generate_cluster_ordering=generate_cluster_ordering))
 }
@@ -154,8 +152,6 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                         is.male=is.male,
                         is.vcf=F, # reading of VCF input files os disabled
                         ref.genome.version="hg19", # reading of VCF input files is disabled, this parameter is not used
-                        min.depth=min.depth,
-                        min.mutreads=min.mutreads,
                         supported_chroms=supported_chroms)
     
     if (co_cluster_cna & !is.na(cndatafiles)) {
