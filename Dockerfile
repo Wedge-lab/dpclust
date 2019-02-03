@@ -4,7 +4,7 @@ USER root
 
 RUN apt-get update && apt-get -y install r-base
 
-RUN R -q -e 'source("http://bioconductor.org/biocLite.R"); biocLite(c("optparse"","KernSmooth","ks","lattice","ggplot2","gridExtra","mcclust"))'
+RUN R -q -e 'source("http://bioconductor.org/biocLite.R"); biocLite(c("optparse"","KernSmooth","ks","lattice","ggplot2","gridExtra"))'
 
 RUN mkdir -p /opt/dpclust
 COPY . /opt/dpclust/

@@ -3,21 +3,21 @@
 #
 
 #' Helper function to package run parameters
-#' @param no.iters
-#' @param no.iters.burn.in
-#' @param mut.assignment.type
-#' @param num_muts_sample
-#' @param min.mutreads
-#' @param min.depth
-#' @param assign_sampled_muts
-#' @param supported_chroms
-#' @param mutphasingfiles
-#' @param keep_temp_files
-#' @param generate_cluster_ordering
+#' @param no.iters The number of iterations that the MCMC chain should be run for
+#' @param no.iters.burn.in The number of iterations that should be discarded as burn in of the MCMC chain
+#' @param mut.assignment.type Mutation assignment type option
+#' @param num_muts_sample The number of mutations from which to start downsampling
+#' @param is.male Boolean set to TRUE when the donor is male, female otherwise
+#' @param min.mutreads The minimum number of reads supporting a mutation (Default: 0)
+#' @param min.depth The minimum number of reads covering a mutation (Default: 1)
+#' @param assign_sampled_muts A boolean whether to assign mutations that have not been used for clustering due to downsampling (Default: TRUE)
+#' @param supported_chroms Vector with chromosome names from which mutations can be used (Default: NULL)
+#' @param keep_temp_files Set to TRUE to keep temporary files (Default: TRUE)
+#' @param generate_cluster_ordering Set to TRUE to generate possible phylogenetic relationships between clusters (Default: FALSE)
 #' @return A list containing these components
 #' @author sd11
 #' @export
-make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, min.mutreads=1, min.depth=0, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
+make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, min.mutreads=0, min.depth=1, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
   if (is.null(supported_chroms)) {
     # Set the expected chromosomes based on the sex
     if (is.male) {
@@ -33,11 +33,11 @@ make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_
 }
 
 #' Helper function to package sample parameters
-#' @param datafiles
-#' @param cellularity
-#' @param is.male
-#' @param samplename
-#' @param subsamples
+#' @param datafiles Vector of data files to be read in
+#' @param cellularity Vector with purity for all samples
+#' @param is.male Boolean whether the sample is male
+#' @param samplename Donorname, used in plots and to name output files
+#' @param subsamples Samplenames, used for multi-dimensional clustering to denote individual samples (this information is thought of as a suffix to the samplename, so: samplename=PD4120 and subsamplename=c(a, c)
 #' @return A list containing these components
 #' @author sd11
 #' @export
@@ -46,16 +46,15 @@ make_sample_params = function(datafiles, cellularity, is.male, samplename, subsa
 }
 
 #' Helper function to package advanced parameters - most of these will almost never need to be changed
-#' @param seed
-#' @param min.frac.snvs.cluster
-#' @param conc_param
-#' @param cluster_conc
-#' @param max.considered.clusters
+#' @param seed The seed to use
+#' @param conc_param Hyperparameter setting that affects the sampling of the alpha stick-breaking parameter
+#' @param cluster_conc Legacy parameter, no longer used
+#' @param max.considered.clusters The maximum number of clusters to be considered
 #' @return A list containing these components
 #' @author sd11
 #' @export
-make_advanced_params = function(seed, min.frac.snvs.cluster=0.05, conc_param=0.01, cluster_conc=5, max.considered.clusters=20) {
-  return(list(min.frac.snvs.cluster=min.frac.snvs.cluster, conc_param=conc_param, cluster_conc=cluster_conc, seed=seed, max.considered.clusters=max.considered.clusters))
+make_advanced_params = function(seed, conc_param=0.01, cluster_conc=5, max.considered.clusters=20) {
+  return(list(conc_param=conc_param, cluster_conc=cluster_conc, seed=seed, max.considered.clusters=max.considered.clusters))
 }
 
 #' Helper function to package CNA parameters - to be implemented
@@ -64,13 +63,13 @@ make_cna_params = function() {
 }
 
 #' Main DPClust function that handles the various pipelines
-#' @param analysis_type
-#' @param run_params
-#' @param sample_params
-#' @param advanced_params
-#' @param outdir
-#' @param cna_params
-#' @param mutphasingfiles
+#' @param analysis_type Type of analysis to run: nd_dp (1d and nd clustering), replot_1d/replot_nd (recreate plots), reassign_muts_1d/reassign_muts_nd (reassign mutations)
+#' @param run_params List with run parameters (see make_run_params)
+#' @param sample_params List with sample parameters (see make_sample_params)
+#' @param advanced_params List with advanced parameters (see make_advanced_params)
+#' @param outdir Directory where the output will be saved
+#' @param cna_params List with copy number parameters - currently unsupported (Default: NULL)
+#' @param mutphasingfiles Mutation phasing files - currently unsupported (Default: NULL)
 #' @author sd11
 #' @export
 RunDP <- function(analysis_type, run_params, sample_params, advanced_params, outdir, cna_params=NULL, mutphasingfiles=NULL) { 
@@ -206,6 +205,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   } else if (!is.null(cndata)) {
     dataset = add.in.cn.as.snv.cluster(dataset, 
                                        cndata, 
+                                       cellularity=cellularity,
                                        add.conflicts=add.conflicts, 
                                        conflicting.events.only=cna.conflicting.events.only, 
                                        num.clonal.events.to.add=num.clonal.events.to.add,
@@ -260,7 +260,6 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                                             cluster_conc=cluster_conc,
                                             mut.assignment.type=mut.assignment.type,
                                             most.similar.mut=most.similar.mut,
-                                            min.frac.snvs.cluster=min.frac.snvs.cluster,
                                             max.considered.clusters=max.considered.clusters)
     
   } else if (analysis_type == "replot_1d") {
@@ -284,12 +283,13 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     ##############################
     # Replot nD clustering
     ##############################
-    load(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""))
+    load(file=file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
     replot_nD(outdir=outdir, 
               outfiles.prefix=outfiles.prefix, 
               samplename=samplename, 
               subsamples=subsamples, 
               dataset=dataset,
+              no.iters=no.iters,
               clustering=clustering, 
               conc_param=conc_param, 
               cluster_conc=cluster_conc)
@@ -299,14 +299,17 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     ##############################
     # Reassign mutations to clusters using a previous 1D clustering run
     ##############################
+    load(file=file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
     res = reassign_1D(outdir=outdir, 
                       samplename=samplename, 
                       no.iters=no.iters, 
                       no.iters.burn.in=no.iters.burn.in, 
                       dataset=dataset, 
+                      cellularity=cellularity, 
+                      GS.data=GS.data,
                       conc_param=conc_param, 
                       cluster_conc=cluster_conc,
-                      min.frac.snvs.cluster=min.frac.snvs.cluster)
+                      mut.assignment.type=mut.assignment.type)
     clustering = res$clustering
     outfiles.prefix = res$outfiles.prefix
     
@@ -315,14 +318,17 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     ##############################
     # Reassign mutations to clusters using a previous nD clustering run
     ##############################
+    load(file=paste(outfiles.prefix, "_bestConsensusResults.RData", sep=""))
     res = reassign_nd(outdir=outdir, 
                       samplename=samplename, 
                       subsamples=subsamples, 
                       no.iters=no.iters, 
                       no.iters.burn.in=no.iters.burn.in, 
                       dataset=dataset, 
+                      GS.data=GS.data,
                       conc_param=conc_param, 
-                      cluster_conc=cluster_conc)
+                      cluster_conc=cluster_conc,
+                      mut.assignment.type=mut.assignment.type)
     
     clustering = res$clustering
     outfiles.prefix = res$outfiles.prefix
@@ -352,6 +358,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                              dataset=dataset,
                              most.similar.mut=most.similar.mut,
                              outfiles.prefix=outfiles.prefix,
+                             samplename=samplename,
                              subsamplenames=subsamples,
                              GS.data=GS.data,
                              density=density,
@@ -400,8 +407,10 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param dataset The dataset that went into clustering
 #' @param most.similar.mut Vector containing for each non-sampled mutation its most similar sampled mutation. The non-sampled mutation will be assigned to the same cluster
 #' @param outfiles.prefix A prefix for the filenames
+#' @param samplename Overall samplename
 #' @param subsamplenames Samplenames of the different timepoints
 #' @param GS.data MCMC output
+#' @param density Posterior density estimate across MCMC iterations
 #' @param no.iters Number of total iterations
 #' @param no.iters.burn.in Number of iterations to be used as burn-in
 #' @param assign_sampled_muts Boolean whether to assign the non-sampled mutations (Default: TRUE)
@@ -409,8 +418,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param generate_cluster_ordering Boolean specifying whether a possible cluster ordering should be determined (Default: FALSE)
 #' @param no.samples.cluster.order Number of mutations to sample (with replacement) to classify pairs of clusters into parent-offspring or siblings (Default: 1000)
 #' @author sd11
-#' @noRd
-writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
+writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, samplename, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
   
   if (generate_cluster_ordering) {
@@ -648,34 +656,32 @@ flatten_3d_to_2d = function(data, col_names) {
   return(new_data)
 }
 
-#' @param mutCount
-#' @param WTCount
-#' @param totalCopyNumber
-#' @param copyNumberAdjustment
-#' @param mutation.copy.number
-#' @param cellularity
-#' @param output_folder
-#' @param no.iters
-#' @param no.iters.burn.in
-#' @param subsamplesrun
-#' @param samplename
-#' @param conc_param
-#' @param cluster_conc
-#' @param mut.assignment.type
-#' @param most.similar.mut
-#' @param mutationTypes
-#' @param min.frac.snvs.cluster
-#' @param max.considered.clusters
-DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes, min.frac.snvs.cluster, max.considered.clusters) {
-  #
-  # Run the regular Dirichlet Process based method. Will perform clustering using the given data. The method
-  # decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
-  # The number of samples is determined through the number of columns of the input.
-  #
-  # The nD method will yield a series of figures in which each sample is plotted against each other sample. 
-  # The 1D method yields a density plot for just the single sample.
-  #
-  if(!file.exists(output_folder)){
+#' Main function to run subclonal reconstruction
+#' 
+#' Will perform clustering using the given data. The method
+#' decides automatically whether the 1D or nD method is run based on the number of samples given at the input.
+#' The number of samples is determined through the number of columns of the input.
+#' @param mutCount Matrix with readcounts of the mutated allele
+#' @param WTCount Matrix with readcounts of the wild-type allele
+#' @param totalCopyNumber Matrix with total copynumber at each mutation locus
+#' @param copyNumberAdjustment Matrix with multiplicity values
+#' @param mutation.copy.number Matrix with mutation copy number values
+#' @param cellularity Vector with sample purities
+#' @param output_folder Directory where to write output
+#' @param no.iters The number of iterations to run the MCMC chain for
+#' @param no.iters.burn.in Number of iterations to discard as burn in
+#' @param samplename Donor name, used in plots and to name output files
+#' @param subsamplesrun Samplenames of individual samples for this donor
+#' @param conc_param Hyperparameter setting that affects the sampling of the alpha stick-breaking parameter
+#' @param cluster_conc Legacy parameter, no longer used
+#' @param mut.assignment.type Type of mutation assignment to be used
+#' @param most.similar.mut Vector with most similar mutation for mutations removed during sampling (if any)
+#' @param mutationTypes Vector with mutation types, used for plotting
+#' @param max.considered.clusters Maximum number of clusters to consider
+#' @author sd11
+DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes, max.considered.clusters) {
+
+    if(!file.exists(output_folder)){
     dir.create(output_folder)
   }
   GS.data = subclone.dirichlet.gibbs(mutCount=mutCount,
@@ -732,10 +738,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
       warning("binom mut assignment not implemented for multiple timepoints")
       q(save="no", status=1)
     
-    } else if (mut.assignment.type == 4) {  
-      warning("MPEAR mut assignment not implemented for multiple timepoints")
-      q(save="no", status=1)
-      
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
       q(save="no", status=1)
@@ -787,17 +789,8 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                                  copyNumberAdjustment=copyNumberAdjustment, 
                                                  tumourCopyNumber=totalCopyNumber,
                                                  normalCopyNumber=array(2, dim(mutCount)),
-                                                 cellularity=cellularity)
-      
-    } else if (mut.assignment.type == 4) {  
-      consClustering = mutation_assignment_mpear(GS.data=GS.data, 
-                                                 no.iters=no.iters, 
-                                                 no.iters.burn.in=no.iters.burn.in, 
-                                                 min.frac.snvs.cluster=min.frac.snvs.cluster, 
-                                                 dataset=dataset, 
-                                                 samplename=samplename, 
-                                                 outdir=output_folder,
-                                                 density=density)
+                                                 cellularity=cellularity,
+                                                 samplename=samplename)
       
     } else {
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))

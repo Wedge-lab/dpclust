@@ -52,7 +52,7 @@ load.data <- function(list_of_data_files, cellularity, Chromosome, position, WT.
   
 #' This inner function takes a list of loaded data tables and transforms them into
 #' a dataset, which is a list that contains a table per data type
-#' @noRD
+#' @noRd
 load.data.inner = function(list_of_tables, cellularity, Chromosome, position, WT.count, mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number, subclonal.fraction, phase, is.male, min.depth, min.mutreads, supported_chroms, mutation_type="SNV") {
   no.subsamples = length(list_of_tables)
   no.muts = nrow(list_of_tables[[1]])
@@ -173,7 +173,7 @@ load.indel.data = function(infiles) {
 }
 
 #' Function that adds copy number as a series of SNVs into a data set
-add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflicting.events.only=F, num.clonal.events.to.add=0, min.cna.size=10) {
+add.in.cn.as.snv.cluster = function(dataset, cndata, cellularity, add.conflicts=T, conflicting.events.only=F, num.clonal.events.to.add=0, min.cna.size=10) {
   # If clonal events are to be added, make a selection. For now this just takes the largest event
   if (num.clonal.events.to.add > 0) {
     # Save the largest clonal event to add to the CNAs
@@ -247,7 +247,7 @@ add.in.cn.as.snv.cluster = function(dataset, cndata, add.conflicts=T, conflictin
 }
 
 #' Function that adds copy number as a single SNV into a data set
-add.in.cn.as.single.snv = function(dataset, cndata, add.conflicts=T) {
+add.in.cn.as.single.snv = function(dataset, cndata, cellularity, add.conflicts=T) {
   
   # The subclonal events can be used for clustering
   allowed.cn = c("sHD", "sLOH", "sAmp", "sGain", "sLoss")
@@ -470,14 +470,19 @@ get.conflicting.indices = function(dataset, cndata) {
 
 #' Replace the pseudo SNV clusters that represent a CNA event during clustering
 #' by amalgamated assignments for each CNA
+#' @param dataset A data set object
+#' @return a data set in which the pseudo SNVs are removed
 remove_pseudo_snv_cna_clusters = function(dataset) {
   # Remove the pseudo CNAs
   pseudo_snv_index = which(dataset$mutationType=="CNA")
   dataset = remove_mutations(dataset, pseudo_snv_index)
-  
+  return(dataset)
 }
 
 #' Helper function to remove a set of mutations from a dataset by their index
+#' @param dataset A data set object
+#' @param mutation_index Index of mutations to be removed
+#' @return a data set in which the pseudo SNVs are removed
 remove_mutations = function(dataset, mutation_index) {
   dataset$chromosome = dataset$chromosome[-mutation_index,,drop=F]
   dataset$position = dataset$position[-mutation_index,,drop=F]
@@ -498,6 +503,10 @@ remove_mutations = function(dataset, mutation_index) {
 }
 
 #' Add mutation phasing information to a dataset
+#' @param dataset A data set object
+#' @param mutphasing data.frame with phasing data
+#' @param add.conflicts Supply TRUE when a mutation-to-mutation confict matrix is to be built (Default: FALSE)
+#' @return a dataset with field mutphasing and potentially field conflict.array added
 add.mutphasing = function(dataset, mutphasing, add.conflicts=F) {
   dataset$mutphasing = mutphasing
   
@@ -535,6 +544,12 @@ add.mutphasing = function(dataset, mutphasing, add.conflicts=F) {
 }
 
 #' Add indels to an existing dataset
+#' @param dataset A data set object
+#' @param indeldata A list of read in data.frames (one per sample) with output from dpclust3p
+#' @param min.depth Minimum depth required to keep an indel
+#' @param min.mutreads Minimum number of mutant reads to keep an indel
+#' @param supported_chroms Chromosomes that are supported
+#' @return the provided dataset with indels added
 add.in.indels = function(dataset, indeldata, is.male, min.depth, min.mutreads, supported_chroms) {
   indelset = load.data.inner(list_of_tables=indeldata, 
                              cellularity=dataset$cellularity, 
@@ -560,6 +575,9 @@ add.in.indels = function(dataset, indeldata, is.male, min.depth, min.mutreads, s
 
 
 #' Convenience function to append two datasets
+#' @param a dataset a
+#' @param b dataset b
+#' @return a dataset in which a and b are appended
 append.dataset = function(a, b) {
   if (dim(a$mutCount) != dim(b$mutCount) & a$cellularity!=b$cellularity) {
     stop("Cannot append two datasets of different sizes or with different cellularities")

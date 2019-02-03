@@ -183,7 +183,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
       write.csv(density.data,gsub(".png",paste("_densityData",i,".csv",sep=""),pngFile))
     }
     if(num.timepoints==2){
-      d=bkde2D(density.data,bandwidth=density.smooth,gridsize=gridsize,range.x=range)
+      d=KernSmooth::bkde2D(density.data,bandwidth=density.smooth,gridsize=gridsize,range.x=range)
       #if(i==post.burn.in.start){
       if(i==1){	
         xvals=d$x1
@@ -193,7 +193,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
       post.ints[,,i]=d$fhat	
       
     }else{
-      d=bkde(density.data,bandwidth=density.smooth,gridsize=512L,range.x=range)
+      d=KernSmooth::bkde(density.data,bandwidth=density.smooth,gridsize=512L,range.x=range)
       #post.ints[,i - post.burn.in.start + 1]=d$y
       post.ints[,i]=d$y
     }
@@ -336,10 +336,10 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
     if (i %% 100 == 0) { print(paste(i, "/", length(sampledIters), sep=" ")) }
     if(num.timepoints>=4){
       #use weights
-      d=kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,eval.points = evaluation.points,w=C*wts[sampledIters[i],])                   
+      d=ks::kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,eval.points = evaluation.points,w=C*wts[sampledIters[i],])                   
     }else{
       #use weights
-      d=kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,gridsize=gridsize,xmin=range[,1],xmax=range[,2],w=C*wts[sampledIters[i],])
+      d=ks::kde(pi.h.cols[sampledIters[i]-1,,],H=diag(num.timepoints)*density.smooth,gridsize=gridsize,xmin=range[,1],xmax=range[,2],w=C*wts[sampledIters[i],])
     }
     if(i==1){       
       eval.points = d$eval.points

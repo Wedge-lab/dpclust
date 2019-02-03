@@ -29,9 +29,9 @@ replot_1D = function(outdir, outfiles.prefix, samplename, dataset, clustering, d
            mutationTypes=dataset$mutationType)
 }
 
-reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, conc_param, cluster_conc, min.frac.snvs.cluster) {
+reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, cellularity, GS.data, conc_param, cluster_conc, mut.assignment.type) {
   full_outdir = paste(outdir, "/", sep="")
-  load(file=paste(full_outdir, samplename, "_gsdata.RData", sep=""))
+  # load(file=paste(full_outdir, samplename, "_gsdata.RData", sep=""))
   
   # Obtain the density
   wd = getwd()
@@ -47,7 +47,7 @@ reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, 
                                       no.chrs.bearing.mut=dataset$copyNumberAdjustment)
   clustering_density = res$density
   polygon.data = res$polygon.data
-  opts = list(samplename=samplename, subsamplenames=subsamples, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=outdir)
+  opts = list(samplename=samplename, subsamplenames=NA, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=outdir)
   
   # Use one of the three ways of assigning mutations
   if (mut.assignment.type == 1) {
@@ -71,21 +71,11 @@ reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, 
                                            copyNumberAdjustment=dataset$copyNumberAdjustment, 
                                            tumourCopyNumber=dataset$totalCopyNumber,
                                            normalCopyNumber=array(2, dim(dataset$mutCount)),
-                                           cellularity=cellularity)
+                                           cellularity=cellularity,
+                                           samplename=samplename)
     setwd(wd) # Move back to work dir, steps after this can handle being in a different directory
     # Change the outfiles prefix to be able to identify the output files
     outfiles.prefix = paste(full_outdir, samplename, "_reassign_option_3", sep="")
-    
-  } else if (mut.assignment.type == 4) {
-    clustering = mutation_assignment_mpear(GS.data=GS.data, 
-                                               no.iters=no.iters, 
-                                               no.iters.burn.in=no.iters.burn.in, 
-                                               min.frac.snvs.cluster=min.frac.snvs.cluster, 
-                                               dataset=dataset, 
-                                               samplename=samplename, 
-                                               outdir=full_outdir)
-    setwd(wd) # Move back to work dir, steps after this can handle being in a different directory
-    outfiles.prefix = paste(full_outdir, samplename, "_reassign_option_4", sep="")
     
   } else {
     print(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
@@ -109,7 +99,7 @@ reassign_1D = function(outdir, samplename, no.iters, no.iters.burn.in, dataset, 
 }
 
 
-replot_nD = function(outdir, outfiles.prefix, samplename, subsamples, dataset, clustering, conc_param, cluster_conc) {
+replot_nD = function(outdir, outfiles.prefix, samplename, subsamples, dataset, no.iters, clustering, conc_param, cluster_conc) {
   for(i in 1:(length(subsamples)-1)){
     for(j in (i+1):length(subsamples)){
       filename_prefix = paste(outdir, "/", samplename,subsamples[i],subsamples[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,sep="")
@@ -132,10 +122,10 @@ replot_nD = function(outdir, outfiles.prefix, samplename, subsamples, dataset, c
   }
 }
 
-reassign_nd = function(outdir, samplename, subsamples, no.iters, no.iters.burn.in, dataset, conc_param, cluster_conc) {
+reassign_nd = function(outdir, samplename, subsamples, no.iters, no.iters.burn.in, dataset, GS.data, conc_param, cluster_conc, mut.assignment.type) {
   # Load the output from the algorithm
   # GS.data = read_gsdata_object(outdir, no.iters=no.iters, conc_param=conc_param, cluster_conc=cluster_conc)
-  load(file=file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
+  # load(file=file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
   
   # Assign mutations to clusters using one of the different assignment methods
   opts = list(samplename=samplename, subsamplenames=subsamples, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=outdir)
@@ -167,23 +157,4 @@ reassign_nd = function(outdir, samplename, subsamples, no.iters, no.iters.burn.i
   replot_nD(outdir, outfiles.prefix, samplename, subsamples, dataset, clustering, conc_param, cluster_conc)
   
   return(list(clustering=clustering, outfiles.prefix=outfiles.prefix))
-}
-
-#' Helper function to read in the DP algorithm files
-#' @param indir The directory in which the files were stored
-#' @return A GS.data object with fields S.i, V.h, pi.h and alpha
-#' @author sd11
-read_gsdata_object = function(indir, no.iters, conc_param, cluster_conc) {
-  GS.data = list()
-  filename_prefix = file.path(outdir, paste(samplename, "_2D_iters", no.iters, "_concParam", conc_param, "_clusterWidth", 1/cluster_conc, sep=""))
-  GS.data$S.i = as.matrix(read.csv(paste(filename_prefix, "_states.csv", sep=""), row.names=1))
-  GS.data$V.h = as.matrix(read.csv(paste(filename_prefix, "_stickbreaking_weights.csv", sep=""), row.names=1))
-  GS.data$pi.h = as.matrix(read.csv(paste(filename_prefix, "_discreteMutationCopyNumbers.csv", sep=""), row.names=1))
-  GS.data$alpha = read.csv(paste(filename_prefix, "_alpha.csv", sep=""), row.names=1)
-  
-  # Fix the dimensions of this array
-  pi.h = array(NA, c(nrow(GS.data$pi.h), ncol(GS.data$pi.h), 1))
-  pi.h[1:nrow(GS.data$pi.h), 1:ncol(GS.data$pi.h), 1] = GS.data$pi.h
-  GS.data$pi.h = pi.h
-  return(GS.data)
 }

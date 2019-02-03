@@ -14,6 +14,6 @@ Depends:
   ks,
   lattice,
   ggplot2,
-  gridExtra,
-  mcclust
+  gridExtra
 LazyLoad: yes
+RoxygenNote: 6.1.1
