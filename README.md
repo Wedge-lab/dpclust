@@ -6,7 +6,7 @@ This R package contains methods for subclonal reconstruction through SNVs and/or
 
 Install the latest release version
 ```
-source("http://bioconductor.org/biocLite.R"); biocLite(c("optparse"","KernSmooth","ks","lattice","ggplot2","gridExtra","mcclust"))'
+source("http://bioconductor.org/biocLite.R"); biocLite(c("optparse"","KernSmooth","ks","lattice","ggplot2","gridExtra"))'
 devtools::install_github("Wedge-Oxford/dpclust")
 ```
 
