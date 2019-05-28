@@ -482,13 +482,30 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
       
       # if 1D clustering, then replot without the removed cluster
       if (ncol(dataset$mutCount)==1) {
-        replot_1D(outdir=outdir,
-                  outfiles.prefix=outfiles.prefix,
-                  samplename=samplename, 
-                  dataset=dataset, 
-                  clustering=clustering, 
-                  density=density, 
-                  polygon.data=polygon.data)
+        # Old plot
+        plot1D(density=density, 
+               polygon.data=polygon.data[,1], 
+               pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+               density.from=0, 
+               x.max=1.5, 
+               mutationCopyNumber=dataset$mutation.copy.number, 
+               no.chrs.bearing.mut=dataset$copyNumberAdjustment,
+               samplename=samplename,
+               cluster.locations=clustering$cluster.locations,
+               mutation.assignments=clustering$best.node.assignments)
+        
+        # New plot
+        plot1D_2(density=density, 
+                 polygon.data=polygon.data[,1],
+                 pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
+                 density.from=0, 
+                 x.max=1.5, 
+                 mutationCopyNumber=dataset$mutation.copy.number, 
+                 no.chrs.bearing.mut=dataset$copyNumberAdjustment,
+                 samplename=samplename,
+                 cluster.locations=clustering$cluster.locations,
+                 mutation.assignments=clustering$best.node.assignments,
+                 mutationTypes=dataset$mutationType)
       }
     }
   }
