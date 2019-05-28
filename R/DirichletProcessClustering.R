@@ -362,16 +362,21 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     } else {
       density = NA
     }
+    polygon_file = file.path(outdir, paste(samplename, "_DirichletProcessplotpolygonData.txt", sep=""))
+    polygon.data = ifelse(file.exists(polygon_file), read.table(polygon_file, header=T), NA)
+    
     load(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
     write_tree = analysis_type != 'nd_dp' & analysis_type != 'reassign_muts_1d' & analysis_type != 'reassign_muts_nd'
     writeStandardFinalOutput(clustering=clustering, 
                              dataset=dataset,
                              most.similar.mut=most.similar.mut,
                              outfiles.prefix=outfiles.prefix,
+                             outdir=outdir,
                              samplename=samplename,
                              subsamplenames=subsamples,
                              GS.data=GS.data,
                              density=density,
+                             polygon.data=polygon.data,
                              no.iters=no.iters, 
                              no.iters.burn.in=no.iters.burn.in,
                              assign_sampled_muts=assign_sampled_muts,
@@ -425,10 +430,12 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param dataset The dataset that went into clustering
 #' @param most.similar.mut Vector containing for each non-sampled mutation its most similar sampled mutation. The non-sampled mutation will be assigned to the same cluster
 #' @param outfiles.prefix A prefix for the filenames
+#' @param outdir Output directory where the replot of the 1D method is to be stored if clusters are removed due to being too small
 #' @param samplename Overall samplename
 #' @param subsamplenames Samplenames of the different timepoints
 #' @param GS.data MCMC output
 #' @param density Posterior density estimate across MCMC iterations
+#' @param polygon.data 1D confidence interval, used for plotting the 1D method (set to NA for multi-D method)
 #' @param no.iters Number of total iterations
 #' @param no.iters.burn.in Number of iterations to be used as burn-in
 #' @param min_muts_cluster The minimum number of mutations required for a cluster to be kept in the final output
@@ -438,7 +445,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param generate_cluster_ordering Boolean specifying whether a possible cluster ordering should be determined (Default: FALSE)
 #' @param no.samples.cluster.order Number of mutations to sample (with replacement) to classify pairs of clusters into parent-offspring or siblings (Default: 1000)
 #' @author sd11
-writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, samplename, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, min_muts_cluster, min_frac_muts_cluster, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
+writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, outdir, samplename, subsamplenames, GS.data, density, polygon.data, no.iters, no.iters.burn.in, min_muts_cluster, min_frac_muts_cluster, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
   
   ########################################################################
@@ -471,11 +478,17 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
       clustering$cluster.locations = new_cluster.locations
       clustering$all.assignment.likelihoods = new_all.assignment.likelihoods
       clustering$best.node.assignments = new_best.node.assignments
-      clustering$best.assignment.likelihoods = new_best.node.assignments
+      clustering$best.assignment.likelihoods = new_best.assignment.likelihoods
       
       # if 1D clustering, then replot without the removed cluster
       if (ncol(dataset$mutCount)==1) {
-        # todo
+        replot_1D(outdir=outdir,
+                  outfiles.prefix=outfiles.prefix,
+                  samplename=samplename, 
+                  dataset=dataset, 
+                  clustering=clustering, 
+                  density=density, 
+                  polygon.data=polygon.data)
       }
     }
   }
