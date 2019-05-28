@@ -418,9 +418,12 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(file.path(outdir, paste(samplename, "_localMultidimensionalOptima_0.01.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_optimaInfo_0.01.txt", sep="")))
     
-    for (i in 1:(length(subsamplesrun)-1)) {
-      for (j in (i+1):length(subsamplesrun)) {
+    for (i in 1:(length(subsamples)-1)) {
+      for (j in (i+1):length(subsamples)) {
         .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.RData", sep="")))
+        .remove_file(file.path(outdir, pattern=paste(samplename, subsamples[i], subsamples[j], "*densityData1.csv", sep="")))
+        density_csv_files = list.files(outdir, pattern=paste(samplename, subsamples[i], subsamples[j], "*vals.csv", sep=""), full.names=T)
+        for (infile in density_csv_files) { .remove_file(infile) }
       }
     }
     
@@ -488,7 +491,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
       # if 1D clustering, then replot without the removed cluster
       if (ncol(dataset$mutCount)==1) {
         # Old plot
-        DPClust:::plot1D(density=density, 
+        plot1D(density=density, 
                polygon.data=polygon.data[,1], 
                pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
                density.from=0, 
@@ -500,7 +503,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
                mutation.assignments=clustering$best.node.assignments)
         
         # New plot
-        DPClust:::plot1D_2(density=density, 
+        plot1D_2(density=density, 
                  polygon.data=polygon.data[,1],
                  pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
                  density.from=0, 
