@@ -20,7 +20,7 @@ option_list = list(
   make_option(c("--burnin"), type="integer", default=1000, help="Number of iterations to discard as burnin", metavar="character"),
   make_option(c("--mut_assignment_type"), type="integer", default=1, help="Mutation assignment method", metavar="character"),
   make_option(c("--min_muts_cluster"), type="integer", default=-1, help="Minimum number of mutations per cluster required for it to be kept in the final output, set to -1 to disable (default), see also --min_frac_muts_cluster", metavar="character"),
-  make_option(c("--min_frac_muts_cluster"), type="integer", default=0.01, help="Minimum fraction of mutations per cluster required for it to be kept in the final output, set to -1 to disable, see also --min_muts_cluster", metavar="character"),
+  make_option(c("--min_frac_muts_cluster"), type="numeric", default=0.01, help="Minimum fraction of mutations per cluster required for it to be kept in the final output, set to -1 to disable, see also --min_muts_cluster", metavar="character"),
   make_option(c("--num_muts_sample"), type="integer", default=50000, help="Number of mutations from which downsampling starts", metavar="character"),
   make_option(c("--bin_size"), type="double", default=NULL, help="Binsize to use when constructing multi-dimensional density - only used when number of samples > 1", metavar="character"),
   make_option(c("--seed"), type="integer", default=123, help="Provide a seed", metavar="character"),
@@ -43,8 +43,8 @@ bin.size = opt$bin_size
 seed = opt$seed
 assign_sampled_muts = opt$assign_sampled_muts
 keep_temp_files = opt$keep_temp_files
-min_muts_cluster = ifelse(opt$min_muts_cluster==-1, NULL, opt$min_muts_cluster) # set absolute minimum number of mutations per cluster
-min_frac_muts_cluster = ifelse(opt$min_frac_muts_cluster==-1, NULL, opt$min_frac_muts_cluster) # set proportional minimum number of mutations per cluster
+min_muts_cluster = opt$min_muts_cluster # set absolute minimum number of mutations per cluster
+min_frac_muts_cluster = opt$min_frac_muts_cluster # set proportional minimum number of mutations per cluster
 
 if (is.null(outdir)) { outdir = getwd() }
 
@@ -82,7 +82,7 @@ subsamples = sample2purity[sample2purity$sample==samplename,]$subsample
 cellularity = sample2purity[sample2purity$sample==samplename,]$cellularity
 
 if ("sex" %in% colnames(sample2purity)) {
-  is.male = sample2purity[sample2purity$sample==samplename,]$sex=="male"
+  is.male = (sample2purity[sample2purity$sample==samplename,]$sex=="male")[1]
   cndatafiles = sample2purity[sample2purity$sample==samplename,]$cndatafile
 } else {
   is.male = T

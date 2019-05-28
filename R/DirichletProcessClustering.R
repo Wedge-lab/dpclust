@@ -452,7 +452,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   # Check for too small clusters
   ########################################################################
   if (nrow(clustering$cluster.locations) > 1 & (!is.null(min_muts_cluster) | !is.null(min_frac_muts_cluster))) {
-    if (!is.null(min_muts_cluster) & !is.null(min_frac_muts_cluster)) print("Found entries for both min_muts_cluster and min_frac_muts_cluster, used which yielded the largest number")
+    if (min_muts_cluster!=-1 & min_frac_muts_cluster!=-1) print("Found entries for both min_muts_cluster and min_frac_muts_cluster, used which yielded the largest number")
     
     min_muts_cluster = ifelse(is.null(min_muts_cluster), -1, min_muts_cluster)
     min_frac_muts_cluster = ifelse(is.null(min_frac_muts_cluster), -1, min_frac_muts_cluster*nrow(dataset$mutCount))
