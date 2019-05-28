@@ -392,6 +392,12 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(file.path(outdir, paste(samplename, "_localMultidimensionalOptima_0.01.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_optimaInfo_0.01.txt", sep="")))
     
+    for (i in 1:(length(subsamplesrun)-1)) {
+      for (j in (i+1):length(subsamplesrun)) {
+        .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.RData", sep="")))
+      }
+    }
+    
     nd_density_files = list.files(outdir, pattern="_2D_binomial_")
     if (length(nd_density_files) > 0) { file.remove(nd_density_files) }
   }
@@ -697,24 +703,24 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     ########################
     # Plot density and Assign mutations to clusters - nD
     ########################
-    print("Assigning mutations to clusters...")
-    # print("Estimating density between pairs of samples...")
-    # for (i in 1:(length(subsamplesrun)-1)) {
-    #   for (j in (i+1):length(subsamplesrun)) {
-    #     print(paste("Samples", subsamplesrun[i], "and", subsamplesrun[j], sep=" "))
-    #     imageFile = file.path(output_folder, paste(samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep=""))
-    #     density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
-    #                                          GS.data,
-    #                                          imageFile, 
-    #                                          post.burn.in.start = no.iters.burn.in, 
-    #                                          post.burn.in.stop = no.iters, 
-    #                                          samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
-    #                                          indices=c(i,j))  
-    #     save(file=file.path(output_folder, paste(samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep="")), GS.data, density)
-    #   }
-    # }
+    print("Estimating density between pairs of samples...")
+    for (i in 1:(length(subsamplesrun)-1)) {
+      for (j in (i+1):length(subsamplesrun)) {
+        print(paste("Samples", subsamplesrun[i], "and", subsamplesrun[j], sep=" "))
+        imageFile = file.path(output_folder, paste(samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep=""))
+        density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
+                                             GS.data,
+                                             imageFile,
+                                             post.burn.in.start = no.iters.burn.in,
+                                             post.burn.in.stop = no.iters,
+                                             samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
+                                             indices=c(i,j))
+        save(file=file.path(output_folder, paste(samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep="")), GS.data, density)
+      }
+    }
     
     # Assign mutations to clusters using one of the different assignment methods
+    print("Assigning mutations to clusters...")
     opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
     if (mut.assignment.type == 1) {
       consClustering = multiDimensionalClustering(mutation.copy.number=mutation.copy.number, 
