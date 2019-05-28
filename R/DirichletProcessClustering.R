@@ -362,8 +362,13 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     } else {
       density = NA
     }
+    
     polygon_file = file.path(outdir, paste(samplename, "_DirichletProcessplotpolygonData.txt", sep=""))
-    polygon.data = ifelse(file.exists(polygon_file), read.table(polygon_file, header=T), NA)
+    if (file.exists(polygon_file)) {
+      polygon.data = read.table(polygon_file, header=T)
+    } else {
+      polygon.data = NA
+    }
     
     load(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
     write_tree = analysis_type != 'nd_dp' & analysis_type != 'reassign_muts_1d' & analysis_type != 'reassign_muts_nd'
@@ -451,11 +456,11 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   ########################################################################
   # Check for too small clusters
   ########################################################################
-  if (nrow(clustering$cluster.locations) > 1 & (!is.null(min_muts_cluster) | !is.null(min_frac_muts_cluster))) {
+  if (nrow(clustering$cluster.locations) > 1 & (min_muts_cluster!=-1 | min_frac_muts_cluster!=-1)) {
     if (min_muts_cluster!=-1 & min_frac_muts_cluster!=-1) print("Found entries for both min_muts_cluster and min_frac_muts_cluster, used which yielded the largest number")
     
-    min_muts_cluster = ifelse(is.null(min_muts_cluster), -1, min_muts_cluster)
-    min_frac_muts_cluster = ifelse(is.null(min_frac_muts_cluster), -1, min_frac_muts_cluster*nrow(dataset$mutCount))
+    # min_muts_cluster = ifelse(is.null(min_muts_cluster), -1, min_muts_cluster)
+    min_frac_muts_cluster = ifelse(min_frac_muts_cluster==-1, -1, min_frac_muts_cluster*nrow(dataset$mutCount))
     
     # use min_muts_cluster variable further down, overwrite with min_frac_muts_cluster
     if (min_frac_muts_cluster > min_muts_cluster) {
@@ -483,7 +488,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
       # if 1D clustering, then replot without the removed cluster
       if (ncol(dataset$mutCount)==1) {
         # Old plot
-        plot1D(density=density, 
+        DPClust:::plot1D(density=density, 
                polygon.data=polygon.data[,1], 
                pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
                density.from=0, 
@@ -495,7 +500,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
                mutation.assignments=clustering$best.node.assignments)
         
         # New plot
-        plot1D_2(density=density, 
+        DPClust:::plot1D_2(density=density, 
                  polygon.data=polygon.data[,1],
                  pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
                  density.from=0, 
