@@ -7,6 +7,9 @@
 #' @param no.iters.burn.in The number of iterations that should be discarded as burn in of the MCMC chain
 #' @param mut.assignment.type Mutation assignment type option
 #' @param num_muts_sample The number of mutations from which to start downsampling
+#' @param min_muts_cluster The minimum number of mutations required for a cluster to be kept in the final output (Default: NULL)
+#' @param min_frac_muts_cluster The minimum fraction of mutations required for a cluster to be kept in the final output (Default: 0.01)
+#' @param species Species (Default: Human)
 #' @param is.male Boolean set to TRUE when the donor is male, female otherwise
 #' @param assign_sampled_muts A boolean whether to assign mutations that have not been used for clustering due to downsampling (Default: TRUE)
 #' @param supported_chroms Vector with chromosome names from which mutations can be used (Default: NULL)
@@ -15,19 +18,30 @@
 #' @return A list containing these components
 #' @author sd11
 #' @export
-make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
+make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, min_muts_cluster=NULL, min_frac_muts_cluster=0.01, species="human", assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
   if (is.null(supported_chroms)) {
-    # Set the expected chromosomes based on the sex
-    if (is.male) {
-      supported_chroms = as.character(c(1:22, "X", "Y"))
+    if (species=="human" | species=="Human") {
+      # Set the expected chromosomes based on the sex
+      if (is.male) {
+        supported_chroms = as.character(c(1:22, "X", "Y"))
+      } else {
+        supported_chroms = as.character(c(1:22, "X"))
+      }
     } else {
-      supported_chroms = as.character(c(1:22, "X"))
+      if (species=="mouse" | species=="Mouse") {
+        # Set the expected chromosomes based on the sex
+        if (is.male) {
+          supported_chroms = as.character(c(1:19, "X", "Y"))
+        } else {
+          supported_chroms = as.character(c(1:19, "X"))
+        }
+      }
     }
   }
   
   return(list(no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, mut.assignment.type=mut.assignment.type, 
               supported_chroms=supported_chroms, num_muts_sample=num_muts_sample, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files,
-              generate_cluster_ordering=generate_cluster_ordering))
+              generate_cluster_ordering=generate_cluster_ordering, species=species, min_muts_cluster=min_muts_cluster, min_frac_muts_cluster=min_frac_muts_cluster))
 }
 
 #' Helper function to package sample parameters
@@ -362,7 +376,9 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                              no.iters.burn.in=no.iters.burn.in,
                              assign_sampled_muts=assign_sampled_muts,
                              write_tree=write_tree,
-                             generate_cluster_ordering=generate_cluster_ordering)
+                             generate_cluster_ordering=generate_cluster_ordering,
+                             min_muts_cluster=min_muts_cluster,
+                             min_frac_muts_cluster=min_frac_muts_cluster)
   }
   
   ####################################################################################################################
@@ -415,14 +431,55 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param density Posterior density estimate across MCMC iterations
 #' @param no.iters Number of total iterations
 #' @param no.iters.burn.in Number of iterations to be used as burn-in
+#' @param min_muts_cluster The minimum number of mutations required for a cluster to be kept in the final output
+#' @param min_frac_muts_cluster The minimum fraction of mutations required for a cluster to be kept in the final
 #' @param assign_sampled_muts Boolean whether to assign the non-sampled mutations (Default: TRUE)
 #' @param write_tree Boolean whether to write a tree to file. Not all clustering methods return a tree (Default: FALSE)
 #' @param generate_cluster_ordering Boolean specifying whether a possible cluster ordering should be determined (Default: FALSE)
 #' @param no.samples.cluster.order Number of mutations to sample (with replacement) to classify pairs of clusters into parent-offspring or siblings (Default: 1000)
 #' @author sd11
-writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, samplename, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
+writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, samplename, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, min_muts_cluster, min_frac_muts_cluster, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
   
+  ########################################################################
+  # Check for too small clusters
+  ########################################################################
+  if (nrow(clustering$cluster.locations) > 1 & (!is.null(min_muts_cluster) | !is.null(min_frac_muts_cluster))) {
+    if (!is.null(min_muts_cluster) & !is.null(min_frac_muts_cluster)) print("Found entries for both min_muts_cluster and min_frac_muts_cluster, used which yielded the largest number")
+    
+    min_muts_cluster = ifelse(is.null(min_muts_cluster), -1, min_muts_cluster)
+    min_frac_muts_cluster = ifelse(is.null(min_frac_muts_cluster), -1, min_frac_muts_cluster*nrow(dataset$mutCount))
+    
+    # use min_muts_cluster variable further down, overwrite with min_frac_muts_cluster
+    if (min_frac_muts_cluster > min_muts_cluster) {
+      min_muts_cluster = min_frac_muts_cluster
+    }
+    
+    clusters_to_remove = clustering$cluster.locations[,num_samples+2] < min_muts_cluster
+    
+    if (sum(clusters_to_remove) > 0) {
+      # remove clusters that are too small
+      clusterids_to_remove = clustering$cluster.locations[clusters_to_remove,1]
+      new_cluster.locations = clustering$cluster.locations[!clustering$cluster.locations[,1] %in% clusterids_to_remove,,drop=F]
+      new_all.assignment.likelihoods = clustering$all.assignment.likelihoods[,!clusters_to_remove, drop=F]
+      new_best.assignment.likelihoods = clustering$best.assignment.likelihoods
+      new_best.node.assignments = clustering$best.node.assignments
+      # reset best likelihoods and hard assignments for mutations assigned to the removed cluster(s)
+      new_best.assignment.likelihoods[new_best.node.assignments %in% clusterids_to_remove] = NA
+      new_best.node.assignments[new_best.node.assignments %in% clusterids_to_remove] = NA
+      
+      clustering$cluster.locations = new_cluster.locations
+      clustering$all.assignment.likelihoods = new_all.assignment.likelihoods
+      clustering$best.node.assignments = new_best.node.assignments
+      clustering$best.assignment.likelihoods = new_best.node.assignments
+      
+      # if 1D clustering, then replot without the removed cluster
+      if (ncol(dataset$mutCount)==1) {
+        # todo
+      }
+    }
+  }
+    
   if (generate_cluster_ordering) {
     ########################################################################
     # Before doing anything else, calculate confidence intervals on the cluster locations using only the mutations used during clustering
