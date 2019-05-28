@@ -91,7 +91,7 @@ oneDimensionalClustering <- function(samplename, subclonal.fraction, GS.data, de
     clust_order = order(cluster_locations[,2], decreasing=T)
     cluster_locations = cluster_locations[clust_order,,drop=F]
     cluster_locations[,1] = 1:nrow(cluster_locations)
-    mutation.preferences = mutation.preferences[,clust_order]
+    mutation.preferences = mutation.preferences[,clust_order, drop=F]
     
     # get most likely cluster
     most.likely.cluster = max.col(mutation.preferences)
