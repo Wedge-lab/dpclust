@@ -35,12 +35,12 @@ cd dpclust/inst/example
 
 Run DPClust on provided example data. After checking out this repository, build the image:
 ```
-docker build -t dpclust:2.2.6 .
+docker build -t dpclust:2.2.7 .
 ```
 
 Run DPClust as follows
 ```
-docker run -it -v `pwd`:/mnt/output/ dpclust:2.2.6 /opt/dpclust/example/run_docker.sh
+docker run -it -v `pwd`:/mnt/output/ dpclust:2.2.7 /opt/dpclust/example/run_docker.sh
 ```
 
 ## Input description

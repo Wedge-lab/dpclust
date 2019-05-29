@@ -5,8 +5,9 @@
 \title{Function that stores the final output in a unified format on disk}
 \usage{
 writeStandardFinalOutput(clustering, dataset, most.similar.mut,
-  outfiles.prefix, samplename, subsamplenames, GS.data, density, no.iters,
-  no.iters.burn.in, assign_sampled_muts = T, write_tree = F,
+  outfiles.prefix, outdir, samplename, subsamplenames, GS.data, density,
+  polygon.data, no.iters, no.iters.burn.in, min_muts_cluster,
+  min_frac_muts_cluster, assign_sampled_muts = T, write_tree = F,
   generate_cluster_ordering = F, no.samples.cluster.order = 1000)
 }
 \arguments{
@@ -18,6 +19,8 @@ writeStandardFinalOutput(clustering, dataset, most.similar.mut,
 
 \item{outfiles.prefix}{A prefix for the filenames}
 
+\item{outdir}{Output directory where the replot of the 1D method is to be stored if clusters are removed due to being too small}
+
 \item{samplename}{Overall samplename}
 
 \item{subsamplenames}{Samplenames of the different timepoints}
@@ -26,9 +29,15 @@ writeStandardFinalOutput(clustering, dataset, most.similar.mut,
 
 \item{density}{Posterior density estimate across MCMC iterations}
 
+\item{polygon.data}{1D confidence interval, used for plotting the 1D method (set to NA for multi-D method)}
+
 \item{no.iters}{Number of total iterations}
 
 \item{no.iters.burn.in}{Number of iterations to be used as burn-in}
+
+\item{min_muts_cluster}{The minimum number of mutations required for a cluster to be kept in the final output}
+
+\item{min_frac_muts_cluster}{The minimum fraction of mutations required for a cluster to be kept in the final}
 
 \item{assign_sampled_muts}{Boolean whether to assign the non-sampled mutations (Default: TRUE)}
 
