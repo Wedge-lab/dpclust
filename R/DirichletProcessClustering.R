@@ -421,8 +421,9 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     for (i in 1:(length(subsamples)-1)) {
       for (j in (i+1):length(subsamples)) {
         .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.RData", sep="")))
-        .remove_file(file.path(outdir, pattern=paste(samplename, subsamples[i], subsamples[j], "*densityData1.csv", sep="")))
-        density_csv_files = list.files(outdir, pattern=paste(samplename, subsamples[i], subsamples[j], "*vals.csv", sep=""), full.names=T)
+        .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.csv", sep="")))
+        .remove_file(file.path(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*densityData1.csv", sep="")), full.names=T))
+        density_csv_files = list.files(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*vals.csv", sep="")), full.names=T)
         for (infile in density_csv_files) { .remove_file(infile) }
       }
     }
@@ -472,7 +473,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
     
     clusters_to_remove = clustering$cluster.locations[,num_samples+2] < min_muts_cluster
     
-    if (sum(clusters_to_remove) > 0) {
+    if (sum(clusters_to_remove) > 0 & sum(clusters_to_remove) < length(clusters_to_remove)) {
       # remove clusters that are too small
       clusterids_to_remove = clustering$cluster.locations[clusters_to_remove,1]
       new_cluster.locations = clustering$cluster.locations[!clustering$cluster.locations[,1] %in% clusterids_to_remove,,drop=F]
