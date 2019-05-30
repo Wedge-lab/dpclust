@@ -456,9 +456,8 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   localMins = localMins + hypercube.size
   localOptima = array(rep(range[,1],each=no.subsamples),dim(localMins))
   localOptima = localOptima + array(rep((range[,2] - range[,1])/(gridsize-1),each=no.subsamples),dim(localMins)) * localMins
-  
   write.table(cbind(localOptima,above95confidence),paste(new_output_folder,"/",samplename,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
-  write.table(localOptima[above95confidence,],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
+  write.table(localOptima[above95confidence,,drop=F],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
   
   no.optima = nrow(localOptima)
   
@@ -614,11 +613,18 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     write.table(CIs,paste(new_output_folder,"/",samplename,"_confInts_",density.smooth,".txt",sep=""),col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),row.names=F,sep="\t",quote=F)
   }else{
     most.likely.cluster = rep(1,no.muts)
+    cluster.locations = matrix(NA, nrow=1, ncol=length(subsamples)+3)
+    cluster.locations[1,1] = 1
+    cluster.locations[1,2:(length(subsamples)+1)] = localOptima[1,]
+    cluster.locations[1,(length(subsamples)+2):ncol(cluster.locations)] = c(no.muts, no.muts)
+    mutation.preferences = data.frame(rep(1, no.muts))
+    #cluster.locations = as.data.frame(cluster.locations)
+    #colnames(cluster.locations) = c("cluster.no", paste(samplename, subsamples, sep=""), "estimated.no.of.mutations", "no.of.mutations.assigned")
     warning("No local optima found")
   }
   
   # Remove the estimated number of SNVs per cluster from the cluster locations table  
-  cluster.locations = as.data.frame(cluster.locations[,c(1:(length(subsamples)+1),ncol(cluster.locations))])
+  cluster.locations = as.data.frame(cluster.locations[,c(1:(length(subsamples)+1),ncol(cluster.locations)), drop=F])
   # Report only the clusters that have mutations assigned
   non_empty_clusters = cluster.locations[,ncol(cluster.locations)] > 0
   cluster.locations = cluster.locations[non_empty_clusters,,drop=F]
@@ -629,7 +635,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   clust_order = order(rowSums(cluster.locations[,2:(ncol(cluster.locations)-1)]), decreasing=T)
   cluster.locations = cluster.locations[clust_order,,drop=F]
   cluster.locations[,1] = 1:nrow(cluster.locations)
-  mutation.preferences = mutation.preferences[,clust_order]
+  mutation.preferences = mutation.preferences[,clust_order, drop=F]
 
   # get most likely cluster
   most.likely.cluster = max.col(mutation.preferences)

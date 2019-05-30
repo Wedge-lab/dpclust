@@ -5,9 +5,10 @@
 \title{Helper function to package run parameters}
 \usage{
 make_run_params(no.iters, no.iters.burn.in, mut.assignment.type,
-  num_muts_sample, is.male, assign_sampled_muts = TRUE,
-  supported_chroms = NULL, keep_temp_files = TRUE,
-  generate_cluster_ordering = FALSE)
+  num_muts_sample, is.male, min_muts_cluster = NULL,
+  min_frac_muts_cluster = 0.01, species = "human",
+  assign_sampled_muts = TRUE, supported_chroms = NULL,
+  keep_temp_files = TRUE, generate_cluster_ordering = FALSE)
 }
 \arguments{
 \item{no.iters}{The number of iterations that the MCMC chain should be run for}
@@ -19,6 +20,12 @@ make_run_params(no.iters, no.iters.burn.in, mut.assignment.type,
 \item{num_muts_sample}{The number of mutations from which to start downsampling}
 
 \item{is.male}{Boolean set to TRUE when the donor is male, female otherwise}
+
+\item{min_muts_cluster}{The minimum number of mutations required for a cluster to be kept in the final output (Default: NULL)}
+
+\item{min_frac_muts_cluster}{The minimum fraction of mutations required for a cluster to be kept in the final output (Default: 0.01)}
+
+\item{species}{Species (Default: Human)}
 
 \item{assign_sampled_muts}{A boolean whether to assign mutations that have not been used for clustering due to downsampling (Default: TRUE)}
 

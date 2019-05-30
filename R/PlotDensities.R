@@ -64,7 +64,7 @@ plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y
   if(!is.null(cluster.locations) & !is.null(mutation.assignments)) {
     assign.counts = table(mutation.assignments)
     
-    for (cluster in unique(mutation.assignments)) {
+    for (cluster in unique(mutation.assignments[!is.na(mutation.assignments)])) {
       x = cluster.locations[cluster.locations[,1]==cluster, 2]
       lines(x=c(x, x), y=c(0, y.max), col="black", lwd=3)
       text(paste("Cluster",cluster, sep=" "), x=x+0.01, y=(9/10)*y.max, adj=c(0,0), cex=2)
