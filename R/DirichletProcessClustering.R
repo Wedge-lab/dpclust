@@ -7,6 +7,9 @@
 #' @param no.iters.burn.in The number of iterations that should be discarded as burn in of the MCMC chain
 #' @param mut.assignment.type Mutation assignment type option
 #' @param num_muts_sample The number of mutations from which to start downsampling
+#' @param min_muts_cluster The minimum number of mutations required for a cluster to be kept in the final output (Default: NULL)
+#' @param min_frac_muts_cluster The minimum fraction of mutations required for a cluster to be kept in the final output (Default: 0.01)
+#' @param species Species (Default: Human)
 #' @param is.male Boolean set to TRUE when the donor is male, female otherwise
 #' @param assign_sampled_muts A boolean whether to assign mutations that have not been used for clustering due to downsampling (Default: TRUE)
 #' @param supported_chroms Vector with chromosome names from which mutations can be used (Default: NULL)
@@ -15,19 +18,30 @@
 #' @return A list containing these components
 #' @author sd11
 #' @export
-make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
+make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_muts_sample, is.male, min_muts_cluster=NULL, min_frac_muts_cluster=0.01, species="human", assign_sampled_muts=TRUE, supported_chroms=NULL, keep_temp_files=TRUE, generate_cluster_ordering=FALSE) {
   if (is.null(supported_chroms)) {
-    # Set the expected chromosomes based on the sex
-    if (is.male) {
-      supported_chroms = as.character(c(1:22, "X", "Y"))
+    if (species=="human" | species=="Human") {
+      # Set the expected chromosomes based on the sex
+      if (is.male) {
+        supported_chroms = as.character(c(1:22, "X", "Y"))
+      } else {
+        supported_chroms = as.character(c(1:22, "X"))
+      }
     } else {
-      supported_chroms = as.character(c(1:22, "X"))
+      if (species=="mouse" | species=="Mouse") {
+        # Set the expected chromosomes based on the sex
+        if (is.male) {
+          supported_chroms = as.character(c(1:19, "X", "Y"))
+        } else {
+          supported_chroms = as.character(c(1:19, "X"))
+        }
+      }
     }
   }
   
   return(list(no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, mut.assignment.type=mut.assignment.type, 
               supported_chroms=supported_chroms, num_muts_sample=num_muts_sample, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files,
-              generate_cluster_ordering=generate_cluster_ordering))
+              generate_cluster_ordering=generate_cluster_ordering, species=species, min_muts_cluster=min_muts_cluster, min_frac_muts_cluster=min_frac_muts_cluster))
 }
 
 #' Helper function to package sample parameters
@@ -348,21 +362,33 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     } else {
       density = NA
     }
+    
+    polygon_file = file.path(outdir, paste(samplename, "_DirichletProcessplotpolygonData.txt", sep=""))
+    if (file.exists(polygon_file)) {
+      polygon.data = read.table(polygon_file, header=T)
+    } else {
+      polygon.data = NA
+    }
+    
     load(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
     write_tree = analysis_type != 'nd_dp' & analysis_type != 'reassign_muts_1d' & analysis_type != 'reassign_muts_nd'
     writeStandardFinalOutput(clustering=clustering, 
                              dataset=dataset,
                              most.similar.mut=most.similar.mut,
                              outfiles.prefix=outfiles.prefix,
+                             outdir=outdir,
                              samplename=samplename,
                              subsamplenames=subsamples,
                              GS.data=GS.data,
                              density=density,
+                             polygon.data=polygon.data,
                              no.iters=no.iters, 
                              no.iters.burn.in=no.iters.burn.in,
                              assign_sampled_muts=assign_sampled_muts,
                              write_tree=write_tree,
-                             generate_cluster_ordering=generate_cluster_ordering)
+                             generate_cluster_ordering=generate_cluster_ordering,
+                             min_muts_cluster=min_muts_cluster,
+                             min_frac_muts_cluster=min_frac_muts_cluster)
   }
   
   ####################################################################################################################
@@ -392,6 +418,16 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(file.path(outdir, paste(samplename, "_localMultidimensionalOptima_0.01.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_optimaInfo_0.01.txt", sep="")))
     
+    for (i in 1:(length(subsamples)-1)) {
+      for (j in (i+1):length(subsamples)) {
+        .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.RData", sep="")))
+        .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.csv", sep="")))
+        .remove_file(file.path(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*densityData1.csv", sep="")), full.names=T))
+        density_csv_files = list.files(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*vals.csv", sep="")), full.names=T)
+        for (infile in density_csv_files) { .remove_file(infile) }
+      }
+    }
+    
     nd_density_files = list.files(outdir, pattern="_2D_binomial_")
     if (length(nd_density_files) > 0) { file.remove(nd_density_files) }
   }
@@ -403,20 +439,86 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @param dataset The dataset that went into clustering
 #' @param most.similar.mut Vector containing for each non-sampled mutation its most similar sampled mutation. The non-sampled mutation will be assigned to the same cluster
 #' @param outfiles.prefix A prefix for the filenames
+#' @param outdir Output directory where the replot of the 1D method is to be stored if clusters are removed due to being too small
 #' @param samplename Overall samplename
 #' @param subsamplenames Samplenames of the different timepoints
 #' @param GS.data MCMC output
 #' @param density Posterior density estimate across MCMC iterations
+#' @param polygon.data 1D confidence interval, used for plotting the 1D method (set to NA for multi-D method)
 #' @param no.iters Number of total iterations
 #' @param no.iters.burn.in Number of iterations to be used as burn-in
+#' @param min_muts_cluster The minimum number of mutations required for a cluster to be kept in the final output
+#' @param min_frac_muts_cluster The minimum fraction of mutations required for a cluster to be kept in the final
 #' @param assign_sampled_muts Boolean whether to assign the non-sampled mutations (Default: TRUE)
 #' @param write_tree Boolean whether to write a tree to file. Not all clustering methods return a tree (Default: FALSE)
 #' @param generate_cluster_ordering Boolean specifying whether a possible cluster ordering should be determined (Default: FALSE)
 #' @param no.samples.cluster.order Number of mutations to sample (with replacement) to classify pairs of clusters into parent-offspring or siblings (Default: 1000)
 #' @author sd11
-writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, samplename, subsamplenames, GS.data, density, no.iters, no.iters.burn.in, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
+writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, outdir, samplename, subsamplenames, GS.data, density, polygon.data, no.iters, no.iters.burn.in, min_muts_cluster, min_frac_muts_cluster, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
   
+  ########################################################################
+  # Check for too small clusters
+  ########################################################################
+  if (nrow(clustering$cluster.locations) > 1 & (min_muts_cluster!=-1 | min_frac_muts_cluster!=-1)) {
+    if (min_muts_cluster!=-1 & min_frac_muts_cluster!=-1) print("Found entries for both min_muts_cluster and min_frac_muts_cluster, used which yielded the largest number")
+    
+    # min_muts_cluster = ifelse(is.null(min_muts_cluster), -1, min_muts_cluster)
+    min_frac_muts_cluster = ifelse(min_frac_muts_cluster==-1, -1, min_frac_muts_cluster*nrow(dataset$mutCount))
+    
+    # use min_muts_cluster variable further down, overwrite with min_frac_muts_cluster
+    if (min_frac_muts_cluster > min_muts_cluster) {
+      min_muts_cluster = min_frac_muts_cluster
+    }
+    
+    clusters_to_remove = clustering$cluster.locations[,num_samples+2] < min_muts_cluster
+    
+    if (sum(clusters_to_remove) > 0 & sum(clusters_to_remove) < length(clusters_to_remove)) {
+      # remove clusters that are too small
+      clusterids_to_remove = clustering$cluster.locations[clusters_to_remove,1]
+      new_cluster.locations = clustering$cluster.locations[!clustering$cluster.locations[,1] %in% clusterids_to_remove,,drop=F]
+      new_all.assignment.likelihoods = clustering$all.assignment.likelihoods[,!clusters_to_remove, drop=F]
+      new_best.assignment.likelihoods = clustering$best.assignment.likelihoods
+      new_best.node.assignments = clustering$best.node.assignments
+      # reset best likelihoods and hard assignments for mutations assigned to the removed cluster(s)
+      new_best.assignment.likelihoods[new_best.node.assignments %in% clusterids_to_remove] = NA
+      new_best.node.assignments[new_best.node.assignments %in% clusterids_to_remove] = NA
+      
+      clustering$cluster.locations = new_cluster.locations
+      clustering$all.assignment.likelihoods = new_all.assignment.likelihoods
+      clustering$best.node.assignments = new_best.node.assignments
+      clustering$best.assignment.likelihoods = new_best.assignment.likelihoods
+      
+      # if 1D clustering, then replot without the removed cluster
+      if (ncol(dataset$mutCount)==1) {
+        # Old plot
+        plot1D(density=density, 
+               polygon.data=polygon.data[,1], 
+               pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
+               density.from=0, 
+               x.max=1.5, 
+               mutationCopyNumber=dataset$mutation.copy.number, 
+               no.chrs.bearing.mut=dataset$copyNumberAdjustment,
+               samplename=samplename,
+               cluster.locations=clustering$cluster.locations,
+               mutation.assignments=clustering$best.node.assignments)
+        
+        # New plot
+        plot1D_2(density=density, 
+                 polygon.data=polygon.data[,1],
+                 pngFile=paste(outdir, "/", samplename, "_DirichletProcessplot_with_cluster_locations_2.png", sep=""), 
+                 density.from=0, 
+                 x.max=1.5, 
+                 mutationCopyNumber=dataset$mutation.copy.number, 
+                 no.chrs.bearing.mut=dataset$copyNumberAdjustment,
+                 samplename=samplename,
+                 cluster.locations=clustering$cluster.locations,
+                 mutation.assignments=clustering$best.node.assignments,
+                 mutationTypes=dataset$mutationType)
+      }
+    }
+  }
+    
   if (generate_cluster_ordering) {
     ########################################################################
     # Before doing anything else, calculate confidence intervals on the cluster locations using only the mutations used during clustering
@@ -697,24 +799,24 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     ########################
     # Plot density and Assign mutations to clusters - nD
     ########################
-    print("Assigning mutations to clusters...")
-    # print("Estimating density between pairs of samples...")
-    # for (i in 1:(length(subsamplesrun)-1)) {
-    #   for (j in (i+1):length(subsamplesrun)) {
-    #     print(paste("Samples", subsamplesrun[i], "and", subsamplesrun[j], sep=" "))
-    #     imageFile = file.path(output_folder, paste(samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep=""))
-    #     density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
-    #                                          GS.data,
-    #                                          imageFile, 
-    #                                          post.burn.in.start = no.iters.burn.in, 
-    #                                          post.burn.in.stop = no.iters, 
-    #                                          samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
-    #                                          indices=c(i,j))  
-    #     save(file=file.path(output_folder, paste(samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep="")), GS.data, density)
-    #   }
-    # }
+    print("Estimating density between pairs of samples...")
+    for (i in 1:(length(subsamplesrun)-1)) {
+      for (j in (i+1):length(subsamplesrun)) {
+        print(paste("Samples", subsamplesrun[i], "and", subsamplesrun[j], sep=" "))
+        imageFile = file.path(output_folder, paste(samplename,subsamplesrun[i],subsamplesrun[j],"_iters",no.iters,"_concParam",conc_param,"_clusterWidth",1/cluster_conc,"_2D_binomial.png",sep=""))
+        density = Gibbs.subclone.density.est(mutation.copy.number[,c(i,j)]/copyNumberAdjustment[,c(i,j)],
+                                             GS.data,
+                                             imageFile,
+                                             post.burn.in.start = no.iters.burn.in,
+                                             post.burn.in.stop = no.iters,
+                                             samplenames = paste(samplename,subsamplesrun[c(i,j)],sep=""),
+                                             indices=c(i,j))
+        save(file=file.path(output_folder, paste(samplename, subsamplesrun[i], subsamplesrun[j], "_densityoutput.RData", sep="")), GS.data, density)
+      }
+    }
     
     # Assign mutations to clusters using one of the different assignment methods
+    print("Assigning mutations to clusters...")
     opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
     if (mut.assignment.type == 1) {
       consClustering = multiDimensionalClustering(mutation.copy.number=mutation.copy.number, 
