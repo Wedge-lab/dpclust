@@ -136,7 +136,7 @@ unsample_mutations = function(dataset, clustering_result) {
   
   # Not all assignment options return a full likelihood table
   if (!is.na(clustering_result$all.assignment.likelihoods)) {
-    all.assignment.likelihoods = clustering_result$all.assignment.likelihoods[dataset$most.similar.mut,]
+    all.assignment.likelihoods = clustering_result$all.assignment.likelihoods[dataset$most.similar.mut,,drop=F]
   } else {
     all.assignment.likelihoods = NA
   }
