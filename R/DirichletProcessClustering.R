@@ -62,16 +62,22 @@ make_sample_params = function(datafiles, cellularity, is.male, samplename, subsa
 #' @param conc_param Hyperparameter setting that affects the sampling of the alpha stick-breaking parameter
 #' @param cluster_conc Legacy parameter, no longer used
 #' @param max.considered.clusters The maximum number of clusters to be considered
+#' @param co_cluster_cna 
 #' @return A list containing these components
 #' @author sd11
 #' @export
-make_advanced_params = function(seed, conc_param=0.01, cluster_conc=5, max.considered.clusters=20) {
-  return(list(conc_param=conc_param, cluster_conc=cluster_conc, seed=seed, max.considered.clusters=max.considered.clusters))
+make_advanced_params = function(seed, conc_param=0.01, cluster_conc=5, max.considered.clusters=20, co_cluster_cna=FALSE) {
+  return(list(conc_param=conc_param, cluster_conc=cluster_conc, seed=seed, max.considered.clusters=max.considered.clusters, co_cluster_cna=co_cluster_cna))
 }
 
-#' Helper function to package CNA parameters - to be implemented
-make_cna_params = function() {
-  print("Not yet implemented")
+#' Helper function to package CNA parameters - this has not been extensively tested, use with caution
+#' @param co_cluster_cna Flag to turn on co clustering of CNAs
+#' @param cndatafiles Preprocessed CNA calls
+#' @return A list containing these components
+#' @author sd11
+#' @noRd
+make_cna_params = function(co_cluster_cna=FALSE, cndatafiles=NA) {
+  return(list(co_cluster_cna=co_cluster_cna, cndatafiles=cndatafiles))
 }
 
 #' Main DPClust function that handles the various pipelines
@@ -94,6 +100,8 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   attach(advanced_params)
   if (!is.null(cna_params)) {
     attach(cna_params)
+  } else {
+    attach(make_cna_params())
   }
   
   #####################################################################################
