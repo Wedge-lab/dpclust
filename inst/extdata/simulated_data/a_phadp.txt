@@ -1,0 +1,3 @@
+sample 	 subsample 	 datafile 	 cellularity 	 mutphasing
+a	 1 	 LP6008051-DNA_A03_ssDPI.txt 	 0.88044 	 a_cl_phasing_pass.RData
+
