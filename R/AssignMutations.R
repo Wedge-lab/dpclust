@@ -609,7 +609,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
                 sep="\t",
                 quote=F)
     
-    write.table(out,paste(new_output_folder,"/",samplename,"_DP_and cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
+    write.table(out,paste(new_output_folder,"/",samplename,"_DP_and_cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
     write.table(CIs,paste(new_output_folder,"/",samplename,"_confInts_",density.smooth,".txt",sep=""),col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),row.names=F,sep="\t",quote=F)
   }else{
     most.likely.cluster = rep(1,no.muts)
