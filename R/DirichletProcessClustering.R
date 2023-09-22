@@ -457,6 +457,10 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, outdir, samplename, subsamplenames, GS.data, density, polygon.data, no.iters, no.iters.burn.in, min_muts_cluster, min_frac_muts_cluster, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
   
+  if(num_samples > 1 & generate_cluster_ordering == TRUE){
+    stop("If run dpclust for multisample, setting the parameter 'generate_cluster_orders' as TRUE will result in an error. Please set 'generate_cluster_orders = FALSE'.")
+  }
+  
   ########################################################################
   # Check for too small clusters
   ########################################################################
