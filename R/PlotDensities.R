@@ -232,12 +232,13 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
     yvals = data.matrix(yvals[yvals<=max.plotted.value])
   } else {
     # Set dynamic range based on the subclonal fraction data
-    range=list(c(floor(min(subclonal.fraction_x)*10)-1,ceiling(max(subclonal.fraction_x)*10)+1)/10, 
-               c(floor(min(subclonal.fraction_y)*10)-1,ceiling(max(subclonal.fraction_y)*10)+1)/10)
+    range=list(c(floor(min(subclonal.fraction_x, na.rm=T)*10)-1,ceiling(max(subclonal.fraction_x, na.rm=T)*10)+1)/10, 
+               c(floor(min(subclonal.fraction_y, na.rm=T)*10)-1,ceiling(max(subclonal.fraction_y, na.rm=T)*10)+1)/10)
   }
 
   #plot.data = cbind(data[[i]]$subclonal.fraction,data[[j]]$subclonal.fraction)
   plot.data = cbind(subclonal.fraction_x, subclonal.fraction_y)
+  plot.data = plot.data[!is.na(rowSums(plot.data)),]
   if(!is.na(max.plotted.value)) {
     plot.data = plot.data[plot.data[,1]<=max.plotted.value & plot.data[,2]<=max.plotted.value,]
   }

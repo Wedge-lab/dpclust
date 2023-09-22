@@ -803,7 +803,10 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   save(file=file.path(output_folder, paste(samplename, "_gsdata.RData", sep="")), GS.data)
   
   # nD dataset, plot sample versus sample
-  if (ncol(mutCount) > 1) {
+  if (ncol(mutCount) > 5) {
+	  print("Found more than 5 samples, cannot estimate density. Please use the triplet to estimate density and assign mutations. Stopping now")
+	  q(save="no")
+  } else if (ncol(mutCount) > 1) {
     ########################
     # Plot density and Assign mutations to clusters - nD
     ########################

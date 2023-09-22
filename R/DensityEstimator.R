@@ -164,7 +164,9 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   }else{
     post.ints <- array(NA, c(512, post.burn.in.stop - post.burn.in.start + 1))
     xx=array(NA,c(1,512))
-    range=c(floor(min(burden)*10)-1,ceiling(max(burden[,1])*10)+1)/10
+    burden[is.infinite(burden)] = NA
+    burden[is.nan(burden)] = NA
+    range=c(floor(min(burden, na.rm=T)*10)-1,ceiling(max(burden[,1], na.rm=T)*10)+1)/10
   }
   
   #no.density.points=1000
@@ -255,12 +257,16 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
   wts[,1] <- V.h.cols[,1]
   wts[,2] <- V.h.cols[,2] * (1-V.h.cols[,1])
   for (i in 3:dim(wts)[2]) {wts[,i] <- apply(1-V.h.cols[,1:(i-1)], MARGIN=1, FUN=prod) * V.h.cols[,i]}
-  
+ 
+  #DCW conversion from Inf / nan to na added 100417
+  burden[is.infinite(burden)] = NA
+  burden[is.nan(burden)] = NA
+
   num.timepoints = NCOL(burden)
   gridsize=rep(64,num.timepoints)
   range = array(NA,c(num.timepoints,2))
   for(n in 1:num.timepoints){
-    range[n,] = c(floor(min(burden[,1])*10)-2,ceiling(max(burden[,1])*10)+2)/10
+    range[n,] = c(floor(min(burden[,1], na.rm=T)*10)-2,ceiling(max(burden[,1], na.rm=T)*10)+2)/10
     #don't calculate density for outliers (should only be applied when burden is subclonal fraction)
     if(!is.na(max.burden) && range[n,2] > max.burden){
       range[n,2] = max.burden
@@ -387,6 +393,7 @@ Gibbs.subclone.density.est.nd <- function(burden, GS.data, density.smooth = 0.1,
     median.density[array(indices,c(1,num.timepoints))] = median(post.ints[cbind(array(rep(indices,each=no.samples),c(no.samples,num.timepoints)),1:no.samples)])
     lower.CI[array(indices,c(1,num.timepoints))] = quantile(post.ints[cbind(array(rep(indices,each=no.samples),c(no.samples,num.timepoints)),1:no.samples)],probs=0.05)
   }
+  print("finished calculating median and 95% CI")
   
   return(list(range=range, gridsize=gridsize, median.density=median.density, lower.CI=lower.CI))    
 }

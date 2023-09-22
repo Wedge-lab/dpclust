@@ -33,6 +33,11 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,
   mutCopyNum = array(NA,c(num.muts,num.timepoints))
   for (t in 1:num.timepoints) {  
     mutCopyNum[,t] = mutationBurdenToMutationCopyNumber(mutCount[,t]/(mutCount[,t]+WTCount[,t]),totalCopyNumber[,t] ,cellularity[t],normalCopyNumber[,t]) / copyNumberAdjustment[,t]
+
+    # DCW adjust to cope with countsPerCopyNum==0,
+    # either because WTCount+mutCount==0 or copyNumberAdjustment==0
+    mutCopyNum[copyNumberAdjustment[,t]==0,t] = 0
+
     lower[t] = min(mutCopyNum[,t])
     upper[t] = max(mutCopyNum[,t])
     difference = upper[t]-lower[t]
@@ -41,7 +46,8 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,
     # Randomise starting positions of clusters
     pi.h[1,,t]=runif(C,lower[t],upper[t])
     for(c in 1:C){
-      mutBurdens[c,t,]=mutationCopyNumberToMutationBurden(pi.h[1,c,t] * copyNumberAdjustment[,t], totalCopyNumber[,t], cellularity[t],normalCopyNumber[,t]) 
+      mutBurdens[c,t,] = mutationCopyNumberToMutationBurden(pi.h[1,c,t] * copyNumberAdjustment[,t], totalCopyNumber[,t], cellularity[t],normalCopyNumber[,t]) 
+      mutBurdens[c,t,mutBurdens[c,t,]==0] = 0.000001
     }
   }	
   V.h[1,] = c(rep(0.5,C-1), 1)
@@ -94,9 +100,13 @@ subclone.dirichlet.gibbs <- function(mutCount, WTCount, totalCopyNumber=array(1,
       for(t in 1:num.timepoints){
         #040213 - problem if sum(countsPerCopyNum[t,S.i[m,]==c])==0 fixed
         if(sum(countsPerCopyNum[t,S.i[m,]==c])==0){
-          pi.h[m,c,t] = 0
+          pi.h[m,c,t] = 0.000001
         }else{
           pi.h[m,c,t] = rgamma(1,shape=sum(mutCount[S.i[m,]==c,t]),rate=sum(countsPerCopyNum[t,S.i[m,]==c]))
+	  if (is.nan(pi.h[m,c,t])) {
+	    print(paste("shape",sum(mutCount[S.i[m,]==c,t]),"rate",sum(countsPerCopyNum[t,S.i[m,]==c]),sep=","))
+	    stop("pi.h is NaN")
+	  }
         }
       }
     }		
