@@ -130,9 +130,10 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   #####################################################################################
   print("Loading data...")
   # Load data from disk if there was already a dataset object, otherwise create a new one
-  if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
+  rdata_file_name = paste(paste0("Seed-",seed), paste0("Date-", Sys.Date()), "dataset.RData", sep = "_")
+  if (file.exists(paste(outdir, "/", rdata_file_name, sep=""))) {
     
-    load(file.path(outdir, "dataset.RData"))
+    load(file.path(outdir, rdata_file_name))
     cndata = dataset$cndata
     mutphasing = dataset$mutphasing
     
@@ -191,7 +192,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
       mutphasing = NULL
     }
     
-    save(file=file.path(outdir, "dataset.RData"), dataset)
+    save(file=file.path(outdir, rdata_file_name), dataset)
   }
   
   
@@ -247,7 +248,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   }
   dataset$cndata = cndata
   # The dataset object was modified, so save it
-  if (resave.dataset) { save(file=file.path(outdir, "dataset.RData"), dataset) }
+  if (resave.dataset) { save(file=file.path(outdir, rdata_file_name), dataset) }
   
   if (analysis_type == 'nd_dp') {
     print("Running DPClust...")
@@ -409,7 +410,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(file.path(outdir, paste(samplename, "_localOptima.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_optimaInfo.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
-    .remove_file(file.path(outdir, "dataset.RData"))
+    .remove_file(file.path(outdir, rdata_file_name))
     
     # nD method files
     .remove_file(file.path(outdir, paste(samplename, "_DP_and cluster_info_0.01.txt", sep="")))
