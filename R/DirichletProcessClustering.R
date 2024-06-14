@@ -130,7 +130,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   #####################################################################################
   print("Loading data...")
   # Load data from disk if there was already a dataset object, otherwise create a new one
-  rdata_file_name = paste(paste0("Seed-",seed), paste0("Date-", Sys.Date()), "dataset.RData", sep = "_")
+  rdata_file_name = paste(paste0("Seed-",seed), paste0("Date-", chartr(" ", "_", Sys.time())), "dataset.RData", sep = "_")
   if (file.exists(paste(outdir, "/", rdata_file_name, sep=""))) {
     
     load(file.path(outdir, rdata_file_name))
