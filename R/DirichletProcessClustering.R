@@ -138,9 +138,10 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   #####################################################################################
   print("Loading data...")
   # Load data from disk if there was already a dataset object, otherwise create a new one
-  if (file.exists(paste(outdir, "/dataset.RData", sep=""))) {
+  rdata_file_name = paste(paste0("Seed-",seed), paste0("Date-", chartr(" ", "_", Sys.time())), "dataset.RData", sep = "_")
+  if (file.exists(paste(outdir, "/", rdata_file_name, sep=""))) {
     
-    load(file.path(outdir, "dataset.RData"))
+    load(file.path(outdir, rdata_file_name))
     cndata = dataset$cndata
     mutphasing = dataset$mutphasing
     
@@ -199,7 +200,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
       mutphasing = NULL
     }
     
-    save(file=file.path(outdir, "dataset.RData"), dataset)
+    save(file=file.path(outdir, rdata_file_name), dataset)
   }
   
   
@@ -255,7 +256,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   }
   dataset$cndata = cndata
   # The dataset object was modified, so save it
-  if (resave.dataset) { save(file=file.path(outdir, "dataset.RData"), dataset) }
+  if (resave.dataset) { save(file=file.path(outdir, rdata_file_name), dataset) }
   
   if (analysis_type == 'nd_dp') {
     print("Running DPClust...")
@@ -417,7 +418,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(file.path(outdir, paste(samplename, "_localOptima.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_optimaInfo.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_gsdata.RData", sep="")))
-    .remove_file(file.path(outdir, "dataset.RData"))
+    .remove_file(file.path(outdir, rdata_file_name))
     
     # nD method files
     .remove_file(file.path(outdir, paste(samplename, "_DP_and cluster_info_0.01.txt", sep="")))
@@ -464,6 +465,10 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
 #' @author sd11
 writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfiles.prefix, outdir, samplename, subsamplenames, GS.data, density, polygon.data, no.iters, no.iters.burn.in, min_muts_cluster, min_frac_muts_cluster, assign_sampled_muts=T, write_tree=F, generate_cluster_ordering=F, no.samples.cluster.order=1000) {
   num_samples = ncol(dataset$mutCount)
+  
+  if(num_samples > 1 & generate_cluster_ordering == TRUE){
+    stop("If run dpclust for multisample, setting the parameter 'generate_cluster_orders' as TRUE will result in an error. Please set 'generate_cluster_orders = FALSE'.")
+  }
   
   ########################################################################
   # Check for too small clusters
