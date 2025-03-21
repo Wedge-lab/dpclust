@@ -485,7 +485,7 @@ remove_mutations = function(dataset, mutation_index) {
   dataset$non.deleted.muts = dataset$non.deleted.muts[-mutation_index]
   dataset$phase = dataset$phase[-mutation_index]
   dataset$mutationType = dataset$mutationType[-mutation_index]
-  if (!is.na(dataset$most.similar.mut)) {
+  if (length(dataset$most.similar.mut) > 1 || !is.na(dataset$most.similar.mut)) {
     dataset$most.similar.mut = dataset$most.similar.mut[-mutation_index]
   }
   return(dataset)
@@ -502,7 +502,7 @@ add.mutphasing = function(dataset, mutphasing, add.conflicts=F) {
   if (add.conflicts & sum(mutphasing$phasing=="anti-phased") > 0) {
     anti.phased = mutphasing[mutphasing$phasing=="anti-phased",]
     
-    if (is.na(dataset$conflict.array)) {
+    if (all(is.na(dataset$conflict.array))) {
       dataset$conflict.array = array(1, c(nrow(dataset$mutCount), nrow(dataset$mutCount)))
     }
     
@@ -568,11 +568,11 @@ append.dataset = function(a, b) {
     stop("Cannot append two datasets of different sizes or with different cellularities")
   }
   
-  if (!is.na(a$sampling.selection) | !is.na(b$sampling.selection)) {
+  if (any(!is.na(a$sampling.selection)) | any(!is.na(b$sampling.selection))) {
     stop("Cannot append datasets that have been downsampled")
   }
   
-  if (!is.na(a$conflict.array) | !is.na(b$conflict.array)) {
+  if (any(!is.na(a$conflict.array)) | any(!is.na(b$conflict.array))) {
     stop("Cannot append datasets that contain conflict arrays")
   }
   

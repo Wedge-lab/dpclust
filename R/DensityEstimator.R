@@ -106,7 +106,7 @@ Gibbs.subclone.density.est <- function(burden, GS.data, pngFile, density.smooth 
   
   V.h.cols <- GS.data$V.h
   if("pi.h" %in% names(GS.data)){
-    if(is.na(indices)){
+    if(all(is.na(indices))) {
       pi.h.cols <- GS.data$pi.h
     }else{
       pi.h.cols <- GS.data$pi.h[,,indices]

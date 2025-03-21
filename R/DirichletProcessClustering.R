@@ -169,7 +169,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
                         ref.genome.version="hg19", # reading of VCF input files is disabled, this parameter is not used
                         supported_chroms=supported_chroms)
     
-    if (co_cluster_cna & !is.na(cndatafiles)) {
+    if (co_cluster_cna & any(!is.na(cndatafiles))) {
       cndata = load.cn.data(cndatafiles)
       cndata_params = list()
       cndata_params$cndata = cndata
@@ -237,7 +237,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   
   # Perform sampling
   if (!is.na(num_muts_sample) & num_muts_sample!="NA") {
-    if (is.na(dataset$full.data)) {
+    if (all(is.na(dataset$full.data))) {
       dataset = sample_mutations(dataset, num_muts_sample, sample.snvs.only=sample.snvs.only, remove.snvs=remove.snvs)
       most.similar.mut = dataset$most.similar.mut
       resave.dataset = T
@@ -558,7 +558,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   ########################################################################
   # Check if mutation sampling has been done, if so, unpack and assign here
   ########################################################################
-  if (!is.na(most.similar.mut) && assign_sampled_muts) {
+  if (any(!is.na(most.similar.mut)) && assign_sampled_muts) {
     res = unsample_mutations(dataset, clustering)
     dataset = res$dataset
     clustering = res$clustering

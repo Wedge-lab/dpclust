@@ -17,7 +17,7 @@
 sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, sampling_method=1, sample.snvs.only=T, remove.snvs=F) {
 
   # Check if sampling already was done
-  if (!is.na(dataset$sampling.selection)) {
+  if (length(dataset$sampling.selection) > 1 || !is.na(dataset$sampling.selection)) {
     return(dataset)
   }
   
@@ -81,7 +81,7 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
   mutationType = dataset$mutationType[selection]
   phase = dataset$phase[selection,]
-  if (!is.na(dataset$conflict.array)) {
+  if (any(!is.na(dataset$conflict.array))) {
     conflict.array = dataset$conflict.array[selection, selection]
   } else {
     conflict.array = NA
