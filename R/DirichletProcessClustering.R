@@ -558,7 +558,7 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
   ########################################################################
   # Check if mutation sampling has been done, if so, unpack and assign here
   ########################################################################
-  if (!is.na(most.similar.mut) && assign_sampled_muts) {
+  if (!is.null(most.similar.mut) && any(!is.na(most.similar.mut)) && isTRUE(assign_sampled_muts)) {
     res = unsample_mutations(dataset, clustering)
     dataset = res$dataset
     clustering = res$clustering
