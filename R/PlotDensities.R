@@ -21,7 +21,7 @@
 #' @param mutationTypes Type of each mutation, different mutation types can be plot with different colours (Default: NULL)
 #' @author dw9, sd11
 plot1D = function(density, polygon.data, pngFile=NA, density.from=0, x.max=NA, y.max=NA, y=NULL, N=NULL, mutationCopyNumber=NULL, no.chrs.bearing.mut=NULL,samplename="",CALR=numeric(0), cluster.locations=NULL, mutation.assignments=NULL, mutationTypes=NULL) {
-  if (!is.na(pngFile)) { png(filename=pngFile,width=1500,height=1000) }
+  if (!is.na(pngFile)) { png(filename=pngFile,width=1500,height=1000, type="cairo") }
   
   # Convert data into the space that was used for the clustering. This is done dynamically through the given data.
   xlabel = "Mutation Copy Number"
@@ -154,7 +154,7 @@ plot1D_2 = function(density, polygon.data, mutationCopyNumber, no.chrs.bearing.m
   }
   
   if (!is.na(pngFile)) {
-    png(filename=pngFile,width=1500,height=1000)
+    png(filename=pngFile,width=1500,height=1000, type="cairo")
     print(p)  
     dev.off()
   } else {
@@ -201,7 +201,7 @@ plotAssignmentTable = function(cluster_locations, pngFile, cndata=NULL, num_samp
     colnames(cluster_locations)[ncol(cluster_locations)] = "Num CNAs"
   }
   
-  png(filename=pngFile,width=500,height=500)
+  png(filename=pngFile,width=500,height=500, type="cairo")
   grid.table(cluster_locations, rows=NULL)
   dev.off()
 }
@@ -267,7 +267,7 @@ plotnD = function(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_
     }
   }
   
-  png(filename=pngFile, width=1500, height=1000) 
+  png(filename=pngFile, width=1500, height=1000, type="cairo") 
   image.wid = 500 * (range[[1]][2] - range[[1]][1])
   image.ht = 500 * (range[[2]][2] - range[[2]][1])
   fig = lattice::levelplot(zvals,

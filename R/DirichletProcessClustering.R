@@ -1,7 +1,7 @@
+
 #
 # Functions to run DPClust in various modes
 #
-
 #' Helper function to package run parameters
 #' @param no.iters The number of iterations that the MCMC chain should be run for
 #' @param no.iters.burn.in The number of iterations that should be discarded as burn in of the MCMC chain
@@ -43,7 +43,6 @@ make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_
               supported_chroms=supported_chroms, num_muts_sample=num_muts_sample, assign_sampled_muts=assign_sampled_muts, keep_temp_files=keep_temp_files,
               generate_cluster_ordering=generate_cluster_ordering, species=species, min_muts_cluster=min_muts_cluster, min_frac_muts_cluster=min_frac_muts_cluster))
 }
-
 #' Helper function to package sample parameters
 #' @param datafiles Vector of data files to be read in
 #' @param cellularity Vector with purity for all samples
@@ -56,7 +55,6 @@ make_run_params = function(no.iters, no.iters.burn.in, mut.assignment.type, num_
 make_sample_params = function(datafiles, cellularity, is.male, samplename, subsamples, mutphasingfiles=NULL) {
   return(list(datafiles=datafiles, cellularity=cellularity, is.male=is.male, samplename=samplename, subsamples=subsamples, mutphasingfiles=mutphasingfiles))
 }
-
 #' Helper function to package advanced parameters - most of these will almost never need to be changed
 #' @param seed The seed to use
 #' @param conc_param Hyperparameter setting that affects the sampling of the alpha stick-breaking parameter
@@ -68,12 +66,10 @@ make_sample_params = function(datafiles, cellularity, is.male, samplename, subsa
 make_advanced_params = function(seed, conc_param=0.01, cluster_conc=5, max.considered.clusters=20) {
   return(list(conc_param=conc_param, cluster_conc=cluster_conc, seed=seed, max.considered.clusters=max.considered.clusters))
 }
-
 #' Helper function to package CNA parameters - to be implemented
 make_cna_params = function() {
   print("Not yet implemented")
 }
-
 #' Main DPClust function that handles the various pipelines
 #' @param analysis_type Type of analysis to run: nd_dp (1d and nd clustering), replot_1d/replot_nd (recreate plots), reassign_muts_1d/reassign_muts_nd (reassign mutations)
 #' @param run_params List with run parameters (see make_run_params)
@@ -404,7 +400,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(paste(outfiles.prefix, "_removedMutationsIndex.txt", sep=""))
     .remove_file(file.path(outdir, paste(samplename, "_DP_and_cluster_info.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_DirichletProcessplot.png", sep="")))
-    .remove_file(file.path(outdir, paste(samplename, "_DirichletProcessplot_with_cluster_locations.png", sep="")))
+    #.remove_file(file.path(outdir, paste(samplename, "_DirichletProcessplot_with_cluster_locations.png", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_DirichletProcessplotdensity.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_DirichletProcessplotpolygonData.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_localOptima.txt", sep="")))
@@ -434,7 +430,6 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
   }
   print("Done.")
 }
-
 #' Function that stores the final output in a unified format on disk
 #' @param clustering A clustering result
 #' @param dataset The dataset that went into clustering
@@ -656,7 +651,6 @@ writeStandardFinalOutput = function(clustering, dataset, most.similar.mut, outfi
     write.table(clustering$best.tree, file=paste(outfiles.prefix, "_bestConsensusTree.txt", sep=""), quote=F, row.names=F, sep="\t")
   }
 }
-
 #' Add removed mutations back into the assignment table. SNVs will be assigned to the cluster of its most similar not-removed SNV
 #' @param dataset A dataset object
 #' @param snv_assignment_table Data frame with the mutation assignments
@@ -682,7 +676,6 @@ add_removed_snvs = function(dataset, snv_assignment_table) {
   return(snv_assignment_table)
 }
 
-
 #' Assign CNA events to clusters using their pseudoSNV representation
 #' @param cndata Data frame with the CNA data
 #' @param snv_assignment_table Data frame with the mutation assignments, with chromosome and position-start/end expected as first three columns
@@ -702,7 +695,6 @@ assign_cnas_to_clusters = function(cndata, snv_assignment_table) {
   }
   return(cndata)
 }
-
 #' Use the Pseudo-SNV probabilities to obtain a probability of each CNA of each cluster
 #' @param cndata The copy number data data.frame
 #' @param snv_assignment_likelihoods Probabilities of the pseudo-SNVs
@@ -740,7 +732,6 @@ get_cnas_cluster_probs = function(cndata, snv_assignment_likelihoods, cluster_co
   
   return(output)
 }
-
 #' Helper function that flattens a 3D array into a 2D one
 #' @param data The data to be flattened
 #' @param col_names The names of the columns in the output
@@ -758,7 +749,6 @@ flatten_3d_to_2d = function(data, col_names) {
   colnames(new_data) = col_names
   return(new_data)
 }
-
 #' Main function to run subclonal reconstruction
 #' 
 #' Will perform clustering using the given data. The method
@@ -783,7 +773,6 @@ flatten_3d_to_2d = function(data, col_names) {
 #' @param max.considered.clusters Maximum number of clusters to consider
 #' @author sd11
 DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyNumberAdjustment, mutation.copy.number, cellularity, output_folder, no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param, cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes, max.considered.clusters) {
-
     if(!file.exists(output_folder)){
     dir.create(output_folder)
   }
@@ -861,7 +850,7 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
                                             post.burn.in.start=no.iters.burn.in, 
                                             post.burn.in.stop=no.iters,
                                             y.max=15,
-					                                  x.max=NA, 
+                                            x.max=NA, 
                                             mutationCopyNumber=mutation.copy.number, 
                                             no.chrs.bearing.mut=copyNumberAdjustment)
     density = res$density
@@ -869,7 +858,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
     
     # Assign mutations to clusters using one of the different assignment methods
     opts = list(samplename=samplename, subsamplenames=subsamplesrun, no.iters=no.iters, no.iters.burn.in=no.iters.burn.in, no.iters.post.burn.in=no.iters-no.iters.burn.in, outdir=output_folder)
-
     print("Assigning mutations to clusters...")
     if (mut.assignment.type == 1) {
       subclonal.fraction = mutation.copy.number / copyNumberAdjustment
@@ -899,14 +887,24 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
       warning(paste("Unknown mutation assignment type", mut.assignment.type, sep=" "))
       q(save="no", status=1)
     }
-
     # Make a second set of figures with the mutation assignments showing
     # Replot the data with cluster locations
+    # Safely get numeric cluster locations
+    # Compute maximum cluster location and add a margin 
+      ML_raw_max <- max(consClustering$cluster.locations[,2], na.rm = TRUE) + 0.5
+      
+      # round up to nearest 0.5
+      ML_rounded_max <- ceiling(ML_raw_max * 2) / 2
+      
+      # clamp between 1.5 and 3
+      ML_x_maxpurity_cluster <- min(max(ML_rounded_max, 1.5), 3)
+
+    
     plot1D(density=density, 
            polygon.data=polygon.data, 
            pngFile=paste(output_folder, "/", samplename, "_DirichletProcessplot_with_cluster_locations.png", sep=""), 
            density.from=0, 
-           x.max=1.5, 
+           x.max= ML_x_maxpurity_cluster, 
            mutationCopyNumber=mutation.copy.number, 
            no.chrs.bearing.mut=copyNumberAdjustment,
            samplename=samplename,
@@ -930,7 +928,6 @@ DirichletProcessClustering <- function(mutCount, WTCount, totalCopyNumber, copyN
   }
   
 }
-
 write.strengths.table = function(dat, removed_indices, filename) {
   #
   # Adds in an empty column/row for each of the removed_indices and writes
@@ -938,7 +935,6 @@ write.strengths.table = function(dat, removed_indices, filename) {
   #
   write.table(add.muts.back.in(dat, removed_indices),filename,sep="\t",row.names=F,quote=F,col.names=F)
 }
-
 add.muts.back.in = function(dat, removed_indices, def.value=0) {
   #
   # Adds in empty columns and rows for mutations that were removed.
@@ -952,8 +948,8 @@ add.muts.back.in = function(dat, removed_indices, def.value=0) {
       dat = cbind(rep(def.value, nrow(dat)), dat)
       dat = rbind(rep(def.value, ncol(dat)), dat)
     } else if (i >= ncol(dat)) {
-      	dat = cbind(dat, rep(def.value, nrow(dat)))
-      	dat = rbind(dat, rep(def.value, ncol(dat)))
+        dat = cbind(dat, rep(def.value, nrow(dat)))
+        dat = rbind(dat, rep(def.value, ncol(dat)))
     } else {
         dat = cbind(dat[,1:(i-1)], rep(def.value, nrow(dat)), dat[,i:ncol(dat)])
         dat = rbind(dat[1:(i-1),], rep(def.value, ncol(dat)), dat[i:nrow(dat),])
@@ -961,4 +957,3 @@ add.muts.back.in = function(dat, removed_indices, def.value=0) {
   }
   return(dat)
 }
-
