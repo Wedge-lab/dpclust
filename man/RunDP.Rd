@@ -4,8 +4,15 @@
 \alias{RunDP}
 \title{Main DPClust function that handles the various pipelines}
 \usage{
-RunDP(analysis_type, run_params, sample_params, advanced_params, outdir,
-  cna_params = NULL, mutphasingfiles = NULL)
+RunDP(
+  analysis_type,
+  run_params,
+  sample_params,
+  advanced_params,
+  outdir,
+  cna_params = NULL,
+  mutphasingfiles = NULL
+)
 }
 \arguments{
 \item{analysis_type}{Type of analysis to run: nd_dp (1d and nd clustering), replot_1d/replot_nd (recreate plots), reassign_muts_1d/reassign_muts_nd (reassign mutations)}

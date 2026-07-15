@@ -5,10 +5,23 @@
 \title{This function loads a series of data tables or VCFs into a dataset object
 which is in essense a list of tables, one for each type of information}
 \usage{
-load.data(list_of_data_files, cellularity, Chromosome, position, WT.count,
-  mut.count, subclonal.CN, no.chrs.bearing.mut, mutation.copy.number,
-  subclonal.fraction, phase = NULL, is.male = T, is.vcf = F,
-  ref.genome.version = "hg19", supported_chroms = c(1:22))
+load.data(
+  list_of_data_files,
+  cellularity,
+  Chromosome,
+  position,
+  WT.count,
+  mut.count,
+  subclonal.CN,
+  no.chrs.bearing.mut,
+  mutation.copy.number,
+  subclonal.fraction,
+  phase = NULL,
+  is.male = T,
+  is.vcf = F,
+  ref.genome.version = "hg19",
+  supported_chroms = c(1:22)
+)
 }
 \arguments{
 \item{list_of_data_files}{A list of data file names to be read in}

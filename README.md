@@ -18,7 +18,7 @@ R -q -e 'install.packages([DPClust tarball], repos=NULL, type="source")'
 
 ## Running DPClust
 
-The DPClust package comes with an example pipeline and some simulated data in `inst/example`. Run the examples as follows:
+The DPClust package comes with example pipelines and some simulated data in `inst/example`. Run the examples as follows:
 ```
 # check out the repository
 git clone git@github.com:Wedge-Oxford/dpclust.git
@@ -29,18 +29,24 @@ cd dpclust/inst/example
 
 # multi-sample case
 ./run_nd.sh 
+
+# triplet pipeline for when >5 samples
+cd triplet_pipeline
+./01_run_core.sh
+./02_estimate_density.sh (note that this step takes a long time, run in parallel)
+./03_combine_and_assign.sh
 ```
 
 ## Docker
 
 Run DPClust on provided example data. After checking out this repository, build the image:
 ```
-docker build -t dpclust:2.2.7 .
+docker build -t dpclust:2.2.8 .
 ```
 
 Run DPClust as follows
 ```
-docker run -it -v `pwd`:/mnt/output/ dpclust:2.2.7 /opt/dpclust/example/run_docker.sh
+docker run -it -v `pwd`:/mnt/output/ dpclust:2.2.8 /opt/dpclust/example/run_docker.sh
 ```
 
 ## Input description
@@ -107,4 +113,16 @@ DPClust creates the following output for a multi-sample case
 |*_bestConsensusResults.RData		| R data file with all the output |
 |*_mutation_assignments.png | Table figure showing the called mutation clusters |
 |*_most_likely_cluster_assignment_0.01.pdf  | Graphical depiction of the mutation assignments |
+
+### Triplet pipeline (>5 samples)
+
+The final step copies these result files out of the temp working directory into the output directory (see `-k`/`--keep_temp_files` to also keep the temp directory with its per-triplet intermediate files)
+
+|File|Description|
+|---|---|
+|*_consensusClustersByParallelNodeAssignment_16Oct2014.txt | Contains the consensus mutation clusters found across all triplets, for each cluster in each sample the confidence interval on the proportion of tumour cells that the cluster represents (CCF) and the number of mutations assigned to the cluster. Triplet pipeline equivalent of *_bestClusterInfo.txt |
+|*_allClusterassignmentsFromParallelRuns_23Nov2018.txt | Assignment of mutations to consensus clusters, the cluster.no column refers to the cluster.no in the *_consensusClustersByParallelNodeAssignment_16Oct2014.txt file. Triplet pipeline equivalent of *_bestConsensusAssignments.bed |
+|*_allClusterProbabilitiesFromParallelRuns_16Oct2014.txt | Probability of each mutation belonging to each consensus cluster. Triplet pipeline equivalent of *_mutationClusterLikelihoods.bed |
+|consensus_cluster_assignment_*_combined_0.01_23Nov2018.pdf | Graphical depiction of the mutation assignments, plotted pairwise for each pair of samples. Triplet pipeline equivalent of *_most_likely_cluster_assignment_0.01.pdf |
+|*_consensusAssignmentHeatmap.png | Heatmap showing every mutation's CCF across samples, sorted and grouped by consensus cluster (most-shared cluster at the top) with samples ordered so the most similar sit adjacent - a visual summary of how well the found clusters represent the data |
 

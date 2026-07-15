@@ -4,8 +4,12 @@
 \alias{build_coassignment_prob_matrix_preferences}
 \title{Helper function that builds a mutation to mutation coassignment probability matrix out of mutation to cluster assignments}
 \usage{
-build_coassignment_prob_matrix_preferences(GS.data, density, no.muts,
-  sampledIters)
+build_coassignment_prob_matrix_preferences(
+  GS.data,
+  density,
+  no.muts,
+  sampledIters
+)
 }
 \arguments{
 \item{GS.data}{Main clustering output directly from the chain}

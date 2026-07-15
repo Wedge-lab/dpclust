@@ -4,11 +4,23 @@
 \alias{plot1D}
 \title{Original plotting function: Creates the 1D density plot in either allele fraction, mutation copy number or fraction of tumour cells space.}
 \usage{
-plot1D(density, polygon.data, pngFile = NA, density.from = 0,
-  x.max = NA, y.max = NA, y = NULL, N = NULL,
-  mutationCopyNumber = NULL, no.chrs.bearing.mut = NULL,
-  samplename = "", CALR = numeric(0), cluster.locations = NULL,
-  mutation.assignments = NULL, mutationTypes = NULL)
+plot1D(
+  density,
+  polygon.data,
+  pngFile = NA,
+  density.from = 0,
+  x.max = NA,
+  y.max = NA,
+  y = NULL,
+  N = NULL,
+  mutationCopyNumber = NULL,
+  no.chrs.bearing.mut = NULL,
+  samplename = "",
+  CALR = numeric(0),
+  cluster.locations = NULL,
+  mutation.assignments = NULL,
+  mutationTypes = NULL
+)
 }
 \arguments{
 \item{density}{Is a two column data frame. First column x-axis density line, second column y-axis density line.}

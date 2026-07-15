@@ -2,11 +2,11 @@
 % Please edit documentation in R/dpclust-package.R
 \docType{package}
 \name{DPClust}
-\alias{DPClust}
 \alias{DPClust-package}
+\alias{DPClust}
 \title{Dirichlet Process Clustering of mutations}
 \description{
-Dirichlet Process Clustering of mutations
+Dirichlet process based subclonal reconstruction methods
 }
 \author{
 Stefan Dentro, \email{sd11@sanger.ac.uk}

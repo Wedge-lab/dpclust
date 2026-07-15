@@ -8,7 +8,8 @@ Authors@R: c(person("David", "Wedge", role=c("aut"), email="dw9@sanger.ac.uk"),
     person("Peter", "Van Loo", role=c("aut")),
     person("Stefan","Dentro", email="sd11@sanger.ac.uk", role=c("aut", "cre")))
 Description: Dirichlet process based subclonal reconstruction methods
-Depends: 
+Encoding: UTF-8
+Depends:
   R (>= 2.15.0),
   KernSmooth,
   ks,
@@ -16,4 +17,4 @@ Depends:
   ggplot2,
   gridExtra
 LazyLoad: yes
-RoxygenNote: 6.1.1
+Config/roxygen2/version: 8.0.0

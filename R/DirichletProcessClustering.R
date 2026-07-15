@@ -421,7 +421,7 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
     .remove_file(file.path(outdir, rdata_file_name))
     
     # nD method files
-    .remove_file(file.path(outdir, paste(samplename, "_DP_and cluster_info_0.01.txt", sep="")))
+    .remove_file(file.path(outdir, paste(samplename, "_DP_and_cluster_info_0.01.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_confInts_0.01.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_localHighConfidenceMultidimensionalOptima_0.01.txt", sep="")))
     .remove_file(file.path(outdir, paste(samplename, "_localMultidimensionalOptima_0.01.txt", sep="")))
@@ -431,14 +431,12 @@ RunDP <- function(analysis_type, run_params, sample_params, advanced_params, out
       for (j in (i+1):length(subsamples)) {
         .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.RData", sep="")))
         .remove_file(file.path(outdir, paste(samplename, subsamples[i], subsamples[j], "_densityoutput.csv", sep="")))
-        .remove_file(file.path(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*densityData1.csv", sep="")), full.names=T))
+        density_data_csv = list.files(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*densityData1.csv", sep="")), full.names=T)
+        for (infile in density_data_csv) { .remove_file(infile) }
         density_csv_files = list.files(outdir, pattern=glob2rx(paste(samplename, subsamples[i], subsamples[j], "*vals.csv", sep="")), full.names=T)
         for (infile in density_csv_files) { .remove_file(infile) }
       }
     }
-    
-    nd_density_files = list.files(outdir, pattern="_2D_binomial_")
-    if (length(nd_density_files) > 0) { file.remove(nd_density_files) }
   }
   print("Done.")
 }
@@ -731,7 +729,7 @@ get_cnas_cluster_probs = function(cndata, snv_assignment_likelihoods, cluster_co
           0
         } else {
           # Combine p-values using fishers' method
-          pchisq(-2 * sum(log(pseudo_snvs[,j])), df=length(pseudo_snvs[,j]), lower.tail=F)
+          pchisq(-2 * sum(log(pseudo_snvs[,j])), df=2*length(pseudo_snvs[,j]), lower.tail=F)
         }
       })
     }

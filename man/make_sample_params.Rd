@@ -4,8 +4,14 @@
 \alias{make_sample_params}
 \title{Helper function to package sample parameters}
 \usage{
-make_sample_params(datafiles, cellularity, is.male, samplename, subsamples,
-  mutphasingfiles = NULL)
+make_sample_params(
+  datafiles,
+  cellularity,
+  is.male,
+  samplename,
+  subsamples,
+  mutphasingfiles = NULL
+)
 }
 \arguments{
 \item{datafiles}{Vector of data files to be read in}

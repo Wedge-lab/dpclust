@@ -4,8 +4,7 @@
 \alias{get_cnas_cluster_probs}
 \title{Use the Pseudo-SNV probabilities to obtain a probability of each CNA of each cluster}
 \usage{
-get_cnas_cluster_probs(cndata, snv_assignment_likelihoods,
-  cluster_colnames)
+get_cnas_cluster_probs(cndata, snv_assignment_likelihoods, cluster_colnames)
 }
 \arguments{
 \item{cndata}{The copy number data data.frame}

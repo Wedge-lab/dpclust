@@ -4,11 +4,25 @@
 \alias{DirichletProcessClustering}
 \title{Main function to run subclonal reconstruction}
 \usage{
-DirichletProcessClustering(mutCount, WTCount, totalCopyNumber,
-  copyNumberAdjustment, mutation.copy.number, cellularity, output_folder,
-  no.iters, no.iters.burn.in, subsamplesrun, samplename, conc_param,
-  cluster_conc, mut.assignment.type, most.similar.mut, mutationTypes,
-  max.considered.clusters)
+DirichletProcessClustering(
+  mutCount,
+  WTCount,
+  totalCopyNumber,
+  copyNumberAdjustment,
+  mutation.copy.number,
+  cellularity,
+  output_folder,
+  no.iters,
+  no.iters.burn.in,
+  subsamplesrun,
+  samplename,
+  conc_param,
+  cluster_conc,
+  mut.assignment.type,
+  most.similar.mut,
+  mutationTypes,
+  max.considered.clusters
+)
 }
 \arguments{
 \item{mutCount}{Matrix with readcounts of the mutated allele}

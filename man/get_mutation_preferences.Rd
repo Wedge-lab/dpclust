@@ -6,8 +6,17 @@
 contains the CCF of the preferred given cluster locations, i.e. the cluster to which
 the SNV would've been assigned during clustering if those were the cluster locations}
 \usage{
-get_mutation_preferences(GS.data, density, mut_assignments, clusterids,
-  cluster_ccfs, no.muts, no.timepoints, no.iters, no.iters.burn.in)
+get_mutation_preferences(
+  GS.data,
+  density,
+  mut_assignments,
+  clusterids,
+  cluster_ccfs,
+  no.muts,
+  no.timepoints,
+  no.iters,
+  no.iters.burn.in
+)
 }
 \description{
 Get mutation preferences table given a density and cluster locations. The output table

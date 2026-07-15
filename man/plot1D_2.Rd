@@ -4,14 +4,26 @@
 \alias{plot1D_2}
 \title{ggplot2 based density figure that can show CNA-pseudo-SNVs separately. Currently this figure only can plot the CCF space.}
 \usage{
-plot1D_2(density, polygon.data, mutationCopyNumber, no.chrs.bearing.mut,
-  pngFile = NA, density.from = 0, x.max = NA, y.max = NA,
-  y = NULL, N = NULL, samplename = "", CALR = numeric(0),
-  cluster.locations = NULL, mutation.assignments = NULL,
+plot1D_2(
+  density,
+  polygon.data,
+  mutationCopyNumber,
+  no.chrs.bearing.mut,
+  pngFile = NA,
+  density.from = 0,
+  x.max = NA,
+  y.max = NA,
+  y = NULL,
+  N = NULL,
+  samplename = "",
+  CALR = numeric(0),
+  cluster.locations = NULL,
+  mutation.assignments = NULL,
   mutationTypes = rep("SNV", length(mutationCopyNumber)),
-  font_sizes = list(plot.title = 50, axis.text = 25, axis.title = 35,
-  legend.text = 25, legend.title = 25, legend.position = "bottom"),
-  cbPalette = c("lightgray", "red", "blue"))
+  font_sizes = list(plot.title = 50, axis.text = 25, axis.title = 35, legend.text = 25,
+    legend.title = 25, legend.position = "bottom"),
+  cbPalette = c("lightgray", "red", "blue")
+)
 }
 \arguments{
 \item{density}{Density as returned by Gibbs.subclone.density.est.1d.}

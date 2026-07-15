@@ -4,8 +4,7 @@
 \alias{getClusterDensity}
 \title{Obtain the mean density of each cluster.}
 \usage{
-getClusterDensity(clustering_density, cluster_locations,
-  min.window.density)
+getClusterDensity(clustering_density, cluster_locations, min.window.density)
 }
 \arguments{
 \item{clustering_density}{Posterior density estimate of where clusters are}

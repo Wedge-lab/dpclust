@@ -4,8 +4,14 @@
 \alias{oneDimensionalClustering}
 \title{Identify clusters and assign mutations for 1-dimensional clustering}
 \usage{
-oneDimensionalClustering(samplename, subclonal.fraction, GS.data, density,
-  no.iters, no.iters.burn.in)
+oneDimensionalClustering(
+  samplename,
+  subclonal.fraction,
+  GS.data,
+  density,
+  no.iters,
+  no.iters.burn.in
+)
 }
 \arguments{
 \item{samplename}{Sample identifier, used for writing out data to disk}

@@ -4,8 +4,15 @@
 \alias{create_pseudo_snv}
 \title{Create a number of pseudo SNVs to represent a CNA and add them to the dataset}
 \usage{
-create_pseudo_snv(cndata.i, num_muts, N, conf, cellularity, dataset,
-  conflicting.events.only)
+create_pseudo_snv(
+  cndata.i,
+  num_muts,
+  N,
+  conf,
+  cellularity,
+  dataset,
+  conflicting.events.only
+)
 }
 \description{
 Create a number of pseudo SNVs to represent a CNA and add them to the dataset

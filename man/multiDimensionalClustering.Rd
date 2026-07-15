@@ -4,8 +4,14 @@
 \alias{multiDimensionalClustering}
 \title{Establish clusters and assign mutations for multi-dimensional clustering using a multi-dimensional density}
 \usage{
-multiDimensionalClustering(mutation.copy.number, copyNumberAdjustment,
-  GS.data, density.smooth, opts)
+multiDimensionalClustering(
+  mutation.copy.number,
+  copyNumberAdjustment,
+  GS.data,
+  density.smooth,
+  opts,
+  outfilesuffix = ""
+)
 }
 \arguments{
 \item{mutation.copy.number}{Mutation copy number values for all samples}
@@ -17,6 +23,8 @@ multiDimensionalClustering(mutation.copy.number, copyNumberAdjustment,
 \item{density.smooth}{Parameter that determines the amount of smoothing applied when establishing multi-dimensional density}
 
 \item{opts}{List with parameters, including donorname (samplename), individual samplenames (subsamples) and iterations and burnin}
+
+\item{outfilesuffix}{Addition to the output filenames, this is useful when running this function on various subsets of the data. Leave at "" when not doing multiple runs}
 }
 \value{
 List with various standardised clustering results, including cluster positions, assignments and probabilities

@@ -4,8 +4,15 @@
 \alias{calc_cluster_conf_intervals}
 \title{Calculate confidence intervals on the cluster location}
 \usage{
-calc_cluster_conf_intervals(GS.data, mut_assignments, clusterids, no.muts,
-  no.timepoints, no.iters, no.iters.burn.in)
+calc_cluster_conf_intervals(
+  GS.data,
+  mut_assignments,
+  clusterids,
+  no.muts,
+  no.timepoints,
+  no.iters,
+  no.iters.burn.in
+)
 }
 \arguments{
 \item{GS.data}{MCMC output with assignments and cluster locations}

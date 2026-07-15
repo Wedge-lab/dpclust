@@ -4,8 +4,14 @@
 \alias{get_snv_assignment_ccfs}
 \title{Fetch the CCFs of the clusters to which SNVs have been assigned during MCMC into a big table}
 \usage{
-get_snv_assignment_ccfs(pi.h, S.i, no.muts, no.timepoints, no.iters,
-  no.iters.burn.in)
+get_snv_assignment_ccfs(
+  pi.h,
+  S.i,
+  no.muts,
+  no.timepoints,
+  no.iters,
+  no.iters.burn.in
+)
 }
 \arguments{
 \item{pi.h}{The cluster CCFs}

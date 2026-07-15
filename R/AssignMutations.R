@@ -373,9 +373,10 @@ mutation_assignment_em = function(GS.data, mutCount, WTCount, subclonal.fraction
 #' @param GS.data Output from the MCMC chain containing mutation assignments, cluster positions and cluster weights
 #' @param density.smooth Parameter that determines the amount of smoothing applied when establishing multi-dimensional density
 #' @param opts List with parameters, including donorname (samplename), individual samplenames (subsamples) and iterations and burnin
+#' @param outfilesuffix Addition to the output filenames, this is useful when running this function on various subsets of the data. Leave at "" when not doing multiple runs
 #' @return List with various standardised clustering results, including cluster positions, assignments and probabilities
 #' @author dw9, sd11
-multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment, GS.data, density.smooth, opts) {
+multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment, GS.data, density.smooth, opts, outfilesuffix="") {
   #
   # Uses clustering in multi dimensions to obtain a likelihood across all iterations for each mutation
   # The cluster where a mutation is assigned most often is deemed the most likeli destination.
@@ -456,8 +457,18 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   localMins = localMins + hypercube.size
   localOptima = array(rep(range[,1],each=no.subsamples),dim(localMins))
   localOptima = localOptima + array(rep((range[,2] - range[,1])/(gridsize-1),each=no.subsamples),dim(localMins)) * localMins
-  write.table(cbind(localOptima,above95confidence),paste(new_output_folder,"/",samplename,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
-  write.table(localOptima[above95confidence,,drop=F],paste(new_output_folder,"/",samplename,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),quote=F,sep="\t",row.names=F,col.names = paste(samplename,subsamples,sep=""))
+  write.table(cbind(localOptima,above95confidence),
+	      paste(new_output_folder,"/",samplename,outfilesuffix,"_localMultidimensionalOptima_",density.smooth,".txt",sep=""),
+	      quote=F,
+	      sep="\t",
+	      row.names=F,
+	      col.names = c(paste(samplename,subsamples,sep=""),"above95percentConfidence"))
+  write.table(localOptima[above95confidence,,drop=F],
+	      paste(new_output_folder,"/",samplename,outfilesuffix,"_localHighConfidenceMultidimensionalOptima_",density.smooth,".txt",sep=""),
+	      quote=F,
+	      sep="\t",
+	      row.names=F,
+	      col.names = paste(samplename,subsamples,sep=""))
   
   no.optima = nrow(localOptima)
   
@@ -586,7 +597,11 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     for(i in 1:no.optima){
       sampled.thetas[[i]] = array(NA,c(length(sampledIters),totals[i],no.subsamples))
       for(s in 1:length(sampledIters)){
-        sampled.thetas[[i]][s,,] = GS.data$pi.h[sampledIters[s],S.i[sampledIters[s],most.likely.cluster==i],]
+	 if(sum(most.likely.cluster==i)>1) {
+             sampled.thetas[[i]][s,,] = GS.data$pi.h[sampledIters[s],S.i[sampledIters[s],most.likely.cluster==i],]
+	 } else {
+	     sampled.thetas[[i]][s,,] = array(GS.data$pi.h[sampledIters[s],S.i[sampledIters[s],most.likely.cluster==i],],c(totals[i],no.subsamples))
+	 }
       }
       for(s in 1:no.subsamples){
         median.sampled.vals = sapply(1:length(sampledIters),function(x){median(sampled.thetas[[i]][x,,s])})
@@ -599,18 +614,20 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     #out = cbind(data[[1]][,1:2],mutation.preferences,most.likely.cluster)
     #names(out)[(ncol(out)-no.optima):ncol(out)] = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
     out = cbind(mutation.preferences,most.likely.cluster)
-    names(out) = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
+    colnames(out) = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
     
     cluster.locations = cbind(1:ncol(mutation.preferences), quantiles[,,2], colSums(mutation.preferences), table(factor(most.likely.cluster,levels = 1:no.optima)))
     write.table(cluster.locations,
-                paste(new_output_folder,"/",samplename,"_optimaInfo_",density.smooth,".txt",sep=""),
+                paste(new_output_folder,"/",samplename,outfilesuffix,"_optimaInfo_",density.smooth,".txt",sep=""),
                 col.names = c("cluster.no", paste(samplename, subsamples, sep=""), "estimated.no.of.mutations", "no.of.mutations.assigned"),
                 row.names=F,
                 sep="\t",
                 quote=F)
     
-    write.table(out,paste(new_output_folder,"/",samplename,"_DP_and_cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
-    write.table(CIs,paste(new_output_folder,"/",samplename,"_confInts_",density.smooth,".txt",sep=""),col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),row.names=F,sep="\t",quote=F)
+    write.table(out,paste(new_output_folder,"/",samplename,outfilesuffix,"_DP_and_cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
+    write.table(CIs,paste(new_output_folder,"/",samplename,outfilesuffix,"_confInts_",density.smooth,".txt",sep=""),
+		col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),
+		row.names=F,sep="\t",quote=F)
   }else{
     most.likely.cluster = rep(1,no.muts)
     cluster.locations = matrix(NA, nrow=1, ncol=length(subsamples)+3)
@@ -620,7 +637,25 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
     mutation.preferences = data.frame(rep(1, no.muts))
     #cluster.locations = as.data.frame(cluster.locations)
     #colnames(cluster.locations) = c("cluster.no", paste(samplename, subsamples, sep=""), "estimated.no.of.mutations", "no.of.mutations.assigned")
-    warning("No local optima found")
+    write.table(cluster.locations,
+                paste(new_output_folder,"/",samplename,outfilesuffix,"_optimaInfo_",density.smooth,".txt",sep=""),
+                col.names = c("cluster.no", paste(samplename, subsamples, sep=""), "estimated.no.of.mutations", "no.of.mutations.assigned"),
+                row.names=F,
+                sep="\t",
+                quote=F)
+    #out = cbind(data[[1]][,1:2], data.frame(rep(1, no.muts)), data.frame(rep(1, no.muts)))
+    out = cbind(data.frame(rep(1, no.muts)), data.frame(rep(1, no.muts)))
+    no.optima = 1
+    #names(out)[(ncol(out)-no.optima):ncol(out)] = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
+    colnames(out) = c(paste("prob.cluster",1:no.optima,sep=""),"most.likely.cluster")
+    write.table(out,paste(new_output_folder,"/",samplename,outfilesuffix,"_DP_and_cluster_info_",density.smooth,".txt",sep=""),sep="\t",row.names=F,quote=F)
+    
+    CIs = as.data.frame(array(localOptima[1], c(no.optima,no.subsamples*2)))
+    CIs = CIs[,rep(1:no.subsamples,each=2) + rep(c(0,no.subsamples),no.subsamples)]
+    write.table(CIs,
+		paste(new_output_folder,"/",samplename,outfilesuffix,"_confInts_",density.smooth,".txt",sep=""),
+		col.names = paste(rep(paste(samplename,subsamples,sep=""),each=2),rep(c(".lower.CI",".upper.CI"),no.subsamples),sep=""),
+		row.names=F,sep="\t",quote=F)
   }
   
   # Remove the estimated number of SNVs per cluster from the cluster locations table  
@@ -644,7 +679,7 @@ multiDimensionalClustering = function(mutation.copy.number, copyNumberAdjustment
   assignment.likelihood = sapply(1:no.muts,function(m,c,i){ m[i,c[i]] },m=mutation.preferences, c=most.likely.cluster)
   
   no.optima = nrow(cluster.locations)
-  pdf(paste(new_output_folder,"/",samplename,"_most_likely_cluster_assignment_",density.smooth,".pdf",sep=""),height=4,width=4)
+  pdf(paste(new_output_folder,"/",samplename,outfilesuffix,"_most_likely_cluster_assignment_",density.smooth,".pdf",sep=""),height=4,width=4)
   #its hard to distinguish more than 8 different colours
   max.cols = 8
   cols = rainbow(min(max.cols,no.optima))

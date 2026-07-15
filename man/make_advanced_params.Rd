@@ -4,8 +4,12 @@
 \alias{make_advanced_params}
 \title{Helper function to package advanced parameters - most of these will almost never need to be changed}
 \usage{
-make_advanced_params(seed, conc_param = 0.01, cluster_conc = 5,
-  max.considered.clusters = 20)
+make_advanced_params(
+  seed,
+  conc_param = 0.01,
+  cluster_conc = 5,
+  max.considered.clusters = 20
+)
 }
 \arguments{
 \item{seed}{The seed to use}

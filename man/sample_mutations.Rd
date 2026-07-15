@@ -5,8 +5,14 @@
 \title{Sample a number of mutations from the dataset to reduce its size. The original
 dataset object is kept within the returned dataset with label full.data}
 \usage{
-sample_mutations(dataset, num_muts_sample, min_sampling_factor = 1.5,
-  sampling_method = 1, sample.snvs.only = T, remove.snvs = F)
+sample_mutations(
+  dataset,
+  num_muts_sample,
+  min_sampling_factor = 1.5,
+  sampling_method = 1,
+  sample.snvs.only = T,
+  remove.snvs = F
+)
 }
 \arguments{
 \item{dataset}{The data set to use}

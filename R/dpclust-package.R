@@ -1,5 +1,4 @@
 #' @name DPClust
-#' @docType package
 #' @title Dirichlet Process Clustering of mutations
 #' @author Stefan Dentro, \email{sd11@@sanger.ac.uk}
 #' @keywords package
@@ -12,4 +11,4 @@
 #' @importFrom grDevices cm.colors colorRampPalette dev.cur dev.off dev.set pdf png rainbow rgb
 #' @importFrom graphics hist legend lines par plot points polygon text title
 #' @importFrom stats density median pchisq quantile rbeta rbinom rgamma rmultinom runif sd
-NA
+"_PACKAGE"

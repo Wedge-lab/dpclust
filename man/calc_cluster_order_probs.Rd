@@ -4,9 +4,18 @@
 \alias{calc_cluster_order_probs}
 \title{Calculate for a pair of clusters whether a has a higher CCF than b.}
 \usage{
-calc_cluster_order_probs(GS.data, density, mut_assignments, clusterids,
-  cluster_ccfs, no.muts, no.timepoints, no.iters, no.iters.burn.in,
-  no.samples = 1000)
+calc_cluster_order_probs(
+  GS.data,
+  density,
+  mut_assignments,
+  clusterids,
+  cluster_ccfs,
+  no.muts,
+  no.timepoints,
+  no.iters,
+  no.iters.burn.in,
+  no.samples = 1000
+)
 }
 \arguments{
 \item{GS.data}{MCMC output with assignments and cluster locations}

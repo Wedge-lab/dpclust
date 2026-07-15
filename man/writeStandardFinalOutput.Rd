@@ -4,11 +4,26 @@
 \alias{writeStandardFinalOutput}
 \title{Function that stores the final output in a unified format on disk}
 \usage{
-writeStandardFinalOutput(clustering, dataset, most.similar.mut,
-  outfiles.prefix, outdir, samplename, subsamplenames, GS.data, density,
-  polygon.data, no.iters, no.iters.burn.in, min_muts_cluster,
-  min_frac_muts_cluster, assign_sampled_muts = T, write_tree = F,
-  generate_cluster_ordering = F, no.samples.cluster.order = 1000)
+writeStandardFinalOutput(
+  clustering,
+  dataset,
+  most.similar.mut,
+  outfiles.prefix,
+  outdir,
+  samplename,
+  subsamplenames,
+  GS.data,
+  density,
+  polygon.data,
+  no.iters,
+  no.iters.burn.in,
+  min_muts_cluster,
+  min_frac_muts_cluster,
+  assign_sampled_muts = T,
+  write_tree = F,
+  generate_cluster_ordering = F,
+  no.samples.cluster.order = 1000
+)
 }
 \arguments{
 \item{clustering}{A clustering result}

@@ -4,8 +4,13 @@
 \alias{plotAssignmentTable}
 \title{Plot a table with the assignment counts}
 \usage{
-plotAssignmentTable(cluster_locations, pngFile, cndata = NULL,
-  num_samples = 1, indeldata = NULL)
+plotAssignmentTable(
+  cluster_locations,
+  pngFile,
+  cndata = NULL,
+  num_samples = 1,
+  indeldata = NULL
+)
 }
 \arguments{
 \item{cluster_locations}{Cluster table with cluster number, cluster location and number of mutations as columns.}

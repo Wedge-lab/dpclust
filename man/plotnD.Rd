@@ -4,9 +4,19 @@
 \alias{plotnD}
 \title{Create a 2D plot for multi-dimensional clustering}
 \usage{
-plotnD(xvals, yvals, zvals, subclonal.fraction_x, subclonal.fraction_y,
-  pngFile, samplename_x, samplename_y, max.plotted.value = NA,
-  cluster.locations = NULL, plot_mutations = F)
+plotnD(
+  xvals,
+  yvals,
+  zvals,
+  subclonal.fraction_x,
+  subclonal.fraction_y,
+  pngFile,
+  samplename_x,
+  samplename_y,
+  max.plotted.value = NA,
+  cluster.locations = NULL,
+  plot_mutations = F
+)
 }
 \arguments{
 \item{xvals}{Density coordinates of the x-axis}

@@ -4,9 +4,15 @@
 \alias{add.in.cn.as.snv.cluster}
 \title{Function that adds copy number as a series of SNVs into a data set}
 \usage{
-add.in.cn.as.snv.cluster(dataset, cndata, cellularity, add.conflicts = T,
-  conflicting.events.only = F, num.clonal.events.to.add = 0,
-  min.cna.size = 10)
+add.in.cn.as.snv.cluster(
+  dataset,
+  cndata,
+  cellularity,
+  add.conflicts = T,
+  conflicting.events.only = F,
+  num.clonal.events.to.add = 0,
+  min.cna.size = 10
+)
 }
 \description{
 Function that adds copy number as a series of SNVs into a data set

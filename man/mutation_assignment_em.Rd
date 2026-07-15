@@ -4,8 +4,14 @@
 \alias{mutation_assignment_em}
 \title{Assign mutations for multi-dimensional clustering by adding clusters until the likelihood no longer improves}
 \usage{
-mutation_assignment_em(GS.data, mutCount, WTCount, subclonal.fraction,
-  node.assignments, opts)
+mutation_assignment_em(
+  GS.data,
+  mutCount,
+  WTCount,
+  subclonal.fraction,
+  node.assignments,
+  opts
+)
 }
 \arguments{
 \item{GS.data}{Output from the MCMC chain}

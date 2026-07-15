@@ -4,8 +4,12 @@
 \alias{get_snv_ccf_assignmnent_density}
 \title{Helper function that builds the a density over assignment CCFs for each mutation}
 \usage{
-get_snv_ccf_assignmnent_density(S.i, pi.h, no.iters.burn.in,
-  ccf_max_value = 10)
+get_snv_ccf_assignmnent_density(
+  S.i,
+  pi.h,
+  no.iters.burn.in,
+  ccf_max_value = 10
+)
 }
 \description{
 Helper function that builds the a density over assignment CCFs for each mutation
