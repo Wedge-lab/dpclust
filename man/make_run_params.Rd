@@ -8,7 +8,8 @@ make_run_params(no.iters, no.iters.burn.in, mut.assignment.type,
   num_muts_sample, is.male, min_muts_cluster = NULL,
   min_frac_muts_cluster = 0.01, species = "human",
   assign_sampled_muts = TRUE, supported_chroms = NULL,
-  keep_temp_files = TRUE, generate_cluster_ordering = FALSE)
+  keep_temp_files = TRUE, generate_cluster_ordering = FALSE,
+  memory_limit_gb = NA_real_, num_threads = NA_integer_)
 }
 \arguments{
 \item{no.iters}{The number of iterations that the MCMC chain should be run for}
@@ -34,6 +35,10 @@ make_run_params(no.iters, no.iters.burn.in, mut.assignment.type,
 \item{keep_temp_files}{Set to TRUE to keep temporary files (Default: TRUE)}
 
 \item{generate_cluster_ordering}{Set to TRUE to generate possible phylogenetic relationships between clusters (Default: FALSE)}
+
+\item{memory_limit_gb}{Optional hard memory guard rail in GB. DPClust runs if feasible under this limit, otherwise errors before starting.}
+
+\item{num_threads}{Number of CPU threads for the Gibbs C++ core (OpenMP). If NA, use runtime default.}
 }
 \value{
 A list containing these components

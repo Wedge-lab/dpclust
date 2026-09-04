@@ -11,5 +11,6 @@
 #' @importFrom utils head read.csv read.table write.csv write.table
 #' @importFrom grDevices cm.colors colorRampPalette dev.cur dev.off dev.set pdf png rainbow rgb
 #' @importFrom graphics hist legend lines par plot points polygon text title
+#' @import data.table
 #' @importFrom stats density median pchisq quantile rbeta rbinom rgamma rmultinom runif sd
 NA

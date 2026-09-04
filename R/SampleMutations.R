@@ -14,10 +14,10 @@
 #' @param sample.snvs.only Boolean whether to only sample SNVs (supply TRUE) or to sample all mutation types (supply FALSE) (Default: TRUE)
 #' @param remove.snvs Boolean whether to remove all SNVs (for clustering runs of only indels or CNAs) (Default: FALSE)
 #' @return A dataset object with only the sampled mutations and a full.data field that contains the original dataset
-sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, sampling_method=1, sample.snvs.only=T, remove.snvs=F) {
+sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, sampling_method=1, sample.snvs.only=TRUE, remove.snvs=FALSE) {
 
   # Check if sampling already was done
-  if (!is.na(dataset$sampling.selection)) {
+  if (.has_value(dataset$sampling.selection)) {
     return(dataset)
   }
   
@@ -29,7 +29,7 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
     # print(paste("Num muts smaller than", min_sampling_factor, "*threshold, not performing sampling", sep=""))
     return(dataset)
   } else {
-    print(paste("Sampling", num_muts_sample, "of", length(avail_for_sampling), "mutations", sep=" "))
+    log_info(paste("Sampling", num_muts_sample, "of", length(avail_for_sampling), "mutations", sep=" "))
   }
   
   # Store the original mutations
@@ -49,18 +49,18 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
   } else if (sampling_method==2) {
     # Take only subclonal mutations
     if (ncol(dataset$mutCount)==1) {
-      print("Taking only subclonal data. This only works in single sample cases")
+      log_info("Taking only subclonal data. This only works in single sample cases")
       selection = avail_for_sampling[which(dataset$subclonal.fraction[avail_for_sampling, 1] < 0.9)]
     } else {
-      print("Taking only subclonal data does not work for multi-sample cases, returning all data available for sampling")
+      log_info("Taking only subclonal data does not work for multi-sample cases, returning all data available for sampling")
       selection = avail_for_sampling
     }
     
   } else {
-    print("Unsupported sampling method supplied. No sampling performed.")
+    log_info("Unsupported sampling method supplied. No sampling performed.")
     return(dataset)
   }
-  print(paste("Subsampled number of mutations: ", length(selection)))
+  log_info(paste("Subsampled number of mutations: ", length(selection)))
   
   # Add CNA pseudo-SNVs if these were not to be sampled
   if (sample.snvs.only & !remove.snvs) {
@@ -81,10 +81,10 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
   subclonal.fraction = as.matrix(dataset$subclonal.fraction[selection,])
   mutationType = dataset$mutationType[selection]
   phase = dataset$phase[selection,]
-  if (!is.na(dataset$conflict.array)) {
-    conflict.array = dataset$conflict.array[selection, selection]
+  if (.has_value(dataset$conflict.array)) {
+    conflict.array = .subset_conflicts(dataset$conflict.array, selection)
   } else {
-    conflict.array = NA
+    conflict.array = .init_conflicts()
   }
 
   # Don't update these - maybe this should be done, but not like this as the removed_indices matrix remains the same size as CNAs are added
@@ -106,7 +106,7 @@ sample_mutations = function(dataset, num_muts_sample, min_sampling_factor=1.5, s
 get_most_similar_snv = function(full_data, selection) {
   most.similar.mut = rep(1, length(full_data$chromosome))
   
-  for (i in 1:length(full_data$chromosome)) { #[full_data$mutationType=="SNV"]
+  for (i in seq_along(full_data$chromosome)) { #[full_data$mutationType=="SNV"]
     if (i %in% selection) {
       # Save index of this mutation within selection - i.e. this row of the eventual mutation assignments must be selected
       most.similar.mut[i] = which(selection==i)
@@ -135,8 +135,8 @@ unsample_mutations = function(dataset, clustering_result) {
   }
   
   # Not all assignment options return a full likelihood table
-  if (any(!is.na(clustering_result$all.assignment.likelihoods))) {
-    all.assignment.likelihoods = clustering_result$all.assignment.likelihoods[dataset$most.similar.mut,,drop=F]
+  if (.has_assignment_likelihoods(clustering_result)) {
+    all.assignment.likelihoods = clustering_result$all.assignment.likelihoods[dataset$most.similar.mut,,drop=FALSE]
   } else {
     all.assignment.likelihoods = NA
   }

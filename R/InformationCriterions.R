@@ -18,7 +18,7 @@ log.f.of.y <- function(y1, n1, kappa1, x) {
   kappa1[kappa1==0] = NA
   res = lchoose(n1, y1) + y1 * log(kappa1*x) + (n1-y1) * log(1-kappa1*x)
   if (class(res) == "numeric") { res = matrix(res, nrow=1) }
-  resSums = rowSums(res,na.rm=T) * no.subsamples/no.kappa.nonzero
+  resSums = rowSums(res,na.rm=TRUE) * no.subsamples/no.kappa.nonzero
   return(resSums)
 }
 
@@ -40,8 +40,8 @@ dic <- function(y, n, kappa, all.likelihoods, all.thetas) {
   # all.likelihoods: matrix where each row corresponds to all likelihoods for MCMC iterations until now of a single mutation
   # all.thetas: list that contains a matrix for each subsample with each row a mutation and each column the theta's for the subsample of each MCMC iteration
   if (length(dim(all.likelihoods)) == 2) {
-    mean.likelihoods = rowMeans(-2 * all.likelihoods, na.rm=T)
-    mean.thetas = matrix(unlist(lapply(all.thetas, function(x) rowMeans(x, na.rm=T) )), ncol=length(all.thetas))
+    mean.likelihoods = rowMeans(-2 * all.likelihoods, na.rm=TRUE)
+    mean.thetas = matrix(unlist(lapply(all.thetas, function(x) rowMeans(x, na.rm=TRUE) )), ncol=length(all.thetas))
   } else {
     # A one dimensional array was given. rowMeans therefore does not work, while the values in the array also represent the mean.
     mean.likelihoods = -2 * all.likelihoods

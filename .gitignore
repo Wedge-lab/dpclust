@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Rproj
+.DS_Store
+src/*.o
+src/*.so
